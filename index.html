@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="刀房調度"><meta name="robots" content="noindex,nofollow">
+<title>泌尿科刀房調度板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: clinical, calm, exact — a chief resident's tool used every afternoon
+   IDEA: the OR control-desk whiteboard: rooms as lanes, the 16:00 line drawn in red
+   PICTURE: live Gantt of every room with 16:00 / 17:30 / 18:00 lines, cases as coloured blocks
+   COLOUR and TYPE: white ground, scrub teal #0b5563 band, coral red for overtime; Noto Sans TC + Figtree figures
+   LAYOUT: band header → summary → Gantt → advice + rooms → staffing → LINE text; settings in tabs */
+:root{color-scheme:light dark;--bg:light-dark(#f4f7f7,#0b1315);--card:light-dark(#fff,#121e21);--ink:light-dark(#0f262b,#e2edee);--mut:light-dark(#587076,#8ea6aa);--line:light-dark(#d8e2e3,#24363a);--scrub:light-dark(#0b5563,#0e6474);--soft:light-dark(#e4f0f1,#15313a);--red:#e5484d;--redbg:light-dark(#fdecec,#3a1a1c);--amb:#c77d00;--ambbg:light-dark(#fff4dc,#3a2c10);--ok:#1f8a5b;--okbg:light-dark(#e6f5ee,#123227)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC",system-ui,sans-serif;overflow-x:clip}
+.num,.t{font-family:Figtree,"Noto Sans TC",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+header{background:var(--scrub);color:#fff;padding:18px max(4vw,14px) 0}
+.hrow{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;max-width:1320px;margin:auto}
+h1{font:800 clamp(24px,3.4vw,36px)/1.05 Figtree,"Noto Sans TC",sans-serif;margin:0;letter-spacing:.01em}
+.sub{opacity:.85;font-size:14px}
+.datebox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.datebox input,.datebox select{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:8px 10px;font:16px Figtree,sans-serif;min-height:44px}
+.datebox select option{color:#000}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.tabs{display:flex;gap:4px;max-width:1320px;margin:14px auto 0;overflow-x:auto}
+.tabs button{background:transparent;color:#fff;border:0;border-radius:10px 10px 0 0;padding:11px 18px;font:500 15px "Noto Sans TC",sans-serif;min-height:44px;cursor:pointer;opacity:.8;flex:none}
+.tabs button[aria-selected=true]{background:var(--bg);color:var(--ink);opacity:1;font-weight:700}
+main{max-width:1320px;margin:auto;padding:18px max(4vw,14px) 60px}
+section{margin-bottom:22px}
+h2{font:700 19px/1.3 "Noto Sans TC",sans-serif;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi b{display:block;font:800 26px/1.1 Figtree,sans-serif}
+.kpi span{color:var(--mut);font-size:13px}
+.kpi.bad{border-color:var(--red);background:var(--redbg)}.kpi.warn{border-color:var(--amb);background:var(--ambbg)}.kpi.ok{border-color:var(--ok);background:var(--okbg)}
+.scroll{overflow-x:auto}
+.gantt{min-width:760px;padding:6px 0 2px}
+.grow{display:grid;grid-template-columns:132px 1fr 64px;align-items:center;min-height:46px;border-bottom:1px solid var(--line)}
+.glab{padding-right:8px;font-size:13px;line-height:1.25}.glab b{font:800 17px Figtree,sans-serif;display:block}
+.gtrack{position:relative;height:36px}
+.gend{text-align:right;font:700 14px Figtree,sans-serif}
+.gend.bad{color:var(--red)}.gend.warn{color:var(--amb)}
+.vl{position:absolute;top:-6px;bottom:-6px;border-left:1px solid var(--line);pointer-events:none}
+.vl.dl{border-left:2px solid var(--red)}.vl.ot{border-left:2px dashed var(--amb)}.vl.dv{border-left:2px dotted var(--red)}.vl.md{border-left:1px dashed var(--mut);opacity:.6}
+.ticks{position:relative;height:20px;font:12px Figtree,sans-serif;color:var(--mut)}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.bar{position:absolute;top:4px;bottom:4px;border-radius:6px;color:#fff;font-size:12px;line-height:28px;padding:0 6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;box-shadow:inset 0 -2px 0 rgba(0,0,0,.18)}
+.bar.late{outline:2px solid var(--red);outline-offset:1px}
+.bar.top::before{content:"★ "}
+.c-minor{background:#6f9bb6}.c-urs{background:#2f7fb5}.c-tur{background:#4f5bd5}.c-laser{background:#8c45b8}.c-pcnl{background:#c4621d}.c-lap{background:#0f8b8d}.c-robot{background:#c2185b}.c-open{background:#5f7224}.c-bx{background:#9c7a12}.c-eswl{background:#6b6b6b}.c-tx{background:#8a3b3b}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12.5px;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media(max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+.adv{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.adv li{border-radius:10px;padding:10px 12px;border-left:5px solid var(--mut);background:var(--soft)}
+.adv li.bad{border-color:var(--red);background:var(--redbg)}.adv li.warn{border-color:var(--amb);background:var(--ambbg)}.adv li.ok{border-color:var(--ok);background:var(--okbg)}
+.adv b{display:block}.adv p{margin:3px 0 0;font-size:13.5px}
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:12px}
+.room h3{margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:16px}
+.room h3 .rn{font:800 22px Figtree,sans-serif}
+.cases{list-style:none;margin:0;padding:0}
+.case{display:grid;grid-template-columns:88px minmax(0,1fr);gap:4px 8px;padding:8px 0;border-top:1px solid var(--line)}
+.case .t{font-weight:700;font-size:13px}
+.case .pn{font-size:13px;color:var(--mut);overflow-wrap:anywhere}
+.case .cx{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.case.late .t{color:var(--red)}
+.chip{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:99px;background:var(--soft);margin-left:4px;white-space:nowrap}
+.chip.r{background:var(--redbg);color:var(--red)}.chip.a{background:var(--ambbg);color:var(--amb)}
+button,select,input,textarea{font:inherit;color:inherit}
+.btn{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-height:40px;cursor:pointer}
+.btn.p{background:var(--scrub);border-color:var(--scrub);color:#fff;font-weight:700}
+.btn.s{padding:4px 9px;min-height:34px;min-width:34px;font-size:13px}
+.btn:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #3aa0b4;outline-offset:1px}
+select,input[type=text],input[type=number],input[type=time],textarea{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;min-height:38px}
+input[type=number]{width:74px;text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:16px;text-align:center;background:var(--card)}
+.drop.on{border-color:var(--scrub);background:var(--soft)}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:middle;font-size:14px}
+th{font-size:12.5px;color:var(--mut);font-weight:500;white-space:nowrap}
+.res td select{min-width:92px}
+.as{font-weight:700;white-space:nowrap}.as.bad{color:var(--red)}.as.warn{color:var(--amb)}
+.ab select{min-width:64px;font-size:14px;padding:4px}
+.ab0{background:light-dark(#f1f1f1,#222)!important}.ab1{background:light-dark(#fff6d9,#3a3010)!important}.ab2{background:light-dark(#dff0fb,#123047)!important}.ab3{background:light-dark(#d9f3e5,#113524)!important}
+textarea.line{width:100%;min-height:300px;font:15px/1.5 "Noto Sans TC",monospace}
+.note{font-size:13px;color:var(--mut)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.thumbs img{height:70px;border-radius:6px;border:1px solid var(--line)}
+details summary{cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center}
+.sync{font-size:12px;opacity:.9}
+@media(max-width:600px){.grow{grid-template-columns:96px 1fr 52px}.case{grid-template-columns:76px minmax(0,1fr)}table{font-size:13px}}
+
+.grip{cursor:grab;touch-action:none;user-select:none;display:inline-block;padding:2px 6px 2px 0;font-size:16px;color:var(--mut)}
+.case.fixed{background:linear-gradient(90deg,var(--soft),transparent 60%)}
+.case.dragging{opacity:.35}.case.dropb{box-shadow:inset 0 3px 0 var(--scrub)}.cases.dropend{box-shadow:inset 0 -3px 0 var(--scrub)}
+.ghost{position:fixed;z-index:50;pointer-events:none;background:var(--card);border:2px solid var(--scrub);border-radius:10px;padding:6px 10px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:280px}
+.gapn{grid-column:1/-1;font-size:12px;color:var(--amb)}
+.tg.on{background:var(--scrub);color:#fff;border-color:var(--scrub)}
+input.man{border-color:var(--scrub);border-width:2px}
+.dcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:10px}.dh{text-align:center;font-size:12px;color:var(--mut)}
+.dcell{border:1px solid var(--line);border-radius:8px;padding:4px;min-height:74px;font-size:12px;display:flex;flex-direction:column;gap:2px}.dcell.we{background:var(--soft)}.dcell.today{outline:2px solid var(--scrub)}
+.dcell .btn.s{min-height:26px;padding:1px 6px;font-size:12px;margin:1px}.dcell select{min-height:26px;font-size:12px;padding:0 2px;margin-top:auto}
+@media(prefers-reduced-motion:no-preference){.bar{transition:left .25s,width .25s}}
+</style>
+</head>
+<body>
+<div id="app"><header><div class="hrow"><h1>泌尿科刀房調度板</h1></div></header><main><p>載入中…</p></main></div>
+<input type="file" id="file" accept="image/*" multiple hidden data-ch="file">
+<script>
+{
+/*CORE*/
+const CATS=[['minor','膀胱鏡/DJ小刀'],['urs','URS/RIRS 碎石'],['tur','TUR-BT/TUR-P/膀胱'],['laser','攝護腺雷射'],['pcnl','PCNL/ECIRS'],['lap','腹腔鏡'],['robot','達文西 Xi'],['sp','SP 達文西'],['open','開放/陰囊/疝氣'],['bx','切片/HIFU'],['eswl','ESWL'],['tx','腎移植']];
+const CATN=Object.fromEntries(CATS);const isRob=c=>c==='robot'||c==='sp';
+const ABN=['0 未學','1 可跟刀','2 可操作','3 獨立操作'];
+const STS=[['auto','自動排'],['avail','照常排（不套值班表）'],['duty','值班(可排)'],['OPD','OPD'],['pm','pm'],['ward','病房'],['class','上課/開會'],['leave','請假/年休']];
+const DOW='日一二三四五六';
+const T=s=>{const m=String(s||'').match(/(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:0};
+const HM=x=>{x=Math.round(x);return String(Math.floor(x/60)).padStart(2,'0')+':'+String(((x%60)+60)%60).padStart(2,'0')};
+function isoWeek(ds){const d=new Date(ds+'T00:00:00Z');const dn=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-dn+3);const f=new Date(Date.UTC(d.getUTCFullYear(),0,4));return 1+Math.round(((d-f)/864e5-3+(f.getUTCDay()+6)%7)/7)}
+const dowOf=ds=>new Date(ds+'T00:00:00Z').getUTCDay();
+const OLDC=['minor','urs','tur','laser','pcnl','lap','robot','open','bx','eswl','tx'];const mkAb=(a,sp=0)=>({...Object.fromEntries(OLDC.map((c,i)=>[c,a[i]||0])),sp});
+function defaultCfg(){const c={v:9,
+set:{start:'08:30',amEnd:'12:30',turn:15,deadline:'16:00',nurseOT:'17:30',dvBlock:'18:00',opdam:1,opdpm:1,longCase:180,sdStart:'13:00',pmStart:'13:00',postCall:true},
+duty:{},
+rooms:[{id:'6',tower:'Storz-C',need:1,opn:3,lum:true},{id:'16',tower:'1788',need:1,opn:3,lum:true},{id:'24',tower:'1788',need:1,opn:2,swapSat:true},{id:'26',tower:'Storz-A',need:1,opn:2},{id:'23',tower:'Xi',need:1,opn:0,robot:true,alias:'達文西1'},{id:'5',tower:'Storz-B',need:1,opn:1,swap:true},{id:'53',tower:'SP',need:1,opn:0,robot:true,alias:'SP達文西'},{id:'29',tower:'門診',need:0,opn:0,ga:false,opd:true},{id:'ESWL',tower:'碎石',need:0,opn:0,ga:false}],
+sur:[{n:'黃冠華',p:10,sp:1,t:'部長'},{n:'蘇家震',p:5,sp:1},{n:'劉建良',p:5,sp:1},{n:'李高漢',p:5,sp:1},{n:'洪順興',p:5,sp:1},{n:'謝昆霖',p:5,sp:1},{n:'曾文歆',p:5,sp:1},{n:'王致丞',p:5,sp:1},{n:'林才揚',p:5,sp:1},{n:'陳致豪',p:5,sp:1},{n:'陳俊豪',p:5,sp:1}],
+res:[{id:'jia',n:'佳駤',lv:'CR',on:true,ab:mkAb([3,3,3,3,3,3,3,3,3,3,2],3)},{id:'ting',n:'亭易',lv:'CR',on:true,ab:mkAb([3,3,3,3,3,3,3,3,3,3,2],1)},{id:'zy',n:'正宇',lv:'R4',on:true,ab:mkAb([3,3,3,2,2,2,3,3,3,3,2])},{id:'hw',n:'華緯',lv:'R4',on:true,ab:mkAb([3,3,3,2,2,2,3,3,3,3,2])},{id:'wy',n:'宛妤',lv:'R3',on:true,ab:mkAb([3,3,3,2,2,2,1,2,3,3,1])},{id:'yw',n:'悅文',lv:'R1',on:true,ab:mkAb([2,1,1,1,1,1,0,1,1,1,0])},{id:'wj',n:'偉鈞',lv:'R3',role:'junior',sup:true,on:true,ab:mkAb([2,1,1,1,1,1,0,1,1,1,0])},{id:'rj',n:'仁傑',lv:'R3',on:false,ab:mkAb([3,3,2,1,1,2,1,2,2,3,1])},{id:'yx',n:'又瑄',lv:'R1',on:false,ab:mkAb([2,1,1,1,1,1,0,1,1,1,0])}],
+wl:[{s:'黃冠華',cat:'robot',allow:['jia','ting']},{s:'黃冠華',cat:'sp',allow:['jia','ting']}],
+leaves:[{r:'jia',from:'2026-11-19',to:'2026-11-27',type:'請假',half:'all'},{r:'wj',from:'2026-11-16',to:'2026-11-29',type:'年休',half:'all'}],
+help:[{s:'黃冠華',dow:'2',half:'am',h:'林才揚'},{s:'黃冠華',dow:'4',half:'all',h:'陳致豪'}],
+tpl:{'1':{'6':'蘇家震/劉建良','16':'李高漢','5':'以一換一'},'2':{'6':'洪順興/謝昆霖','16':'曾文歆','26':'黃冠華','23':'黃冠華','5':'以一換一'},'3':{'6':'王致丞','16':'蘇家震','5':'以一換一'},'4':{'6':'劉建良','24':'黃冠華','5':'以一換一'},'5':{'6':'謝昆霖','16':'林才揚','5':'劉建良（單週）'},'6o':{'6':'陳致豪','24':'陳俊豪','5':'以一換一'},'6e':{'6':'王致丞','24':'李高漢','5':'以一換一'}},
+procs:[
+{k:'sp davinci hernio,sp 達文西疝氣',cat:'sp',m:120,lv:1},{k:'sp davinci,sp 達文西,single port,single-port',cat:'sp',m:240,lv:1},{k:'rarc,radical cystectomy,neobladder',cat:'robot',m:420,lv:3},{k:'rarp,radical prostatectomy',cat:'robot',m:240,lv:3},{k:'rapn,partial nephrectomy',cat:'robot',m:210,lv:3},{k:'davinci hernio,達文西疝氣',cat:'robot',m:120,lv:2},{k:'davinci,達文西,robot',cat:'robot',m:180,lv:3},
+{k:'nephroureterectomy,nxux',cat:'lap',m:240,lv:2},{k:'nephrectomy',cat:'lap',m:180,lv:2},{k:'adrenalectomy,pyeloplasty',cat:'lap',m:180,lv:2},{k:'laparoscopic hernio,hernioplasty,hemioplasty',cat:'lap',m:90,lv:1},
+{k:'transplant,移植',cat:'tx',m:240,lv:2},{k:'ecirs',cat:'pcnl',m:150,lv:3},{k:'pcnl,percutaneous',cat:'pcnl',m:120,lv:2},
+{k:'holep,thulep,enucleation',cat:'laser',m:120,lv:3},{k:'vela,greenlight,pvp',cat:'laser',m:75,lv:2},
+{k:'flexible urs,flexble urs,flex urs,rirs,軟式',cat:'urs',m:90,lv:2},{k:'urs-sm,urs sm',cat:'urs',m:60,lv:2},{k:'urs,ureteroscop',cat:'urs',m:45,lv:1},
+{k:'tur-p,turp,bipolar',cat:'tur',m:75,lv:2},{k:'tur-bt,turbt',cat:'tur',m:45,lv:2},{k:'tui-p,tuip',cat:'tur',m:30,lv:1},{k:'evacuation,clot',cat:'tur',m:60,lv:1},{k:'vesicolithotripsy,cystolitho',cat:'tur',m:45,lv:1},
+{k:'hifu',cat:'bx',m:120,lv:2},{k:'mr fusion,fusion',cat:'bx',m:45,lv:1},{k:'rezum,water vapor',cat:'tur',m:30,lv:1},{k:'vasectomy',cat:'open',m:30,lv:1},{k:'sounding',cat:'minor',m:10,lv:1},{k:'biopsy,切片,fusion',cat:'bx',m:30,lv:1},{k:'eswl,碎石中心',cat:'eswl',m:45,lv:1},
+{k:'herniorrhaphy,hemiorrhaphy',cat:'open',m:60,lv:1},{k:'varicocele',cat:'open',m:90,lv:1},{k:'orchiectomy,orchiopexy,hydrocele,circumcision,excision',cat:'open',m:45,lv:1},
+{k:'urethrotomy,dvi',cat:'minor',m:30,lv:1},{k:'double-j,double -j,double j,stent',cat:'minor',m:20,lv:1},{k:'r-p,retrograde',cat:'minor',m:20,lv:1},{k:'cystoscopy,膀胱鏡',cat:'minor',m:15,lv:1},
+{k:'laser,雷射,lithovue,lumenis,multipulse,stone basket,pusen,lithoclast',cat:'addon',m:15,lv:1}]};c.procs.forEach(p=>p.lv=p.lv>=3?2:1);return c}
+let cfg=defaultCfg();
+function fixCfg(c){const d=defaultCfg();if(!c||typeof c!=='object')return d;for(const k of Object.keys(d))if(c[k]==null)c[k]=d[k];c.set={...d.set,...c.set};if((c.v||1)<2){c.rooms.forEach(r=>{if(r.id==='29'||r.id==='ESWL'){r.need=1;r.ga=false}});for(const r of c.res){if(['zy','hw','jia','ting'].includes(r.id))r.ab.robot=3;else r.ab.robot=Math.min(+r.ab.robot||0,1)}c.v=2}if(c.v<3){const e=c.rooms.find(r=>r.id==='ESWL');if(e)e.need=0;const w=c.res.find(r=>r.id==='wj');if(w){w.lv='R3';w.role='junior';w.ab=mkAb([2,1,1,1,1,1,0,1,1,1,0])}c.v=3}if(c.v<4){const z=c.rooms.find(r=>r.id==='29');if(z){z.need=0;z.opd=true}c.v=4}if(c.v<5){const w=c.res.find(r=>r.id==='wj');if(w)w.sup=true;c.set.opdam=1;c.set.opdpm=1;c.v=5}if(c.v<6){c.procs.forEach(p=>p.lv=+p.lv>=3?2:1);c.v=6}if(c.v<7){const add=[{k:'mr fusion,fusion',cat:'bx',m:45,lv:1},{k:'rezum,water vapor',cat:'tur',m:30,lv:1},{k:'vasectomy',cat:'open',m:30,lv:1},{k:'sounding',cat:'minor',m:10,lv:1}];const hi=c.procs.findIndex(p=>/hifu/.test(p.k));for(const a of add.reverse())if(!c.procs.some(p=>p.k===a.k))c.procs.splice(hi<0?0:hi+1,0,a);const r23=c.rooms.find(r=>r.id==='23');if(r23&&!r23.alias)r23.alias='達文西1';c.v=7}if(c.v<8){c.procs.forEach(p=>{if(/hernioplasty/.test(p.k)&&!/hemio/.test(p.k))p.k+=',hemioplasty';if(/herniorrhaphy/.test(p.k)&&!/hemio/.test(p.k))p.k+=',hemiorrhaphy'});c.v=8}if(c.v<9){for(const r of c.res){r.ab=r.ab||{};r.ab.sp=r.id==='jia'?3:r.id==='ting'?1:0}const add=[{k:'sp davinci hernio,sp 達文西疝氣',cat:'sp',m:120,lv:1},{k:'sp davinci,sp 達文西,single port,single-port',cat:'sp',m:240,lv:1}];for(const a of add.reverse())if(!c.procs.some(p=>p.k===a.k))c.procs.unshift(a);if(!c.wl.some(w=>w.s==='黃冠華'&&w.cat==='sp'))c.wl.push({s:'黃冠華',cat:'sp',allow:['jia','ting']});c.v=9}return c}
+const sur=n=>cfg.sur.find(s=>s.n===n)||{n,p:5,sp:1};
+const topS=()=>cfg.sur.filter(s=>+s.p>=9).map(s=>s.n);
+const roomCfg=id=>cfg.rooms.find(r=>r.id===String(id))||{id:String(id),tower:'',need:1,opn:1};
+const isGA=id=>{const r=roomCfg(id);return r.ga!==false&&+r.need>0};
+const helperOf=(ds,surgeon,half,cat)=>{if(isRob(cat))return'';const w=String(dowOf(ds));const h=(cfg.help||[]).find(x=>x.s===surgeon&&String(x.dow)===w&&(x.half==='all'||x.half===half));return h?h.h:''};
+const isSwap=(id,ds)=>{const r=roomCfg(id);return !!(r.swap||(r.swapSat&&dowOf(ds)===6))};
+function classify(name){const n=String(name).toLowerCase();for(const p of cfg.procs){if(String(p.k).split(/[,，]/).some(k=>{k=k.trim().toLowerCase();return k&&n.includes(k)}))return p}return null}
+function est(c){const ps=c.procs.map(n=>classify(n));const mains=ps.filter(p=>p&&p.cat!=='addon').sort((a,b)=>b.m-a.m),adds=ps.filter(p=>p&&p.cat==='addon'),unk=ps.filter(p=>!p).length;let base=0,cat='minor',lv=1;
+ if(mains.length){base=+mains[0].m+mains.slice(1).reduce((s,p)=>s+p.m*.5,0);cat=mains[0].cat;lv=Math.max(...mains.map(p=>+p.lv))}else if(adds.length){base=45;cat='urs';lv=2}
+ base+=adds.reduce((s,p)=>s+ +p.m,0)+unk*45;return{cat,lv,dur:Math.max(10,+c.minDur||0,Math.round(base*(+sur(c.surgeon).sp||1)/5)*5),unknown:unk}}
+function tplKey(day){const w=dowOf(day.date);if(w===0)return null;if(w!==6)return String(w);const par=day.par||(isoWeek(day.date)%2?'odd':'even');return par==='odd'?'6o':'6e'}
+const tplRooms=day=>{const k=tplKey(day);return k?Object.entries(cfg.tpl[k]||{}).filter(([r,s])=>s&&s.trim()):[]};
+const tplOwner=(day,room)=>{const e=tplRooms(day).find(([r])=>r===String(room));return e?e[1].replace(/（.*?）|\(.*?\)/g,'').split('/').map(s=>s.trim()).filter(Boolean):[]};
+const halvesOf=(day,room)=>{const ow=tplOwner(day,room);return ow.length?{am:ow[0],pm:ow[1]||ow[0]}:null};
+const isSplit=(day,room)=>{const h=halvesOf(day,room);return h&&h.am!==h.pm?h:null};
+const rocDate=s=>{const m=String(s||'').match(/(\d{3})(\d{2})(\d{2})/);return m?`${+m[1]+1911}-${m[2]}-${m[3]}`:null};
+const roomOf=loc=>{loc=String(loc||'');if(/碎石|B2/i.test(loc))return'ESWL';for(const r of cfg.rooms)for(const a of String(r.alias||'').split(/[,，]/).map(x=>x.trim()).filter(Boolean))if(loc.includes(a))return r.id;const m=loc.match(/R\s*0*(\d+)/i);if(!m)return'?';const id=m[1];if(cfg.rooms.some(r=>r.id===id))return id;const near=cfg.rooms.filter(r=>/^\d+$/.test(r.id)&&r.id.length===id.length&&[...id].filter((ch,i)=>ch!==r.id[i]).length===1);return near.length===1?near[0].id:id};
+let uid=0;const nid=()=>'c'+Date.now().toString(36)+(uid++);
+function interleave(fixed,rest,clocks,start){const turn=+cfg.set.turn||0,dur=c=>c.md!=null&&c.md!==''?+c.md:est(c).dur;let t=start;const out=[];const add=c=>{const s=Math.max(t,c.clock&&c.time?T(c.time):0);t=s+dur(c)+turn;out.push(c)};
+ fixed.forEach(add);const q=[...clocks].sort((a,b)=>T(a.time)-T(b.time));for(const c of rest){while(q.length&&T(q[0].time)<=t)add(q.shift());add(c)}q.forEach(add);return out}
+function rowsToCases(rows){const st=T(cfg.set.start),G=new Map();rows.forEach((r,i)=>{const t=String(r.time||'').trim();let slot,kind='';
+ if(/夜/.test(t)){slot=999;kind='eve'}else if(/TF/i.test(t)){slot=+((t.match(/\d+/)||[1])[0])}else if(/\d{1,2}:\d{2}/.test(t)){if(T(t)<=st)slot=0;else{slot=T(t)/10000;kind='clock'}}else slot=60;
+ if(r.del)return;const key=[r.date,r.room,r.surgeon,slot,kind==='clock'?t:'',r.pid||''].join('|');let g=G.get(key);if(!g){g={id:nid(),date:r.date,room:r.room,surgeon:r.surgeon,slot,seq:i,procs:[],spec:[],time:kind==='clock'?t:'',eve:kind==='eve',clock:kind==='clock',opd:kind==='clock',fixed:slot===0&&!kind,sq:r.sq||undefined,raw:r.raw||undefined,md:null};G.set(key,g)}
+ if(r.anes&&!g.anes)g.anes=r.anes;const hr=String(r.special||'').match(/>\s*(\d+(?:\.\d+)?)\s*hr/i);if(hr)g.minDur=Math.max(g.minDur||0,Math.round(+hr[1]*60));g.procs.push(r.name);if(r.special&&!/^[\/\s]*$/.test(r.special))g.spec.push(r.special);if(/(^|[\/\s])ER\b|急/.test(r.special||''))g.er=true});
+ const out={};for(const g of G.values())(out[g.date]=out[g.date]||[]).push(g);
+ for(const d in out){const byR={};out[d].sort((a,b)=>a.slot-b.slot||a.seq-b.seq).forEach(c=>{if(!c.eve)(byR[c.room]=byR[c.room]||[]).push(c)});
+  for(const room in byR){const cs=byR[room];interleave(cs.filter(c=>c.fixed),cs.filter(c=>!c.fixed&&!c.clock),cs.filter(c=>c.clock),st).forEach((c,j)=>c.order=j+1)}
+  out[d].forEach(c=>{if(c.eve)c.order=0;delete c.slot;delete c.seq})}return out}
+function fuzzySur(raw,date,room){const s=String(raw||'').trim(),known=cfg.sur.map(x=>x.n);if(!s||known.includes(s))return{s};const hit=known.find(k=>s.includes(k));if(hit)return{s:hit};let best=null;for(const k of known){const n=[...k].filter(c=>s.includes(c)).length;if(n>=2&&(!best||n>best.n))best={k,n}}if(best)return{s:best.k};const ow=date&&room?tplOwner({date},room):[];return{s:ow[0]||s,sq:true,raw:s}}
+function normRow(o,fallbackDate){const date=rocDate(o.d||o.date)||fallbackDate;const room=roomOf(o.loc||o.room);const fz=fuzzySur(o.s||o.surgeon,date,room);return{sq:fz.sq,raw:fz.raw,date,time:String(o.t||o.time||''),surgeon:fz.s,room,name:String(o.n||o.name||'').trim(),special:String(o.x||o.special||'').trim()}}
+function parseHIS(txt,fallbackDate){const a=String(txt).split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],TM=/^(\d{1,2}:\d{2}|TF\s*:?\s*\d+|[小大]夜:?)$/i;const starts=[];for(let i=0;i<a.length-1;i++)if(/^\d{7}$/.test(a[i])&&TM.test(a[i+1]))starts.push(i);
+ starts.forEach((j,n)=>{const end=n+1<starts.length?starts[n+1]-2:a.length;let k=j+3;const s=a[j+2];if(/^[YN]$/.test(a[k]))k++;const loc=a[k],name=a[k+1];let q=k+2,spec=[];while(q<end&&q<k+5&&!/^(住|門|徑|急|急診)$/.test(a[q])){spec.push(a[q]);q++}
+  const seg=a.slice(q,end);const anes=(seg.find(x=>/^(GA|IVGA|LA|Sed|Spinal|EA|SA|MAC)/i.test(x))||'').split(' ')[0];const del=seg.some(x=>/已刪|刪除|取消/.test(x));const pid=/^\d{6,10}$/.test(a[j-2]||'')?a[j-2]:'';
+  const r=normRow({d:a[j],t:a[j+1].replace(/\s/g,''),s,loc,n:name,x:spec.filter(x=>x!=='/').join(' ')},fallbackDate);r.anes=anes;r.del=del;r.pid=pid;rows.push(r)});return rows}
+function parseText(txt,fallbackDate){const his=parseHIS(txt,fallbackDate);if(his.length)return his;txt=String(txt).replace(/：/g,':').replace(/[”“"'`]/g,' ').replace(/\bT\s*[EF]{1,2}\s*[:;.,]*\s*(\d)/g,'TF:$1 ').replace(/\bO(\d:\d\d)/g,'0$1').replace(/(3F|2F門診|門診|碎石)\s*R\s*([0-9OoQSsDl]{1,3})/g,(m,a,d)=>a+' R'+d.replace(/[OoQD]/g,'0').replace(/[Ss]/g,'5').replace(/l/g,'1'));const rows=[];for(let ln of String(txt).split(/\r?\n/)){ln=ln.trim();if(!ln||/手術日|手術師/.test(ln))continue;let p;
+ if(ln.split('\t').length>=5){p=ln.split('\t').map(s=>s.trim());const hasC=p.length>=7||/^[YN]?$/.test(p[3]);const [d,t,s]=p;const off=hasC?4:3;rows.push(normRow({d,t,s,loc:p[off],n:p[off+1],x:p.slice(off+2).join(' ')},fallbackDate));continue}
+ const m=ln.match(/^(\d{7})?\s*(\d{1,2}:\d{2}|TF\s*:\s*\d+|小夜:?|大夜:?)\s+(\S+)\s+(?:[YN]\s+)?((?:3F|2F門診|2F|B2碎石|B2)?\s*R\d+\S*)\s+(.+)$/i);
+ if(m){let n=m[5],x='';const mm=n.match(/^(.*?)\s{2,}(\S+)$/)||n.match(/^(.*\S)\s+(\/\S*)$/);if(mm){n=mm[1];x=mm[2]}rows.push(normRow({d:m[1],t:m[2].replace(/\s/g,''),s:m[3],loc:m[4],n,x},fallbackDate))}}return rows}
+function timeline(day){const st=T(cfg.set.start),turn=+cfg.set.turn||0,by={};
+ for(const c of day.cases){if(c.eve)continue;(by[c.room]=by[c.room]||[]).push(c)}
+ const ids=[...cfg.rooms.map(r=>r.id).filter(id=>by[id]),...Object.keys(by).filter(id=>!cfg.rooms.some(r=>r.id===id))];
+ const sdS=T(cfg.set.sdStart||'13:00'),pmS=T(cfg.set.pmStart||'13:00');const rooms=ids.map(id=>{let t=st;const sp=isSplit(day,id);let pmF=false;const cs=by[id].sort((a,b)=>(b.fixed?1:0)-(a.fixed?1:0)||a.order-b.order).map(c=>{const e0=est(c);const dur=c.md!=null&&c.md!==''?+c.md:e0.dur;let s=t;if(c.clock&&c.time)s=Math.max(t,T(c.time));if(c.sd)s=Math.max(s,sdS);let pmFirst=false;if(sp&&c.surgeon===sp.pm){s=Math.max(s,pmS);if(!pmF){pmF=pmFirst=true}}const gap=s-t;const e=s+dur;t=e+turn;return{c,s,e,dur,gap,pmFirst,est:e0.dur,cat:e0.cat,lv:e0.lv,unknown:e0.unknown}});const amc=sp?cs.filter(x=>x.c.surgeon!==sp.pm):[];return{id,cases:cs,end:cs.length?cs[cs.length-1].e:st,split:sp,amEndAt:amc.length?amc[amc.length-1].e:null}});
+ return{rooms,eve:day.cases.filter(c=>c.eve)}}
+function demands(day,tl){const am=T(cfg.set.amEnd),out=[];const mk=(room,half,cs,tpl)=>{const hp=cs.map(x=>helperOf(day.date,x.c.surgeon,half,x.cat));const helper=hp.every(Boolean)?hp[0]:'';if(helper)cs=cs.map(x=>({...x,lv:Math.max(1,x.lv-1)}));const prio=(helper?5:Math.max(...cs.map(x=>+sur(x.c.surgeon).p)))+(cs.some(x=>isRob(x.cat))?.5:0)-(isGA(room)?0:3);return{room,half,cs,tpl,helper,prio,maxLv:Math.max(...cs.map(x=>x.lv))}};
+ const cr=tl.rooms.filter(r=>r.cases.length&&+roomCfg(r.id).need>0);
+ if(cr.length){for(const r of cr)for(const half of['am','pm']){const cs=r.cases.filter(x=>half==='am'?x.s<am:x.e>am);if(!cs.length)continue;for(let k=0;k<+roomCfg(r.id).need;k++)out.push(mk(r.id,half,cs,false))}}
+ else for(const[room,str]of tplRooms(day)){if(/以一換一/.test(str)||+roomCfg(room).need<=0)continue;const ow=str.replace(/（.*?）|\(.*?\)/g,'').split('/').map(s=>s.trim());for(const half of['am','pm']){const s=half==='am'?ow[0]:(ow[1]||ow[0]);if(!s)continue;const cat=topS().includes(s)&&(roomCfg(room).robot||room==='24')?'robot':'urs';out.push(mk(room,half,[{c:{surgeon:s,id:'tpl'},cat,lv:cat==='robot'?3:2,s:0,e:0}],true))}}
+ return out}
+const LTYPES=['請假','年休','外專請假','UAA請假','公假','喪假','婚假','產假','外派/輪訓'];
+const leaveOf=(rid,date,half)=>(cfg.leaves||[]).find(l=>l.r===rid&&l.from<=date&&(l.to||l.from)>=date&&(l.half==='all'||!l.half||!half||l.half===half));
+const leaveTxt=l=>{const[,m,d]=(l.to||l.from).split('-');return l.from===l.to?l.type:`${l.type}到${+m}/${+d}`};
+const addDays=(ds,n)=>{const d=new Date(ds+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const onDuty=(rid,ds)=>((cfg.duty||{})[ds]||[]).includes(rid);
+const autoSt=(rid,ds,h)=>{if(h==='pm'&&cfg.set.postCall!==false&&dowOf(ds)!==0&&onDuty(rid,addDays(ds,-1)))return'pm';if(onDuty(rid,ds))return'duty';return'auto'};
+const resKeys=r=>[r.n,...String(r.alias||'').split(/[,，、\s]+/)].map(x=>x.trim()).filter(Boolean);
+function parseDuty(txt,month){const[Y,M]=month.split('-').map(Number);const out={};const res=cfg.res;const pad=n=>String(n).padStart(2,'0');const iso=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+ const who=t=>res.filter(r=>resKeys(r).some(k=>t.includes(k))).map(r=>r.id);
+ const lines=String(txt).split(/\r?\n/);let hdr=null;
+ for(const ln of lines){const cells=ln.split('\t');const nums=cells.map(c=>c.trim()).filter(c=>/^\d{1,2}$/.test(c)&&+c>=1&&+c<=31);if(cells.length>=10&&nums.length>=10&&!who(ln).length){hdr=cells.map(c=>/^\s*\d{1,2}\s*$/.test(c)?+c:null);continue}
+  if(hdr&&cells.length>=8){const ids=who(cells.slice(0,2).join(' '));if(ids.length){cells.forEach((c,j)=>{const v=c.trim();if(hdr[j]&&v&&!/^[0\-－xX✕]$/.test(v)){const d=iso(Y,M,hdr[j]);(out[d]=out[d]||[]).push(...ids)}});continue}}
+  let d=null,m;const t=ln.trim();if(!t)continue;
+  if(m=t.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))d=iso(+m[1],+m[2],+m[3]);else if(m=t.match(/\b(\d{3})(\d{2})(\d{2})\b/))d=iso(+m[1]+1911,+m[2],+m[3]);else if(m=t.match(/(\d{1,2})\s*[\/月]\s*(\d{1,2})/))d=iso(+m[1]>=M-1||M===1?(+m[1]===12&&M===1?Y-1:Y):Y,+m[1],+m[2]);else if(m=t.match(/^(\d{1,2})(?:日|號)?(?=[\s\t(（]|$)/))d=iso(Y,M,+m[1]);
+  if(!d)continue;const rest=t.replace(m[0],'');const ids=who(rest);if(ids.length)out[d]=[...new Set([...(out[d]||[]),...ids])]}
+ for(const d in out)out[d]=[...new Set(out[d])];return out}
+const ab=(r,cat)=>+((r.ab||{})[cat]||0);
+function wlOK(r,d){for(const x of d.cs)for(const w of cfg.wl)if(w.s===x.c.surgeon&&(w.cat==='*'||w.cat===x.cat)&&!(w.allow||[]).includes(r.id))return false;return true}
+function wlHit(d){return d.cs.some(x=>cfg.wl.some(w=>w.s===x.c.surgeon&&(w.cat==='*'||w.cat===x.cat)))}
+const isJr=r=>r.role==='junior'||(r.role!=='senior'&&['R1','R2'].includes(r.lv));
+const abSum=r=>Object.values(r.ab||{}).reduce((s,v)=>s+ +v,0);
+function assign(day,D){const res=cfg.res.filter(r=>r.on),out={am:{},pm:{},unfilled:[],issues:[],supShort:[],opdShort:{am:0,pm:0}};const stOf=(r,h)=>{if(leaveOf(r.id,day.date,h))return'leave';const m=((day.st||{})[r.id]||{})[h];if(m&&m!=='auto')return m==='avail'?'auto':m;return autoSt(r.id,day.date,h)};
+ for(const half of['am','pm']){const used=new Set(),A=out[half];
+  for(const r of res){const s=stOf(r,half);if(s.startsWith('R:')){A[r.id]={k:'room',room:s.slice(2),pin:true};used.add(r.id)}else if(!['auto','duty'].includes(s)){A[r.id]={k:s};used.add(r.id)}}
+  const pinned={};for(const r of res){const a=A[r.id];if(a&&a.pin)pinned[a.room]=(pinned[a.room]||0)+1}
+  const dh=D.filter(d=>d.half===half).filter(d=>{if(pinned[d.room]>0){pinned[d.room]--;return false}return true});const capN=d=>res.filter(r=>!used.has(r.id)&&d.cs.every(x=>ab(r,x.cat)>=x.lv)).length;dh.forEach(d=>d.capN=capN(d));dh.sort((a,b)=>b.prio-a.prio||a.capN-b.capN||b.maxLv-a.maxLv);
+  const ga=dh.filter(d=>isGA(d.room)),nga=dh.filter(d=>!isGA(d.room));
+  if(half==='pm')for(const d of dh){const r=res.find(r=>!used.has(r.id)&&out.am[r.id]&&out.am[r.id].k==='room'&&!out.am[r.id].sup&&out.am[r.id].room===d.room);if(!r)continue;if(isGA(d.room)&&isJr(r))continue;const def=d.cs.reduce((s,x)=>s+Math.max(0,x.lv-ab(r,x.cat)),0);if(def>0||!wlOK(r,d))continue;used.add(r.id);A[r.id]={k:'room',room:d.room,def:0,wl:true,prio:d.prio};d.done=true}
+  const pick=(d)=>{if(d.done){delete d.done;return}const strict=wlHit(d),g=isGA(d.room);let best=null;
+   for(const r of res){if(used.has(r.id))continue;const def=d.cs.reduce((s,x)=>s+Math.max(0,x.lv-ab(r,x.cat)),0);const over=d.cs.reduce((s,x)=>s+Math.max(0,ab(r,x.cat)-x.lv),0)/d.cs.length;const wl=wlOK(r,d);
+    const wpos=d.cs.reduce((m,x)=>{const w=cfg.wl.find(w=>w.s===x.c.surgeon&&(w.cat==='*'||w.cat===x.cat));if(!w)return m;const i=(w.allow||[]).indexOf(r.id);return i<0?m:m+(w.allow.length-i)*250},0);
+    let sc=wpos+(g?(isJr(r)?-3000:0):(isJr(r)?0:-3000))+(def===0?1000:0)-def*120+(wl?600:0)+(half==='pm'&&out.am[r.id]&&out.am[r.id].room===d.room?300:0)+(d.prio>=9?d.cs.reduce((s,x)=>s+ab(r,x.cat),0)*15:d.cs.reduce((s,x)=>s+(ab(r,x.cat)===2?(x.dur||60)/30:0),0)*25-over*5-abSum(r)*.5);
+    if(!best||sc>best.sc)best={r,sc,def,wl}}
+   if(!best){out.unfilled.push(d);return}
+   used.add(best.r.id);A[best.r.id]={k:'room',room:d.room,def:best.def,wl:best.wl,prio:d.prio,lc:[...new Set(d.cs.filter(x=>ab(best.r,x.cat)===2).map(x=>x.cat))]};
+   if(strict&&!best.wl)out.issues.push({lv:'bad',d,r:best.r,t:'白名單'});else if(g&&isJr(best.r))out.issues.push({lv:'warn',d,r:best.r,t:'資淺'});else if(best.def>0)out.issues.push({lv:d.prio>=9?'bad':'warn',d,r:best.r,t:'能力'})};
+  ga.forEach(pick);
+  let need=+cfg.set['opd'+half]||0;for(const r of res)if(A[r.id]&&A[r.id].k==='OPD')need--;
+  const byAb=(a,b)=>abSum(a)-abSum(b);
+  const fillOPD=pool=>{for(const r of pool){if(need<=0)break;A[r.id]={k:'OPD',auto:true};used.add(r.id);need--}};
+  fillOPD(res.filter(r=>!used.has(r.id)&&isJr(r)&&!r.sup).sort(byAb));fillOPD(res.filter(r=>!used.has(r.id)&&isJr(r)).sort(byAb));
+  nga.forEach(pick);
+  fillOPD(res.filter(r=>!used.has(r.id)&&!r.sup).sort(byAb));fillOPD(res.filter(r=>!used.has(r.id)).sort(byAb));
+  const canSup=r=>r&&['R2','R3'].includes(r.lv)&&!r.sup;
+  for(const[id,a]of Object.entries(A)){if(a.k!=='OPD')continue;const r=res.find(x=>x.id===id);if(!r||!r.sup)continue;
+   if(Object.entries(A).some(([j,b])=>j!==id&&b.k==='OPD'&&canSup(res.find(x=>x.id===j))))continue;
+   const t=res.filter(x=>!used.has(x.id)&&canSup(x)).sort((a,b)=>(isJr(b)-isJr(a))||byAb(a,b))[0];
+   if(t){A[t.id]={k:'OPD',auto:true,teach:r.n};used.add(t.id)}else out.supShort.push({half,r})}
+  const gr=[...new Set(ga.map(d=>d.room))];
+  const cnt=room=>Object.values(A).filter(a=>a.k==='room'&&a.room===room).length;
+  const seniorIn=room=>Object.entries(A).some(([id,a])=>a.k==='room'&&a.room===room&&!isJr(res.find(x=>x.id===id)||{}));
+  const lCats=(r,room)=>{const d=ga.find(d=>d.room===room);return d?[...new Set(d.cs.filter(x=>ab(r,x.cat)===2).map(x=>x.cat))]:[]};
+  const learn=(r,room)=>{const d=ga.find(d=>d.room===room);return d?d.cs.reduce((s,x)=>{const v=ab(r,x.cat);return s+(v===2?3:v===1?1:0)*(x.dur||60)/30},0):0};
+  for(const r of res.filter(r=>!used.has(r.id)).sort((a,b)=>isJr(a)-isJr(b)||abSum(b)-abSum(a))){if(!gr.length){A[r.id]={k:'float'};continue}let best=null;
+   for(const room of gr){const d=ga.find(x=>x.room===room);const sen=seniorIn(room);let sc=-cnt(room)*100+learn(r,room)*8+(isJr(r)?(sen?40:-40):(sen?-30:40));if(d&&wlHit(d)&&!wlOK(r,d))sc-=25;if(!best||sc>best.sc)best={room,sc}}
+   A[r.id]={k:'room',room:best.room,sup:true,lc:lCats(r,best.room)}}
+  out.opdShort[half]=Math.max(0,need)}
+ return out}
+function planMoves(day,tl){const S=cfg.set,dl=T(S.deadline),turn=+S.turn||0,st=T(S.start),pmS=T(S.pmStart||'13:00'),R={},top=topS();
+ const minFor=(c,room)=>{let m=0;if(c.clock&&c.time)m=T(c.time);if(c.sd)m=Math.max(m,T(S.sdStart||'13:00'));const sp=isSplit(day,room);if(sp&&c.surgeon===sp.pm)m=Math.max(m,pmS);return m};
+ tl.rooms.forEach(r=>R[r.id]=r.cases.map(x=>({c:x.c,dur:x.dur,min:minFor(x.c,r.id)})));(day.open||[]).forEach(id=>{if(!R[id])R[id]=[]});
+ const sched=id=>{let t=st;return R[id].map(x=>{const s=Math.max(t,x.min||0),e=s+x.dur;t=e+turn;return{...x,s,e}})};
+ const endOf=id=>{const a=sched(id);return a.length?a[a.length-1].e:st};
+ const amOver=id=>{const sp=isSplit(day,id);if(!sp)return false;const a=sched(id).filter(y=>y.c.surgeon!==sp.pm);return a.length&&a[a.length-1].e>pmS};
+ const moves=[];
+ const targets=Object.keys(R).filter(id=>isGA(id)&&(!roomCfg(id).robot&&!isSwap(id,day.date)||(day.open||[]).includes(id)));
+ for(const id of Object.keys(R)){if(!isGA(id))continue;let g=0;
+  while(g++<8){const late=endOf(id)>dl,amo=amOver(id);if(!late&&!amo)break;const sp=isSplit(day,id);const a=sched(id);let done=false;
+   for(let i=a.length-1;i>=1&&!done;i--){const x=a[i];if(top.includes(x.c.surgeon)||x.c.lock||x.c.fixed)continue;if(!late&&amo&&x.c.surgeon===sp.pm)continue;let best=null;
+    for(const t of targets){if(t===id)continue;if(/lumenis/i.test(x.c.procs.join(' '))&&!roomCfg(t).lum)continue;const ts=sched(t);const s=Math.max(ts.length?ts[ts.length-1].e+turn:st,minFor(x.c,t));const e=s+x.dur;if(e>dl)continue;
+     const tsp=isSplit(day,t);if(tsp&&s<pmS&&e>pmS&&x.c.surgeon!==tsp.pm)continue;
+     let conc=0;for(const rid of Object.keys(R)){if(rid===t)continue;if(sched(rid).some(y=>y.c!==x.c&&y.c.surgeon===x.c.surgeon&&y.s<e&&y.e>s))conc++}
+     if(conc>=2)continue;if(!best||e<best.e)best={t,s,e,conc}}
+    if(best){R[id].splice(R[id].findIndex(y=>y.c===x.c),1);R[best.t].push({c:x.c,dur:x.dur,min:minFor(x.c,best.t)});moves.push({c:x.c,from:id,to:best.t,s:best.s,e:best.e,conc:best.conc,why:late?'late':'am'});done=true}}
+   if(!done)break}}
+ const left=[];for(const id of Object.keys(R)){if(!isGA(id))continue;for(const y of sched(id))if(y.e>dl)left.push({...y,room:id})}
+ return{moves,left}}
+const short=c=>c.procs.map(p=>p.replace(/\(廠\)|（廠）|\(.*?\)|（.*?）/g,'').trim()).filter(Boolean).join('＋')||'未命名';
+function concurrency(tl){const by={};tl.rooms.filter(r=>isGA(r.id)).forEach(r=>r.cases.forEach(x=>(by[x.c.surgeon]=by[x.c.surgeon]||[]).push({room:r.id,s:x.s,e:x.e})));const out=[];
+ for(const[s,iv]of Object.entries(by)){let mx=0,at=0,rs=[];for(const a of iv){const on=iv.filter(b=>b.s<=a.s&&b.e>a.s);const n=new Set(on.map(b=>b.room)).size;if(n>mx){mx=n;at=a.s;rs=[...new Set(on.map(b=>b.room))]}}if(mx>=2)out.push({s,n:mx,at,rs})}return out}
+function advise(day,tl,asg,pl){const S=cfg.set,dl=T(S.deadline),ot=T(S.nurseOT),dv=T(S.dvBlock),top=topS(),L=[],resN=id=>(cfg.res.find(r=>r.id===id)||{}).n||id;
+ const inRoom=(half,room)=>Object.entries(asg[half]).filter(([,a])=>a.k==='room'&&a.room===room).map(([id])=>resN(id));
+ for(const r of tl.rooms){const rc=roomCfg(r.id),end=r.end,hasTop=r.cases.some(x=>top.includes(x.c.surgeon));
+  if(isSwap(r.id,day.date)&&r.cases.some(x=>isRob(x.cat))&&end>dv)L.push({lv:'bad',t:`R${r.id} 以一換一房預計 ${HM(end)} 結束，超過 ${S.dvBlock}`,b:'前台可直接擋刀不接；請提早與主治確認台數或改期。'});
+  if(r.split&&isGA(r.id)&&r.amEndAt>T(S.pmStart||'13:00'))L.push({lv:'warn',t:`R${r.id} 上午（${r.split.am}）預計 ${HM(r.amEndAt)} 才結束，壓到下午 ${r.split.pm} 的 ${S.pmStart||'13:00'} 時段`,b:`下午刀因此順延 ${r.amEndAt-T(S.pmStart||'13:00')} 分；建議上午最後幾台跳台到其他房，或提早與 ${r.split.am} 醫師確認。`});
+  if(isGA(r.id)&&end>dl){const ex=r.cases[0].dur>=+S.longCase;const who=inRoom('pm',r.id).join('、');
+   L.push({lv:end>ot||hasTop?'bad':'warn',t:`R${r.id} 預計 ${HM(end)} 結束（超過 ${S.deadline} 約 ${end-dl} 分）`,b:`${ex?'第一台為長刀，超時可豁免計點；':`超時約 ${Math.ceil((end-dl)/60)} 點；`}${r.split?`（下午主治：${r.split.pm}）`:''}需提前確認加班：住院醫師（${who||'未排'}）、專責、麻醉、護理${end<=ot?`（護理同意加班可延至 ${S.nurseOT}）`:''}。${hasTop?' ★ 部長刀務必全部接完，先鎖定加班人力。':''}`})}}
+ for(const r of tl.rooms){const g=r.cases.filter(x=>x.c.sd&&x.gap>=30);if(g.length&&isGA(r.id))L.push({lv:'info',t:`R${r.id} 等當日刀空檔約 ${g.reduce((s,x)=>s+x.gap,0)} 分`,b:`當日刀最早 ${S.sdStart||'13:00'} 接；可把其他房非當日刀移進來填空檔，或請病房提早完成入院。`})}
+ const hl=[];for(const r of tl.rooms)for(const x of r.cases){const h=helperOf(day.date,x.c.surgeon,x.s<T(S.amEnd)?'am':'pm',x.cat);if(h&&!hl.includes(h+r.id)){hl.push(h+r.id);L.push({lv:'info',t:`R${r.id} ${x.c.surgeon} 非達文西刀由 ${h} 協助`,b:'此時段住院醫師能力要求降一級，資深者可優先去達文西或其他房。'})}}
+ for(const m of pl.moves){const ow=tplOwner(day,m.to);const other=ow.length&&!ow.includes(m.c.surgeon);
+  L.push({lv:'warn',t:`建議跳台：${m.c.surgeon}「${short(m.c)}」R${m.from} → R${m.to}`,b:`${m.why==='am'?'避免上午刀壓到下午主治；':''}約 ${HM(m.s)}–${HM(m.e)}，${other?`需向前台預約跳台並先告知 R${m.to}（${ow.join('/')}）`:'需向前台確認房間、麻醉與器械（電燒/Lithoclast/電視主機）'}${m.conc?'；主治屆時同時在 2 間房（上限 2 間）':''}。`,act:{k:'move',id:m.c.id,to:m.to}})}
+ const lb={};for(const y of pl.left){(lb[y.c.surgeon]=lb[y.c.surgeon]||[]).push(y)}
+ for(const[s,ys]of Object.entries(lb)){const isTop=top.includes(s);L.push({lv:'bad',t:isTop?`★ ${s}（部長）的刀預估超過 ${S.deadline}`:`提早與 ${s} 醫師溝通：${ys.length} 台可能開不完`,b:ys.map(y=>`R${y.room}「${short(y.c)}」約 ${HM(y.s)}–${HM(y.e)}`).join('；')+(isTop?'。不移刀：預先安排白名單住院醫師留到結束，並確認麻醉、護理、專責加班。':'。即使跳台仍超時，建議今天先請主治決定：移到其他天／小夜，或確認加班。')})}
+ for(const c of concurrency(tl)){if(c.n>2)L.push({lv:'bad',t:`${c.s} 約 ${HM(c.at)} 同時在 ${c.n} 間房（R${c.rs.join('、R')}）`,b:'違反術委會「同一主治最多同時兩台刀」，請調整順序。'});else L.push({lv:'info',t:`${c.s} 約 ${HM(c.at)} 起跳台（R${c.rs.join('＋R')}）`,b:'兩間房同時進行，確認前台已預約、器械與電視主機足夠。'})}
+ const pmPool=cfg.res.filter(r=>r.on&&((day.st||{})[r.id]||{}).pm==='pm').map(r=>r.n);
+ for(const d of asg.unfilled)L.push({lv:'bad',t:`${d.half==='am'?'上午':'下午'} R${d.room} 沒有住院醫師可排 → 需要加班人力`,b:`依規範：住院醫師自願認領 → 協調專責加班 → 總醫師分配 → 總醫師加班。${pmPool.length?'pm 名單：'+pmPool.join('、')+'。':''}`});
+ for(const i of asg.issues)L.push({lv:i.lv,t:i.t==='資淺'?`${i.d.half==='am'?'上午':'下午'} R${i.d.room}：刀房組人力不足，由 ${i.r.n}（OPD／灌藥組）頂房`:i.t==='白名單'?`★ ${i.d.half==='am'?'上午':'下午'} R${i.d.room}：${i.r.n} 不在 ${i.d.cs[0].c.surgeon} 的指定跟刀名單`:`${i.d.half==='am'?'上午':'下午'} R${i.d.room}：${i.r.n} 能力未達（${[...new Set(i.d.cs.map(x=>CATN[x.cat]))].join('、')}）`,b:i.t==='資淺'?'R3 以上都已在全麻房；確認主治可接受，或請 pm／加班人力支援。':i.t==='白名單'?'請改派白名單住院醫師（到「人力與能力」調整），或讓白名單者固定在此房。':'可接受作為學習，但需資深者支援或主治知悉。'});
+ const am0=T(S.amEnd);for(const r of tl.rooms){if(!roomCfg(r.id).opd)continue;for(const h of['am','pm']){if(!r.cases.some(x=>h==='am'?x.s<am0:x.e>am0))continue;if(!Object.values(asg[h]).some(a=>a.k==='OPD'))L.push({lv:'bad',t:`${h==='am'?'上午':'下午'} R${r.id} 門診手術沒有 OPD 人力`,b:'R29 由當時段的 OPD 住院醫師負責，請安排一位 OPD。'})}}
+ for(const x of asg.supShort)L.push({lv:'bad',t:`${x.half==='am'?'上午':'下午'} OPD：${x.r.n} 需要 R2／R3 搭配指導，目前沒有空出的人`,b:'改派可獨立的人看 OPD，或從刀房調一位 R2／R3 過來。'});
+ for(const h of['am','pm'])if(asg.opdShort[h]>0)L.push({lv:'warn',t:`${h==='am'?'上午':'下午'} OPD 缺 ${asg.opdShort[h]} 人`,b:'所有可用住院醫師都在刀房；考慮由 pm／病房人力支援門診。'});
+ for(const c of tl.eve)L.push({lv:'warn',t:`小夜刀：${c.surgeon} R${c.room}「${short(c)}」`,b:'主治需評估是否需住院醫師或專責協助；無人力則延後接刀順位。'});
+ const act=tl.rooms.filter(r=>r.cases.length&&isGA(r.id));for(let i=0;i<act.length;i++)for(let j=i+1;j<act.length;j++){const a=act[i],b=act[j],ta=(day.tower||{})[a.id]||roomCfg(a.id).tower,tb=(day.tower||{})[b.id]||roomCfg(b.id).tower;if(ta&&ta===tb&&a.cases[0].s<b.end&&b.cases[0].s<a.end)L.push({lv:'warn',t:`影像主機衝突：R${a.id} 與 R${b.id} 都用 ${ta}`,b:'請改配其他主機或向 GS/CS/GYN/PS 借用。'})}
+ for(const r of tl.rooms)for(const x of r.cases)if(/lumenis/i.test(x.c.procs.join(' '))&&!roomCfg(r.id).lum)L.push({lv:'warn',t:`R${r.id}「${short(x.c)}」用 Lumenis`,b:'Lumenis 需 380V，此房未設定可用，請移到可用房間（預設 R6/R16）。'});
+ const unk=tl.rooms.reduce((s,r)=>s+r.cases.filter(x=>x.unknown).length,0);if(unk)L.push({lv:'info',t:`${unk} 台術式不在時間資料庫`,b:'先以 45 分估算；可在「術式與房間設定」新增關鍵字。'});
+ if(!L.some(x=>x.lv==='bad'||x.lv==='warn'))L.unshift({lv:'ok',t:`所有常規刀預估在 ${S.deadline} 前完成`,b:'人力已足夠，不需額外加班。'});
+ const o={bad:0,warn:1,info:2,ok:3};return L.sort((a,b)=>o[a.lv]-o[b.lv])}
+function opnList(day,tl){const rk=tl.rooms.filter(r=>r.cases.length&&+roomCfg(r.id).opn>0).sort((a,b)=>roomCfg(b.id).opn-roomCfg(a.id).opn||(b.end-b.cases[0].s)-(a.end-a.cases[0].s)).map(r=>r.id);if(!rk.length)tplRooms(day).filter(([r,s])=>!/以一換一/.test(s)&&+roomCfg(r).opn>0).sort((a,b)=>roomCfg(b[0]).opn-roomCfg(a[0]).opn).forEach(([r])=>rk.push(r));const taken=new Set((day.opn||[]).filter(o=>o.on&&o.room).map(o=>o.room));
+ return(day.opn||[]).filter(o=>o.on).map(o=>{let room=o.room;if(!room){room=rk.find(x=>!taken.has(x))||'';if(room)taken.add(room)}return{n:o.n,room,tower:room?((day.tower||{})[room]||roomCfg(room).tower):''}})}
+function tok(a){if(!a)return'';return a.k==='room'?(a.room==='ESWL'?'碎石':a.room):a.k==='OPD'?'OPD':a.k==='pm'?'pm':a.k==='class'?'上課':a.k==='leave'?'請假':a.k==='ward'?'病房':'機動'}
+function instOf(day,asg,h){const v=(day.inst||{})[h];if(v)return v;const E=Object.entries(asg[h]),jr=id=>{const r=cfg.res.find(x=>x.id===id);return r&&isJr(r)};const other=h==='pm'?(day.inst||{}).am||instOf(day,asg,'am'):'';const e=E.find(([id,a])=>a.k==='OPD'&&jr(id)&&id!==other)||E.find(([id,a])=>a.k==='OPD'&&jr(id))||E.find(([id,a])=>a.k!=='leave'&&a.k!=='pm'&&jr(id))||E.find(([,a])=>a.k==='OPD');return e?e[0]:''}
+function lineText(day,tl,asg,L){const[,m,d]=day.date.split('-');const nm=id=>(cfg.res.find(r=>r.id===id)||{}).n||'';let s=`${+m}/${+d}（${DOW[dowOf(day.date)]}）\n`;
+ for(const r of cfg.res.filter(r=>r.on)){const a=asg.am[r.id],p=asg.pm[r.id],lv=leaveOf(r.id,day.date,'am')||leaveOf(r.id,day.date,'pm'),note=(day.notes||{})[r.id]||(lv?leaveTxt(lv):'');let v;
+  if(a&&p&&a.k==='leave'&&p.k==='leave')v=`（${note||'請假'}）`;else{const la=leaveOf(r.id,day.date,'am'),lp=leaveOf(r.id,day.date,'pm');const ta=la&&a&&a.k==='leave'?la.type:tok(a),tp=lp&&p&&p.k==='leave'?lp.type:tok(p);v=ta===tp?ta:`上午 ${ta} 下午 ${tp}`;const mn=(day.notes||{})[r.id]||(dowOf(day.date)===6&&onDuty(r.id,day.date)?'值班':'');if(mn)v+=` （${mn}）`}s+=`${r.n} ${v}\n`}
+ const op=opnList(day,tl).map(o=>o.room?`${o.n}${o.room}（${o.tower}）`:`${o.n}（未分配）`).join('/ ');
+ s+=`\n門診灌藥 ： 上午 ${nm(instOf(day,asg,'am'))}/ 下午 ${nm(instOf(day,asg,'pm'))}\nOPN:  ${op}`;
+ if(day.lineExtra!==false){const x=L.filter(l=>l.lv==='bad'||l.lv==='warn').slice(0,6);if(x.length)s+='\n\n'+x.map(l=>'*'+l.t).join('\n')}return s}
+/*ENDCORE*/
+
+const SAMPLE=[['08:30','劉建良','3F R05','Laparoscopic Hernioplasty(廠備)','/自/'],['08:30','謝昆霖','3F R06','URS(ureteroscope)+cystoscopy','/'],['08:30','王致丞','3F R53','(廠)SP Davinci hernioplasty','/'],['08:30','林才揚','3F R16','Varicocelectomy (備Microscope)','/'],['10:20','謝昆霖','3F R06','(廠)鈥 Laser','需技術諮詢'],['10:27','林才揚','3F R16','URS-SM (Stone basket 自費)','/ER'],['TF:1','謝昆霖','3F R06','Cystoscopy with Double-J','/'],['TF:1','謝昆霖','3F R06','URS(ureteroscope)+cystoscopy','/'],['TF:1','劉建良','3F R05','(廠)Multipulse TM+1470 Laser',''],['TF:1','劉建良','3F R05','Vesicolithotripsy',''],['TF:1','蘇家震','3F R05....','URS-SM','/ZERO TIP'],['TF:1','林才揚','3F R16','URS-SM','/'],['TF:1','劉建良','3F R05','Prostatic biopsy(借超音波)',''],['TF:2','林才揚','3F R16','Cystoscopy + R-P','/'],['TF:2','劉建良','3F R05','TUI-P','/'],['TF:2','謝昆霖','3F R06','Urethrotomy(optic or otis)','/'],['TF:2','林才揚','3F R16','One stage MINI PCNL(Hybrid)','/'],['TF:3','林才揚','3F R16','Cystoscopy','/'],['TF:3','劉建良','3F R05','TUR-BT','/'],['TF:3','謝昆霖','3F R06','Herniorrhaphy adult','/'],['TF:4','謝昆霖','3F R06','Vesicolithotripsy','/'],['TF:5','林才揚','3F R16','Flexble URS','/'],['小夜','曾文歆','3F R05....','(廠)PUSEN(禾嵩)+URS-SM','手術開單逾時']];
+const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){return null}},set(k,v){try{localStorage.setItem('or:'+k,JSON.stringify(v))}catch(e){}}};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s);
+function newDay(date){return{date,cases:[],st:{},notes:{},opn:[{n:'名谷',on:true,room:''},{n:'育甄',on:true,room:''},{n:'支援專責',on:false,room:''}],inst:{am:'',pm:''},tower:{},open:[],lineExtra:true}}
+function sampleDay(){const d=newDay('2026-11-20');d.cases=rowsToCases(SAMPLE.map(r=>({date:d.date,time:r[0],surgeon:r[1],room:roomOf(r[2]),name:r[3],special:r[4]})))[d.date];d.st={yw:{am:'OPD',pm:'OPD'},wy:{pm:'pm'}};d.demo=true;return d}
+const GSCODE="// 泌尿科刀房調度板：網頁 + 同步，同一個 Apps Script 專案\nconst TOKEN = '';  // 想加密碼再填，例如 'uro2026'；留空＝不用密碼\nfunction sh(){const ss=SpreadsheetApp.getActiveSpreadsheet();return ss.getSheetByName('data')||ss.insertSheet('data')}\nfunction row(s,k){const n=s.getLastRow();if(!n)return 0;const v=s.getRange(1,1,n,1).getValues();for(let i=0;i<n;i++)if(v[i][0]===k)return i+1;return 0}\nfunction apiGet(k){const s=sh(),r=row(s,k);return r?String(s.getRange(r,2).getValue()||''):''}\nfunction apiSet(k,v){const L=LockService.getScriptLock();L.waitLock(15000);try{const s=sh();let r=row(s,k);if(!r){r=s.getLastRow()+1;s.getRange(r,1).setValue(k)}s.getRange(r,2).setValue(v);s.getRange(r,3).setValue(new Date())}finally{L.releaseLock()}return true}\nfunction out(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}\nfunction doGet(e){const p=(e&&e.parameter)||{};\n  if(p.key){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});const v=apiGet(p.key);return out({ok:true,value:v?JSON.parse(v):null})}\n  return HtmlService.createHtmlOutputFromFile('index').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}\nfunction doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==TOKEN)return out({ok:false,err:'token'});apiSet(b.key,JSON.stringify(b.value));return out({ok:true})}";
+const IN_CLAUDE=!!(window.claude&&window.claude.use);const GAS=!IN_CLAUDE&&!!(window.google&&google.script&&google.script.run);const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec'; 
+let gs=LS.get('gsync')||(SYNC_URL?{url:SYNC_URL,token:'',on:true}:{url:'',token:'',on:false}),ocrBusy=false,pasteText='';
+let cache={asg:{am:{},pm:{}}},db=null,sampler=null,syncState='local',tab='plan',day=null,curDate=LS.get('last')||'2026-11-20',busy='',clearArm=false,thumbs=[];
+cfg=fixCfg(LS.get('config/main')||defaultCfg());
+day=LS.get('days/'+curDate)||(curDate==='2026-11-20'&&!LS.get('touched')?sampleDay():newDay(curDate));
+const timers={},writing={};
+function persist(path,obj){LS.set(path,obj);LS.set('touched',1);if(!db&&gsOn()){clearTimeout(timers[path]);timers[path]=setTimeout(()=>gsFlush(path,JSON.parse(JSON.stringify(obj))),900);return}if(!db)return;clearTimeout(timers[path]);timers[path]=setTimeout(()=>flush(path,JSON.parse(JSON.stringify(obj))),700)}
+async function flush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await db.doc(path).set(obj);syncState='cloud'}catch(e){syncState='err'}const nx=writing[path].next;delete writing[path];if(nx)flush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
+const gsOn=()=>!IN_CLAUDE&&(GAS||(gs.on&&gs.url));
+const gasCall=(fn,...a)=>new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn](...a));
+async function gsGet(key){if(GAS){const v=await gasCall('apiGet',key);return v?JSON.parse(v):null}const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&token='+encodeURIComponent(gs.token));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
+async function gsSet(key,value){if(GAS){await gasCall('apiSet',key,JSON.stringify(value));return}const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token,key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
+async function gsFlush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await gsSet(path,obj);syncState='gs'}catch(e){syncState='err'}const nx=writing[path].next;delete writing[path];if(nx)gsFlush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
+async function gsBoot(){if(!gsOn())return;try{const c=await gsGet('config/main');if(c&&c.cfg)cfg=fixCfg(c.cfg);const d=await gsGet('days/'+curDate);if(d){day=d;for(const k of Object.keys(newDay(curDate)))if(day[k]==null)day[k]=newDay(curDate)[k]}syncState='gs'}catch(e){syncState='err'}render()}
+const saveCfg=()=>persist('config/main',{cfg});
+const saveDay=()=>{delete day.demo;persist('days/'+day.date,day)};
+const syncTxt=()=>syncState==='gs'?'已同步 Google 試算表':syncState==='cloud'?'已同步到雲端':syncState==='err'?'雲端同步失敗，暫存於本機':'僅存於此瀏覽器';
+async function loadDay(date){curDate=date;LS.set('last',date);let d=null;if(gsOn()){try{d=await gsGet('days/'+date)}catch(e){syncState='err'}}if(db){try{const s=await db.doc('days/'+date).get();if(s.exists)d=JSON.parse(JSON.stringify(s.data()))}catch(e){}}
+ day=d||LS.get('days/'+date)||newDay(date);for(const k of Object.keys(newDay(date)))if(day[k]==null)day[k]=newDay(date)[k]}
+
+function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=planMoves(day,tl),L=advise(day,tl,asg,pl);cache={asg};
+ const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
+ const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
+ $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1><div class="sub">${esc(tr)}</div></div>
+ <div class="datebox"><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
+ ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
+ <nav class="tabs" role="tablist">${[['plan','今日排程'],['res','人力與能力'],['set','術式與房間設定']].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}</nav></header>
+ <main>${tab==='plan'?planView(tl,asg,L):tab==='res'?resView():setView()}</main>`}
+
+function planView(tl,asg,L){const S=cfg.set,dl=T(S.deadline),ot=T(S.nurseOT);
+ const late=tl.rooms.filter(r=>isGA(r.id)&&r.end>dl),last=tl.rooms.filter(r=>isGA(r.id)).reduce((m,r)=>Math.max(m,r.end),0);
+ const top=topS(),topRooms=tl.rooms.filter(r=>r.cases.some(x=>top.includes(x.c.surgeon)));const topBad=L.some(l=>l.lv==='bad'&&l.t.includes('★'));
+ const otNeed=late.length+asg.unfilled.length;
+ return `${day.demo?`<p class="note">目前顯示範例資料：11/20（五）刀表截圖內容與當天人力，任何修改後即成為你的資料。</p>`:''}
+ <section class="kpis">
+ <div class="kpi ${tl.rooms.length?'':'warn'}"><span>今日刀房</span><b class="num">${tl.rooms.length||'–'}</b><span>${day.cases.length} 筆刀單${tl.eve.length?`，小夜 ${tl.eve.length}`:''}</span></div>
+ <div class="kpi ${last>ot?'bad':last>dl?'warn':'ok'}"><span>最晚預估結束</span><b class="num">${last?HM(last):'–'}</b><span>目標 ${S.deadline} 前</span></div>
+ <div class="kpi ${otNeed?'bad':'ok'}"><span>需要加班人力</span><b>${otNeed?late.map(r=>'R'+r.id).concat(asg.unfilled.map(d=>(d.half==='am'?'上':'下')+'R'+d.room)).join('、'):'不需要'}</b><span>${otNeed?'見下方建議':'常規刀可準時完成'}</span></div>
+ <div class="kpi ${topRooms.length?(topBad?'bad':'ok'):''}"><span>★ ${esc(top.join('、')||'部長')}</span><b>${topRooms.length?(topBad?'有風險':'人力到位'):'今日無刀'}</b><span>${topRooms.map(r=>'R'+r.id).join('、')}</span></div></section>
+ <section class="card"><h2>刀房時間軸 <small>紅線 ${S.deadline}｜橘虛線 ${S.nurseOT}（護理加班上限）｜紅點線 ${S.dvBlock}（以一換一可擋刀）</small></h2>${gantt(tl)}</section>
+ <section class="two"><div class="card"><h2>建議與警示 <small>依加班、跳台、移刀排序</small></h2>
+ ${L.some(l=>l.act)?`<div class="row" style="margin-bottom:8px"><button class="btn p" data-act="applyAll">套用全部跳台建議</button></div>`:''}
+ <ul class="adv">${L.map((l,i)=>`<li class="${l.lv}"><b>${esc(l.t)}</b><p>${esc(l.b)}</p>${l.act?`<div class="row" style="margin-top:6px"><button class="btn s" data-act="apply" data-id="${l.act.id}" data-to="${l.act.to}">套用：移到 R${esc(l.act.to)}</button></div>`:''}</li>`).join('')}</ul>
+ <details style="margin-top:10px"><summary>可借用的空房（供跳台建議）</summary><div class="row">${cfg.rooms.filter(r=>+r.need>0&&!tl.rooms.some(x=>x.id===r.id)).map(r=>`<label class="row" style="gap:4px"><input type="checkbox" data-ch="open" value="${r.id}" ${(day.open||[]).includes(r.id)?'checked':''}> R${esc(r.id)}</label>`).join('')||'<span class="note">所有房間都在使用中</span>'}</div><p class="note">勾選後，系統會把超時的刀試著排進這些房間。</p></details></div>
+ <div class="card"><h2>匯入刀表</h2>${importBox()}</div></section>
+ <section><h2>各房接刀順序 <small>按住 ⠿ 拖曳調整順序或拖到別房；08:30 首台固定不動；可手動輸入每台預期分鐘</small><button class="btn s" data-act="optimize">一鍵排序（長刀優先、當日刀排下午）</button></h2><div class="rooms">${tl.rooms.map(roomCard).join('')}${tl.eve.length?`<div class="card room"><h3><span class="rn">小夜</span></h3><ul class="cases">${tl.eve.map(c=>`<li class="case"><div class="t">小夜</div><div><b>${esc(c.surgeon)}</b> <span class="chip">R${esc(c.room)}</span><div class="pn">${esc(c.procs.join(' ＋ '))}</div></div><div class="cx"><button class="btn s" data-act="uneve" data-id="${c.id}">改為白天接</button><button class="btn s" data-act="del" data-id="${c.id}" aria-label="刪除">✕</button></div></li>`).join('')}</ul></div>`:''}</div>
+ ${tl.rooms.length?'':`<p class="card note">尚未有刀單。上傳刀表截圖、貼上文字或手動新增後即會排程；人力表目前依週模板預排。</p>`}</section>
+ <section class="card"><h2>住院醫師人力表 <small>「自動排」會依能力、主治優先序與白名單分派；可改成 OPD／pm／固定某房</small></h2>${resTable(asg)}
+ <div class="two" style="margin-top:12px"><div><h2 style="font-size:16px">專責護理師 OPN</h2>${opnBox(tl)}</div><div><h2 style="font-size:16px">門診灌藥</h2>${instBox(asg)}</div></div></section>
+ <section class="card" id="line-sec"><h2>LINE 群組公告 <small>可直接修改後複製</small><button class="btn p" data-act="copy">複製文字</button><label class="row note" style="gap:4px"><input type="checkbox" data-ch="lineExtra" ${day.lineExtra!==false?'checked':''}> 附上加班／跳台提醒</label></h2><textarea class="line" id="line" aria-label="公告文字">${esc(lineText(day,tl,asg,L))}</textarea><p class="note" id="copied"></p></section>`}
+
+function gantt(tl){const S=cfg.set,st=T('08:00');let en=Math.max(T('18:30'),...tl.rooms.map(r=>r.end+20));en=Math.ceil(en/60)*60;const P=x=>((x-st)/(en-st)*100).toFixed(2)+'%';const top=topS(),dl=T(S.deadline),ot=T(S.nurseOT);
+ const lines=`<i class="vl md" style="left:${P(T(S.amEnd))}"></i><i class="vl dl" style="left:${P(dl)}"></i><i class="vl ot" style="left:${P(ot)}"></i><i class="vl dv" style="left:${P(T(S.dvBlock))}"></i>`;
+ const hrs=[];for(let h=st;h<=en;h+=60)hrs.push(`<span style="left:${P(h)}">${h/60}</span>`);
+ const rows=tl.rooms.length?tl.rooms.map(r=>{const ow=tplOwner(day,r.id),ss=[...new Set(r.cases.map(x=>x.c.surgeon))];const cl=isGA(r.id)?(r.end>ot?'bad':r.end>dl?'warn':''):'';
+  return `<div class="grow"><div class="glab"><b>R${esc(r.id)}</b>${isGA(r.id)?'':'<span class="note">非全麻 · </span>'}${esc(ss.join('、'))}</div><div class="gtrack">${lines}${r.cases.map(x=>`<div class="bar c-${x.cat}${x.e>dl&&isGA(r.id)?' late':''}${top.includes(x.c.surgeon)?' top':''}" style="left:${P(x.s)};width:${((x.e-x.s)/(en-st)*100).toFixed(2)}%" title="${esc(`${HM(x.s)}–${HM(x.e)} ${x.c.surgeon} ${x.c.procs.join(' + ')}`)}">${esc(short(x.c))}</div>`).join('')}</div><div class="gend ${cl}">${HM(r.end)}</div></div>`}).join(''):`<div class="grow"><div class="glab note">尚無刀單</div><div class="gtrack">${lines}</div><div></div></div>`;
+ return `<div class="scroll"><div class="gantt"><div class="grow" style="min-height:22px;border:0"><div></div><div class="ticks">${hrs.join('')}</div><div></div></div>${rows}</div></div><div class="legend">${CATS.map(([k,n])=>`<span><i class="c-${k}"></i>${n}</span>`).join('')}<span>★ 部長刀</span></div>`}
+
+function roomCard(r){const dl=T(cfg.set.deadline),rc=roomCfg(r.id),ow=tplOwner(day,r.id),top=topS(),ga=isGA(r.id),am=T(cfg.set.amEnd);const tw=(day.tower||{})[r.id]??rc.tower;
+ const opts=id=>[...new Set([...cfg.rooms.filter(x=>+x.need>0).map(x=>x.id),r.id])].map(x=>`<option value="${x}" ${x===r.id?'selected':''}>R${x}</option>`).join('')+'<option value="eve">小夜</option>';
+ return `<div class="card room" data-room="${r.id}"><h3><span class="rn">R${esc(r.id)}</span>${ga?'':roomCfg(r.id).opd?`<span class="chip">由 OPD 負責：${esc(['am','pm'].map(h=>Object.entries(cache.asg[h]).filter(([,a])=>a.k==='OPD').map(([id])=>(cfg.res.find(x=>x.id===id)||{}).n).join('、')).filter(Boolean).join(' / ')||'未排')}</span>`:'<span class="chip">非全麻・不計超時</span>'}${ow.length?`<span class="chip">${r.split?`上午 ${esc(r.split.am)}｜下午 ${esc(r.split.pm)}`:'模板：'+esc(ow.join('→'))}</span>`:''}${isSwap(r.id,day.date)?'<span class="chip a">以一換一</span>':''}<span class="chip ${r.end>dl&&ga?'r':''}">結束 ${HM(r.end)}</span>
+ <select data-ch="tower" data-room="${r.id}" aria-label="影像主機" style="min-height:32px;font-size:13px">${[...new Set(['Storz-C','Storz-A','Storz-B','1788','Xi','SP','門診','碎石',tw])].map(t=>`<option ${t===tw?'selected':''}>${esc(t)}</option>`).join('')}</select><button class="btn s" data-act="sortRoom" data-room="${r.id}">排序</button></h3>
+ <ul class="cases" data-room="${r.id}">${r.cases.map((x,i)=>{const c=x.c,jump=ow.length&&!ow.includes(c.surgeon),manual=c.md!=null&&c.md!=='',hp=helperOf(day.date,c.surgeon,x.s<am?'am':'pm',x.cat),prevFixed=i>0&&r.cases[i-1].c.fixed;
+  return `<li class="case ${x.e>dl&&ga?'late':''} ${c.fixed?'fixed':''}" data-id="${c.id}">${x.gap>=15?`<div class="gapn">⋯ 空檔 ${x.gap} 分${c.sd?'（等當日刀入院）':c.clock&&c.time?`（門診病人 ${esc(c.time)} 到）`:x.pmFirst?'（下午時段）':''}</div>`:''}<div class="t">${c.fixed?'':`<span class="grip" data-grip="${c.id}" title="拖曳調整順序或拖到其他房" aria-label="拖曳">⠿</span>`}${HM(x.s)}–${HM(x.e)}</div><div>${c.sq?`<input type="text" list="surs" data-ch="sur" data-id="${c.id}" value="${esc(c.surgeon)}" aria-label="主治" style="width:96px;border-color:var(--amb)"><span class="chip a">主治待確認${c.raw?'（辨識：'+esc(c.raw)+'）':''}</span>`:`<b>${esc(c.surgeon)}</b>`}${top.includes(c.surgeon)?'<span class="chip r">★部長</span>':''}<span class="chip">${CATN[x.cat]||x.cat}</span>${hp?`<span class="chip">${esc(hp)} 協助</span>`:''}${x.pmFirst?'<span class="chip">下午首台</span>':''}${r.split&&x.e>T(cfg.set.pmStart||'13:00')&&c.surgeon!==r.split.pm?'<span class="chip a">壓到下午</span>':''}${jump?'<span class="chip a">跳台</span>':''}${c.clock&&c.time?`<span class="chip">門診手術 ${esc(c.time)}</span>`:c.add?'<span class="chip a">追加</span>':''}${c.er?'<span class="chip r">急</span>':''}${x.unknown?'<span class="chip a">未知術式</span>':''}<div class="pn">${esc(c.procs.join(' ＋ '))}${c.spec&&c.spec.length?' · '+esc(c.spec.join(' ')):''}</div></div>
+ <div class="cx"><label class="row" style="gap:4px">預期<input type="number" min="5" step="5" value="${x.dur}" data-ch="dur" data-id="${c.id}" aria-label="預期分鐘" class="${manual?'man':''}">分</label>${manual?`<span class="note">估 ${x.est}</span><button class="btn s" data-act="resetDur" data-id="${c.id}" title="恢復估計值">↺</button>`:'<span class="note">(估)</span>'}
+ <button class="btn s tg ${c.fixed?'on':''}" data-act="fix" data-id="${c.id}" aria-pressed="${!!c.fixed}">08:30 首台</button><button class="btn s tg ${c.sd?'on':''}" data-act="sd" data-id="${c.id}" aria-pressed="${!!c.sd}">當日刀</button>
+ ${c.fixed?'':`<button class="btn s" data-act="up" data-id="${c.id}" aria-label="往前" ${i&&!prevFixed?'':'disabled'}>▲</button><button class="btn s" data-act="dn" data-id="${c.id}" aria-label="往後" ${i<r.cases.length-1?'':'disabled'}>▼</button>`}<select data-ch="mv" data-id="${c.id}" aria-label="移房" style="min-height:34px">${opts()}</select>${i?`<button class="btn s" data-act="merge" data-id="${c.id}">併入上一台</button>`:''}<button class="btn s" data-act="del" data-id="${c.id}" aria-label="刪除">✕</button></div></li>`}).join('')}</ul></div>`}
+function importBox(){return `<div class="drop" id="drop"><p style="margin:0 0 8px"><b>上傳刀表截圖</b>（可多張，也可直接在此頁 Ctrl+V 貼上截圖）</p><div class="row" style="justify-content:center"><button class="btn p" data-act="pick">選擇圖片</button><label class="row note" style="gap:4px"><input type="checkbox" id="replace" checked> 取代該日原刀單</label></div>
+ <p class="note" id="aimsg">${esc(busy)||(sampler?'圖片由 Claude 辨識成刀單，辨識後請快速核對。':IN_CLAUDE?'AI 讀圖連線中…也可用下方貼上文字。':'截圖會在本機用文字辨識（第一次需下載中文字庫，約 20–60 秒），辨識結果放到下方文字框，請檢查後按「解析並加入」。最準的方式是直接貼上 HIS 手術工作表文字。')}</p><div class="thumbs">${thumbs.map(u=>`<img src="${u}" alt="已上傳刀表">`).join('')}</div></div>
+ <details style="margin-top:10px" ${pasteText?'open':''}><summary>貼上刀表文字（HIS 手術工作表整頁複製即可）</summary><p class="note">病歷號、姓名只用來把同一病人的多列合成一台，不會被儲存或同步。</p><textarea id="paste" rows="6" style="width:100%" placeholder="直接把 HIS「手術工作表」整頁 Ctrl+A、Ctrl+C 後貼上">${esc(pasteText)}</textarea><button class="btn" data-act="pasteGo">解析並加入</button></details>
+ <details style="margin-top:6px"><summary>手動新增一台</summary><div class="row"><select id="mRoom" aria-label="房間">${cfg.rooms.map(r=>`<option>${r.id}</option>`).join('')}</select><input type="text" id="mSur" list="surs" placeholder="主治" aria-label="主治" style="width:110px"><datalist id="surs">${cfg.sur.map(s=>`<option value="${esc(s.n)}">`).join('')}</datalist><input type="text" id="mProc" placeholder="術式，例如 TUR-BT" aria-label="術式" style="flex:1 1 180px"><input type="number" id="mMin" placeholder="分" aria-label="分鐘"><button class="btn" data-act="addCase">新增</button></div></details>
+ <div class="row" style="margin-top:10px"><button class="btn s" data-act="clearDay">${clearArm?'再按一次確認清空':'清空本日刀單'}</button></div>`}
+
+function resTable(asg){const opts=(v)=>STS.map(([k,n])=>`<option value="${k}" ${v===k?'selected':''}>${n}</option>`).join('')+cfg.rooms.filter(r=>+r.need>0).map(r=>`<option value="R:${r.id}" ${v==='R:'+r.id?'selected':''}>固定 R${r.id}</option>`).join('');
+ const cell=(a)=>{if(!a)return'';const cls=a.k==='room'&&(a.wl===false||a.def>0)?(a.prio>=9||a.wl===false?'bad':'warn'):'';return `<span class="as ${cls}">${a.k==='room'?'R'+esc(a.room)+(a.sup?' 支援':'')+(a.lc&&a.lc.length?'・可操作 '+esc(a.lc.map(c=>CATN[c]).join('、')):''):a.k==='float'?'機動':a.k==='OPD'?(a.teach?'OPD（帶'+esc(a.teach)+'）':'OPD'):STS.find(s=>s[0]===a.k)?.[1]||a.k}${cls?' ⚠':''}</span>`};
+ const sel=(r,h,s)=>{const l=leaveOf(r.id,day.date,h);const au=autoSt(r.id,day.date,h),man=s[h]&&s[h]!=='auto';const hint=!man&&au!=='auto'?`<span class="chip">${au==='pm'?'值班後 pm':'今日值班'}</span>`:'';return l?`<span class="chip r">${esc(leaveTxt(l))}</span>`:hint+`<select data-ch="st" data-r="${r.id}" data-h="${h}" aria-label="${esc(r.n)} ${h==='am'?'上午':'下午'}">${opts(s[h]||'auto')}</select>`};
+ const onLeave=cfg.res.filter(r=>r.on&&(leaveOf(r.id,day.date,'am')||leaveOf(r.id,day.date,'pm')));
+ return `${onLeave.length?`<p class="note">今日休假（已自動排除）：${onLeave.map(r=>esc(r.n)).join('、')}</p>`:''}<div class="scroll"><table class="res"><thead><tr><th>住院醫師</th><th>上午設定</th><th>上午</th><th>下午設定</th><th>下午</th><th>備註（顯示在公告）</th></tr></thead><tbody>${cfg.res.filter(r=>r.on).map(r=>{const s=(day.st||{})[r.id]||{};return `<tr><td><b>${esc(r.n)}</b> <span class="note">${esc(r.lv)}${isJr(r)?'・OPD組':''}${r.sup?'・需指導':''}</span></td><td>${sel(r,'am',s)}</td><td>${cell(asg.am[r.id])}</td><td>${sel(r,'pm',s)}</td><td>${cell(asg.pm[r.id])}</td><td><input type="text" data-ch="note" data-r="${r.id}" value="${esc((day.notes||{})[r.id]||'')}" placeholder="${(()=>{const l=leaveOf(r.id,day.date,'am')||leaveOf(r.id,day.date,'pm');return l?esc(leaveTxt(l))+'（自動）':'例：cover 下午OPD'})()}" style="width:100%;min-width:130px"></td></tr>`}).join('')}</tbody></table></div>${leaveForm()}`}
+function leaveForm(){const today=day.date;return `<details style="margin-top:10px"><summary>登記休假（之後每天自動排除）</summary><div class="row"><select id="lvR" aria-label="住院醫師">${cfg.res.filter(r=>r.on).map(r=>`<option value="${r.id}">${esc(r.n)}</option>`).join('')}</select><select id="lvT" aria-label="假別">${LTYPES.map(t=>`<option>${t}</option>`).join('')}</select><label class="row" style="gap:4px">從<input type="date" id="lvF" value="${today}"></label><label class="row" style="gap:4px">到<input type="date" id="lvTo" value="${today}"></label><select id="lvH" aria-label="時段"><option value="all">全天</option><option value="am">上午</option><option value="pm">下午</option></select><button class="btn p" data-act="addLeave">登記</button></div><p class="note">所有休假可在「人力與能力 → 休假登記」查看與修改。</p></details>`}
+
+function opnBox(tl){const auto=opnList(day,tl);const rooms=tl.rooms.map(r=>r.id);return `<table><tbody>${(day.opn||[]).map((o,i)=>{const a=auto.find(x=>x.n===o.n);return `<tr><td><label class="row" style="gap:6px"><input type="checkbox" data-ch="opnOn" data-i="${i}" ${o.on?'checked':''}> ${esc(o.n)}</label></td><td><select data-ch="opnRoom" data-i="${i}" aria-label="${esc(o.n)} 房間"><option value="">自動${a&&!o.room&&a.room?'（R'+a.room+'）':''}</option>${[...new Set([...rooms,...cfg.rooms.map(r=>r.id)])].map(r=>`<option value="${r}" ${o.room===r?'selected':''}>R${r}</option>`).join('')}</select></td><td class="note">${a&&a.room?esc(a.tower):''}</td></tr>`}).join('')}</tbody></table>`}
+function instBox(asg){const res=cfg.res.filter(r=>r.on);return ['am','pm'].map(h=>`<label class="row">${h==='am'?'上午':'下午'}<select data-ch="inst" data-h="${h}"><option value="">自動（${esc((cfg.res.find(r=>r.id===instOf({...day,inst:{}},asg,h))||{}).n||'無')}）</option>${res.map(r=>`<option value="${r.id}" ${(day.inst||{})[h]===r.id?'selected':''}>${esc(r.n)}</option>`).join('')}</select></label>`).join('')}
+
+function resView(){return `${dutyView()}<section class="card"><h2>住院醫師名單與手術能力 <small>R1–R2 預設排 OPD／灌藥，R3 以上排全麻刀房；個別人可在「排班組別」改。能力：0 未學｜1 可跟刀｜2 可操作｜3 獨立操作。系統會盡量把人排到他「可操作」的刀房；術式最低需求等級在「術式與房間設定」</small></h2>
+ <div class="scroll"><table class="ab"><thead><tr><th>在科</th><th>姓名</th><th>級別</th><th>別名</th><th>排班組別</th><th>OPD需指導</th>${CATS.map(c=>`<th>${c[1]}</th>`).join('')}<th></th></tr></thead><tbody>${cfg.res.map((r,i)=>`<tr><td><input type="checkbox" data-ch="resF" data-i="${i}" data-f="on" ${r.on?'checked':''} aria-label="在科"></td><td><input type="text" data-ch="resF" data-i="${i}" data-f="n" value="${esc(r.n)}" style="width:80px"></td><td><input type="text" data-ch="resF" data-i="${i}" data-f="alias" value="${esc(r.alias||'')}" placeholder="全名、英文名" style="width:100px"></td><td><select data-ch="resF" data-i="${i}" data-f="lv">${['R1','R2','R3','R4','R5','CR','Fellow'].map(l=>`<option ${l===r.lv?'selected':''}>${l}</option>`).join('')}</select></td><td><select data-ch="resF" data-i="${i}" data-f="role">${[['','依級別'],['junior','OPD／灌藥組'],['senior','全麻刀房組']].map(([k,n])=>`<option value="${k}" ${(r.role||'')===k?'selected':''}>${n}</option>`).join('')}</select></td><td><input type="checkbox" data-ch="resF" data-i="${i}" data-f="sup" ${r.sup?'checked':''} aria-label="OPD需R2/R3指導"></td>${CATS.map(([k])=>`<td class="ab${ab(r,k)}"><select data-ch="ab" data-i="${i}" data-c="${k}" aria-label="${esc(r.n)} ${CATN[k]}">${ABN.map((n,v)=>`<option value="${v}" ${ab(r,k)===v?'selected':''}>${v}</option>`).join('')}</select></td>`).join('')}<td><button class="btn s" data-act="delRes" data-i="${i}" aria-label="刪除">✕</button></td></tr>`).join('')}</tbody></table></div>
+ <div class="row" style="margin-top:10px"><button class="btn" data-act="addRes">新增住院醫師</button><span class="note">輪訓外科或外派中，取消「在科」即可，能力設定會保留。</span></div></section>
+ <section class="card"><h2>休假登記 <small>期間內每天自動從人力表排除，並在公告寫「（年休到11/29）」</small></h2>
+ <div class="scroll"><table><thead><tr><th>住院醫師</th><th>假別</th><th>從</th><th>到</th><th>時段</th><th></th></tr></thead><tbody>${(cfg.leaves||[]).map((l,i)=>({l,i})).sort((a,b)=>(b.l.from||'').localeCompare(a.l.from||'')).map(({l,i})=>`<tr><td><select data-ch="leaveF" data-i="${i}" data-f="r">${cfg.res.map(r=>`<option value="${r.id}" ${r.id===l.r?'selected':''}>${esc(r.n)}</option>`).join('')}</select></td><td><input type="text" data-ch="leaveF" data-i="${i}" data-f="type" value="${esc(l.type)}" list="ltypes" style="width:100px"></td><td><input type="date" data-ch="leaveF" data-i="${i}" data-f="from" value="${l.from}"></td><td><input type="date" data-ch="leaveF" data-i="${i}" data-f="to" value="${l.to}"></td><td><select data-ch="leaveF" data-i="${i}" data-f="half">${[['all','全天'],['am','上午'],['pm','下午']].map(([k,n])=>`<option value="${k}" ${(l.half||'all')===k?'selected':''}>${n}</option>`).join('')}</select></td><td><button class="btn s" data-act="delLeave" data-i="${i}" aria-label="刪除">✕</button></td></tr>`).join('')||'<tr><td colspan="6" class="note">尚無休假</td></tr>'}</tbody></table><datalist id="ltypes">${LTYPES.map(t=>`<option value="${t}">`).join('')}</datalist></div>${leaveForm()}</section>
+ <section class="card"><h2>主治專屬跟刀名單 <small>例如部長的達文西只有指定住院醫師可以跟；不符合會標紅</small></h2>
+ <div class="scroll"><table><thead><tr><th>主治</th><th>手術類別</th><th>可跟的住院醫師（勾選順序＝優先順序）</th><th></th></tr></thead><tbody>${cfg.wl.map((w,i)=>`<tr><td><select data-ch="wlF" data-i="${i}" data-f="s">${cfg.sur.map(s=>`<option ${s.n===w.s?'selected':''}>${esc(s.n)}</option>`).join('')}</select></td><td><select data-ch="wlF" data-i="${i}" data-f="cat"><option value="*" ${w.cat==='*'?'selected':''}>全部手術</option>${CATS.map(([k,n])=>`<option value="${k}" ${w.cat===k?'selected':''}>${n}</option>`).join('')}</select></td><td><div class="row">${cfg.res.map(r=>{const k=(w.allow||[]).indexOf(r.id);return `<label class="row" style="gap:4px"><input type="checkbox" data-ch="wlR" data-i="${i}" value="${r.id}" ${k>=0?'checked':''}>${esc(r.n)}${k>=0?`<span class="chip">${k+1}</span>`:''}</label>`}).join('')}</div></td><td><button class="btn s" data-act="delWl" data-i="${i}" aria-label="刪除">✕</button></td></tr>`).join('')}</tbody></table></div><button class="btn" data-act="addWl" style="margin-top:8px">新增規則</button></section>
+ <section class="card"><h2>主治醫師 <small>優先序 ≥9 視為最高優先：刀不移走、優先派最熟練者；速度係數乘上預估時間</small></h2>
+ <div class="scroll"><table><thead><tr><th>姓名</th><th>職稱</th><th>優先序</th><th>速度係數</th><th></th></tr></thead><tbody>${cfg.sur.map((s,i)=>`<tr><td><input type="text" data-ch="surF" data-i="${i}" data-f="n" value="${esc(s.n)}" style="width:90px"></td><td><input type="text" data-ch="surF" data-i="${i}" data-f="t" value="${esc(s.t||'')}" style="width:80px"></td><td><input type="number" data-ch="surF" data-i="${i}" data-f="p" value="${s.p}" min="1" max="10"></td><td><input type="number" data-ch="surF" data-i="${i}" data-f="sp" value="${s.sp}" step="0.1" min="0.5" max="2"></td><td><button class="btn s" data-act="delSur" data-i="${i}" aria-label="刪除">✕</button></td></tr>`).join('')}</tbody></table></div><button class="btn" data-act="addSur" style="margin-top:8px">新增主治</button></section>
+ <section class="card"><h2>主治協助時段 <small>此時段該主治的「非達文西」手術有另一位主治協助：住院醫師能力要求降一級、不占用最資深人力</small></h2>
+ <div class="scroll"><table><thead><tr><th>主治</th><th>星期</th><th>時段</th><th>協助主治</th><th></th></tr></thead><tbody>${(cfg.help||[]).map((h,i)=>`<tr><td><select data-ch="helpF" data-i="${i}" data-f="s">${cfg.sur.map(s=>`<option ${s.n===h.s?'selected':''}>${esc(s.n)}</option>`).join('')}</select></td><td><select data-ch="helpF" data-i="${i}" data-f="dow">${[1,2,3,4,5,6].map(d=>`<option value="${d}" ${String(h.dow)===String(d)?'selected':''}>週${DOW[d]}</option>`).join('')}</select></td><td><select data-ch="helpF" data-i="${i}" data-f="half">${[['am','上午'],['pm','下午'],['all','全天']].map(([k,n])=>`<option value="${k}" ${h.half===k?'selected':''}>${n}</option>`).join('')}</select></td><td><input type="text" data-ch="helpF" data-i="${i}" data-f="h" value="${esc(h.h)}" list="surs2" style="width:100px"></td><td><button class="btn s" data-act="delHelp" data-i="${i}" aria-label="刪除">✕</button></td></tr>`).join('')}</tbody></table><datalist id="surs2">${cfg.sur.map(s=>`<option value="${esc(s.n)}">`).join('')}</datalist></div><button class="btn" data-act="addHelp" style="margin-top:8px">新增協助時段</button></section>`}
+
+let dutyMonth=null;
+function dutyView(){const mo=dutyMonth||day.date.slice(0,7);const[Y,M]=mo.split('-').map(Number);const n=new Date(Date.UTC(Y,M,0)).getUTCDate();const off=(new Date(Date.UTC(Y,M-1,1)).getUTCDay()+6)%7;const nm=id=>(cfg.res.find(r=>r.id===id)||{}).n||id;
+ const cells=[];for(let i=0;i<off;i++)cells.push('<div></div>');for(let d=1;d<=n;d++){const ds=`${mo}-${String(d).padStart(2,'0')}`,ids=(cfg.duty||{})[ds]||[],w=dowOf(ds);cells.push(`<div class="dcell${ds===day.date?' today':''}${w===0||w===6?' we':''}"><b>${d}</b><div>${ids.map(id=>`<button class="btn s" data-act="dutyDel" data-d="${ds}" data-r="${id}" title="移除">${esc(nm(id))}</button>`).join('')}</div><select data-ch="dutyAdd" data-d="${ds}" aria-label="${ds} 加入值班"><option value="">＋</option>${cfg.res.filter(r=>r.on&&!ids.includes(r.id)).map(r=>`<option value="${r.id}">${esc(r.n)}</option>`).join('')}</select></div>`)}
+ return `<section class="card"><h2>值班表 <small>匯入後，值班隔天下午自動排 pm；週六值班會在公告加「（值班）」</small></h2>
+ <div class="row"><label class="row" style="gap:6px">月份<input type="month" data-ch="dutyM" value="${mo}"></label><label class="row" style="gap:4px"><input type="checkbox" data-ch="postCall" ${cfg.set.postCall!==false?'checked':''}> 值班隔天下午 pm</label></div>
+ <details ${Object.keys(cfg.duty||{}).some(d=>d.startsWith(mo))?'':'open'} style="margin-top:8px"><summary>貼上值班表</summary><textarea id="dutyTxt" rows="6" style="width:100%" placeholder="從 Excel、Google 試算表或 LINE 複製貼上，支援：&#10;11/23 亭易&#10;23（一）	正宇	華緯&#10;或橫式月曆：第一列 1、2、3…31，每位住院醫師一列，有值班的格子填任何字"></textarea><div class="row"><button class="btn p" data-act="dutyGo">匯入到 ${Y}/${M}</button><button class="btn" data-act="dutyClear">清除 ${M} 月值班</button></div><p class="note" id="dutymsg">名字可用全名或簡稱；別名可在下方名單的「別名」欄設定（例如 Gary）。</p></details>
+ <div class="dcal">${['一','二','三','四','五','六','日'].map(x=>`<div class="dh">${x}</div>`).join('')}${cells.join('')}</div></section>`}
+function setView(){const S=cfg.set,TK=[['1','週一'],['2','週二'],['3','週三'],['4','週四'],['5','週五'],['6o','週六（單週）'],['6e','週六（雙週）']],TR=['6','16','24','26','23','5'];
+ const f=(k,n,ty='time',ex='')=>`<label class="row" style="gap:6px">${n}<input type="${ty}" data-ch="setF" data-k="${k}" value="${esc(S[k])}" ${ex}></label>`;
+ return `<section class="card"><h2>時間規則</h2><div class="row" style="gap:14px">${f('start','第一台')}${f('amEnd','上下午分界')}${f('turn','換台(分)','number')}${f('deadline','常規截止')}${f('nurseOT','護理加班至')}${f('dvBlock','以一換一擋刀')}${f('longCase','長刀門檻(分)','number')}${f('pmStart','下午時段開始')}${f('sdStart','當日刀最早')}${f('opdam','上午OPD人數','number')}${f('opdpm','下午OPD人數','number')}<span class="note">（需指導者看 OPD 時會自動加一位 R2／R3）</span></div></section>
+ <section class="card"><h2>週刀房模板 <small>「上午/下午」用斜線分開，例如 洪順興/謝昆霖</small></h2><div class="scroll"><table><thead><tr><th>星期</th>${TR.map(r=>`<th>R${r}</th>`).join('')}</tr></thead><tbody>${TK.map(([k,n])=>`<tr><td>${n}</td>${TR.map(r=>`<td><input type="text" data-ch="tpl" data-k="${k}" data-r="${r}" value="${esc((cfg.tpl[k]||{})[r]||'')}" style="width:120px"></td>`).join('')}</tr>`).join('')}</tbody></table></div></section>
+ <section class="card"><h2>房間設定</h2><div class="scroll"><table><thead><tr><th>房號</th><th>刀表別名</th><th>預設主機</th><th>需住院醫師</th><th>專責優先</th><th>全麻房(計超時)</th><th>OPD負責</th><th>Lumenis(380V)</th><th>達文西房</th><th>以一換一</th><th>週六以一換一</th><th></th></tr></thead><tbody>${cfg.rooms.map((r,i)=>`<tr><td><input type="text" data-ch="roomF" data-i="${i}" data-f="id" value="${esc(r.id)}" style="width:64px"></td><td><input type="text" data-ch="roomA" data-i="${i}" value="${esc(r.alias||'')}" placeholder="例：達文西1" style="width:100px"></td><td><input type="text" data-ch="roomF" data-i="${i}" data-f="tower" value="${esc(r.tower)}" style="width:90px"></td><td><input type="number" data-ch="roomF" data-i="${i}" data-f="need" value="${r.need}" min="0" max="3"></td><td><input type="number" data-ch="roomF" data-i="${i}" data-f="opn" value="${r.opn}" min="0" max="5"></td><td><input type="checkbox" data-ch="roomGA" data-i="${i}" ${r.ga!==false?'checked':''} aria-label="全麻房"></td><td><input type="checkbox" data-ch="roomB" data-i="${i}" data-f="opd" ${r.opd?'checked':''} aria-label="由OPD負責"></td>${['lum','robot','swap','swapSat'].map(k=>`<td><input type="checkbox" data-ch="roomB" data-i="${i}" data-f="${k}" ${r[k]?'checked':''} aria-label="${k}"></td>`).join('')}<td><button class="btn s" data-act="delRoom" data-i="${i}" aria-label="刪除">✕</button></td></tr>`).join('')}</tbody></table></div><button class="btn" data-act="addRoom" style="margin-top:8px">新增房間</button></section>
+ <section class="card"><h2>術式時間資料庫 <small>由上往下比對關鍵字，第一個符合者生效；「附加」會加在同一台上</small></h2><div class="scroll"><table><thead><tr><th>關鍵字（逗號分隔）</th><th>類別</th><th>分鐘</th><th>需要能力</th><th></th></tr></thead><tbody>${cfg.procs.map((p,i)=>`<tr><td><input type="text" data-ch="procF" data-i="${i}" data-f="k" value="${esc(p.k)}" style="width:100%;min-width:220px"></td><td><select data-ch="procF" data-i="${i}" data-f="cat">${[...CATS,['addon','附加（雷射/耗材）']].map(([k,n])=>`<option value="${k}" ${p.cat===k?'selected':''}>${n}</option>`).join('')}</select></td><td><input type="number" data-ch="procF" data-i="${i}" data-f="m" value="${p.m}" step="5"></td><td><select data-ch="procF" data-i="${i}" data-f="lv">${[1,2,3].map(v=>`<option value="${v}" ${+p.lv===v?'selected':''}>${ABN[v]}</option>`).join('')}</select></td><td><button class="btn s" data-act="delProc" data-i="${i}" aria-label="刪除">✕</button></td></tr>`).join('')}</tbody></table></div><button class="btn" data-act="addProc" style="margin-top:8px">新增術式</button></section>
+ ${IN_CLAUDE?'':GAS?`<section class="card"><h2>Google 同步</h2><p class="note">此網頁由科內 Google Apps Script 提供，所有修改自動存到同一份 Google 試算表，打開或切換日期時讀取最新版本。</p><div class="row"><button class="btn" data-act="gsPull">從雲端重新載入</button><button class="btn" data-act="gsPush">把本機資料上傳</button></div><p class="note" id="gsmsg"></p></section>`:`<section class="card"><h2>Google 試算表同步 <small>讓多台電腦共用同一份設定與排班，使用者不需任何帳號</small></h2>
+ <ol class="note" style="padding-left:20px;margin:0 0 10px"><li>用科內的 Google 帳號新增一個 Google 試算表，選單「擴充功能 → Apps Script」。</li><li>把下方程式碼整段貼上取代原內容，存檔（不需要改任何字；想加密碼才改第一行）。</li><li>右上「部署 → 新增部署作業」，類型選「網頁應用程式」，執行身分「我」，存取權「所有人」，按部署並授權，複製網址（結尾是 /exec）。</li><li>把網址貼在下面，按「測試並啟用」。每台要同步的電腦都貼一次（有設密碼才需要填密碼）。</li></ol>
+ <div class="row"><input type="text" id="gsUrl" value="${esc(gs.url)}" placeholder="https://script.google.com/macros/s/…/exec" style="flex:1 1 320px"><input type="text" id="gsTok" value="${esc(gs.token)}" placeholder="密碼（可留空）" style="width:140px"><button class="btn p" data-act="gsTest">測試並啟用</button>${gs.on?'<button class="btn" data-act="gsPull">從雲端重新載入</button><button class="btn" data-act="gsPush">把本機資料上傳</button><button class="btn" data-act="gsOff">停用同步</button>':''}</div><p class="note" id="gsmsg">${gs.on?'同步中：每次修改約 1 秒後寫入試算表；打開頁面或切換日期時讀取最新版本。':'尚未啟用，資料只存在這台電腦的瀏覽器。'}</p>
+ <details><summary>Apps Script 程式碼</summary><textarea id="gscode" rows="9" style="width:100%;font:13px monospace">${esc(GSCODE)}</textarea><button class="btn" data-act="gsCopy">複製程式碼</button></details>
+ <p class="note">試算表只會存主治、住院醫師姓名與術式，不含病人資料。不設密碼時，這個 /exec 網址就等於鑰匙，請只在科內流通。</p></section>`}
+ <section class="card"><h2>備份與還原</h2>${`<div class="row" style="margin-bottom:8px"><button class="btn" data-act="expFile">下載完整備份 (.json)</button><button class="btn" data-act="impPick">從備份檔還原</button><input type="file" id="impFile" accept=".json,application/json" hidden data-ch="impFile"></div>`}<p class="note">設定會自動存到此工具的雲端資料（分享給同事後可共用）；也可複製下方 JSON 自行保存。</p><textarea id="cfgjson" rows="5" style="width:100%">${esc(JSON.stringify(cfg))}</textarea><div class="row"><button class="btn" data-act="cfgCopy">複製設定</button><button class="btn" data-act="cfgLoad">從上方 JSON 還原</button><button class="btn" data-act="cfgReset">恢復預設</button></div><p class="note" id="cfgmsg"></p></section>`}
+
+const byId=id=>day.cases.find(c=>c.id===id);
+function renum(room){day.cases.filter(c=>c.room===room&&!c.eve).sort((a,b)=>a.order-b.order).forEach((c,i)=>c.order=i+1)}
+function moveTo(c,room){const from=c.room;if(room==='eve'){c.eve=true}else{c.eve=false;c.room=room;c.order=Math.max(0,...day.cases.filter(x=>x.room===room&&x!==c&&!x.eve).map(x=>x.order))+1}renum(from);if(room!=='eve')renum(room)}
+function sortRoom(room){const tl=timeline(day),r=tl.rooms.find(x=>x.id===room);if(!r)return;const top=topS(),L=+cfg.set.longCase,sp=r.split;
+ const key=x=>[sp&&x.c.surgeon===sp.pm?1:0,x.c.sd?1:0,x.dur>=L?0:1,top.includes(x.c.surgeon)?0:1,x.dur>=L?-x.dur:0];
+ const xs=r.cases.filter(x=>!x.c.fixed&&!x.c.clock).map((x,i)=>({x,i,k:key(x)}));xs.sort((a,b)=>{for(let j=0;j<a.k.length;j++)if(a.k[j]!==b.k[j])return a.k[j]-b.k[j];return a.i-b.i});
+ interleave(r.cases.filter(x=>x.c.fixed).map(x=>x.c),xs.map(o=>o.x.c),r.cases.filter(x=>x.c.clock&&!x.c.fixed).map(x=>x.c),T(cfg.set.start)).forEach((c,i)=>c.order=i+1)}
+function addCases(byDate){const dates=Object.keys(byDate);if(!dates.length)return 0;const rep=$('#replace')?$('#replace').checked:true;let n=0;
+ for(const d of dates){const target=d===day.date?day:(LS.get('days/'+d)||newDay(d));if(rep&&!target._rep){target.cases=[];target._rep=1}for(const c of byDate[d]){c.order+=Math.max(0,...target.cases.filter(x=>x.room===c.room).map(x=>x.order));target.cases.push(c);n++}for(const room of new Set(target.cases.map(c=>c.room))){const sp=isSplit(target,room);if(!sp)continue;const cs=target.cases.filter(c=>c.room===room&&!c.eve).sort((a,b)=>(b.fixed?1:0)-(a.fixed?1:0)||((a.surgeon===sp.pm)-(b.surgeon===sp.pm))||a.order-b.order);cs.forEach((c,j)=>{c.order=j+1;if(c.surgeon===sp.pm&&c.add&&T(c.time)>=T(cfg.set.amEnd))c.add=false})}
+  delete target._rep;delete target.demo;if(target!==day)persist('days/'+d,target)}
+ return n}
+async function aiParse(files){if(!sampler){busy='此檢視無法使用 AI 讀圖，請改用貼上文字或手動新增。';render();return}
+ try{const lim=sampler.limits?await sampler.limits():{images:true};if(lim&&lim.images===false){busy='目前無法傳送圖片給 Claude，請改用貼上文字。';render();return}}catch(e){}
+ const all=[];let i=0;const rep=$('#replace')?$('#replace').checked:true;
+ for(const f of files){i++;busy=`辨識第 ${i}/${files.length} 張圖片中…`;render();if($('#replace'))$('#replace').checked=rep;
+  const prompt=`你在讀台灣醫院的泌尿科刀表截圖。請把表格中每一列（包含紅字列）轉為 JSON 陣列，不要合併、不要省略。每列格式：{"d":"手術日原文，例如1151120","t":"時欄原文，例如08:30、TF:1、小夜:","s":"手術師","loc":"手術位置原文，例如3F R06....或2F門診 R29或B2碎石 R06","n":"手術名稱原文","x":"特殊器械原文"}。看不清楚的字依泌尿科術式常識補全。只輸出 JSON 陣列，不要其他文字。`;
+  try{let v;if(typeof sampler.json==='function')v=await sampler.json(prompt,{images:[f],modelTier:'default'});else{const r=await sampler(prompt,{images:[f],modelTier:'default'});const m=String(r.text).match(/\[[\s\S]*\]/);v=m?JSON.parse(m[0]):[]}
+   const arr=Array.isArray(v)?v:(v&&Array.isArray(v.rows)?v.rows:[]);arr.forEach(o=>all.push(normRow(o,day.date)))}catch(e){busy=`第 ${i} 張辨識失敗：${e&&e.code==='rate_limited'?'請稍後再試':e&&e.code==='not_granted'?'未授權使用 Claude':'請改用貼上文字'}`;render();return}}
+ const by=rowsToCases(all.filter(r=>r.surgeon&&r.name));const dates=Object.keys(by);if(!dates.length){busy='沒有辨識到刀單列。';render();return}
+ const n=addCases(by);if(!dates.includes(day.date)){await loadDay(dates[0])}busy=`已匯入 ${n} 台（${dates.map(d=>d.slice(5)).join('、')}），請核對術式與分鐘數。`;saveDay();render()}
+
+function act(k,b){const id=b.dataset.id,i=+b.dataset.i;
+ if(k==='tab'){tab=b.dataset.k;render();return}
+ if(k==='pick'){$('#file').click();return}
+ if(k==='copy'){const t=$('#line');const done=()=>{const p=$('#copied');if(p)p.textContent='已複製，可貼到 LINE 群組。'};try{navigator.clipboard.writeText(t.value).then(done,()=>{t.select();document.execCommand('copy');done()})}catch(e){t.select();document.execCommand('copy');done()}return}
+ if(k==='cfgCopy'){const t=$('#cfgjson');try{navigator.clipboard.writeText(t.value).then(()=>{$('#cfgmsg').textContent='已複製'},()=>{t.select()})}catch(e){t.select()}return}
+ if(k==='cfgLoad'){try{cfg=fixCfg(JSON.parse($('#cfgjson').value));saveCfg();render()}catch(e){$('#cfgmsg').textContent='JSON 格式錯誤'}return}
+ if(k==='dutyGo'){const mo=dutyMonth||day.date.slice(0,7);const o=parseDuty($('#dutyTxt').value,mo);const ds=Object.keys(o);cfg.duty=cfg.duty||{};ds.forEach(d=>cfg.duty[d]=o[d]);saveCfg();render();const m=$('#dutymsg');if(m)m.textContent=ds.length?`已匯入 ${ds.length} 天、${ds.reduce((s,d)=>s+o[d].length,0)} 人次。請對照下方月曆確認。`:'沒有辨識到日期與住院醫師名字，請確認格式或在名單加別名。';return}
+ if(k==='dutyClear'){const mo=dutyMonth||day.date.slice(0,7);for(const d of Object.keys(cfg.duty||{}))if(d.startsWith(mo))delete cfg.duty[d];saveCfg();render();return}
+ if(k==='dutyDel'){const d=b.dataset.d;cfg.duty[d]=(cfg.duty[d]||[]).filter(x=>x!==b.dataset.r);if(!cfg.duty[d].length)delete cfg.duty[d];saveCfg();render();return}
+ if(k==='gsCopy'){const t=$('#gscode');try{navigator.clipboard.writeText(t.value)}catch(e){t.select();document.execCommand('copy')}return}
+ if(k==='gsTest'){const url=$('#gsUrl').value.trim(),token=$('#gsTok').value.trim();const m=$('#gsmsg');if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){m.textContent='網址應以 https://script.google.com/ 開頭';return}m.textContent='測試中…';const old=gs;gs={url,token,on:true};
+  gsGet('config/main').then(async v=>{LS.set('gsync',gs);if(v&&v.cfg){cfg=fixCfg(v.cfg);const d=await gsGet('days/'+day.date).catch(()=>null);if(d)day=d;syncState='gs';render();$('#gsmsg').textContent='連線成功，已載入雲端資料。'}else{await gsSet('config/main',{cfg});await gsSet('days/'+day.date,day);syncState='gs';render();$('#gsmsg').textContent='連線成功：雲端是空的，已把這台電腦的設定上傳。'}}).catch(e=>{gs=old;m.textContent=/token/.test(e.message)?'密碼不正確':'無法連線：請確認部署存取權為「所有人」，或醫院網路是否擋 Google。'});return}
+ if(k==='gsPull'){gsBoot();return}
+ if(k==='gsPush'){Promise.all([gsSet('config/main',{cfg}),gsSet('days/'+day.date,day)]).then(()=>{$('#gsmsg').textContent='已上傳設定與本日排班。'},()=>{$('#gsmsg').textContent='上傳失敗'});return}
+ if(k==='gsOff'){gs={...gs,on:false};LS.set('gsync',gs);syncState='local';render();return}
+ if(k==='expFile'){(async()=>{const days={};try{for(let j=0;j<localStorage.length;j++){const key=localStorage.key(j);if(key.startsWith('or:days/'))days[key.slice(8)]=JSON.parse(localStorage.getItem(key))}}catch(e){}if(db){try{const q=await db.collection('days').get();q.docs.forEach(d=>{days[d.id]=JSON.parse(JSON.stringify(d.data()))})}catch(e){}}days[day.date]=day;const txt=JSON.stringify({cfg,days},null,1),fn=`刀房調度備份_${day.date}.json`;const m=$('#cfgmsg');
+  if(IN_CLAUDE){try{const dl=await window.claude.use('downloads');if(!dl){if(m)m.textContent='此檢視無法下載，請改用「複製設定」。';return}await dl.save({filename:fn,data:txt});if(m)m.textContent='已下載備份'}catch(e){if(m)m.textContent='下載已取消或無法下載'}return}
+  const blob=new Blob([txt],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();a.remove()})();return}
+ if(k==='impPick'){$('#impFile').click();return}
+ if(k==='cfgReset'){cfg=defaultCfg();saveCfg();render();return}
+ if(k==='clearDay'){if(!clearArm){clearArm=true;render();setTimeout(()=>{clearArm=false},4000);return}clearArm=false;day.cases=[]}
+ else if(k==='up'||k==='dn'){const c=byId(id);const list=day.cases.filter(x=>x.room===c.room&&!x.eve).sort((a,b)=>(b.fixed?1:0)-(a.fixed?1:0)||a.order-b.order);const j=list.indexOf(c),o=list[j+(k==='up'?-1:1)];if(o&&!o.fixed){const t=c.order;c.order=o.order;o.order=t}}
+ else if(k==='fix'){const c=byId(id);c.fixed=!c.fixed}
+ else if(k==='sd'){const c=byId(id);c.sd=!c.sd}
+ else if(k==='resetDur'){byId(id).md=null}
+ else if(k==='del'){const c=byId(id);day.cases=day.cases.filter(x=>x!==c);renum(c.room)}
+ else if(k==='merge'){const c=byId(id);const list=day.cases.filter(x=>x.room===c.room&&!x.eve).sort((a,b)=>a.order-b.order);const p=list[list.indexOf(c)-1];if(p){p.procs.push(...c.procs);p.spec=[...(p.spec||[]),...(c.spec||[])];p.md=null;day.cases=day.cases.filter(x=>x!==c);renum(c.room)}}
+ else if(k==='uneve'){const c=byId(id);moveTo(c,c.room)}
+ else if(k==='apply'){const c=byId(id);if(c)moveTo(c,b.dataset.to)}
+ else if(k==='applyAll'){const tl=timeline(day);planMoves(day,tl).moves.forEach(m=>moveTo(m.c,m.to))}
+ else if(k==='sortRoom'){sortRoom(b.dataset.room)}
+ else if(k==='optimize'){timeline(day).rooms.forEach(r=>sortRoom(r.id))}
+ else if(k==='pasteGo'){pasteText=$('#paste').value;const by=rowsToCases(parseText(pasteText,day.date));if(Object.keys(by).length)pasteText='';const n=addCases(by);busy=n?`已加入 ${n} 台`:'無法解析，請確認格式（每列：日期 時 主治 位置 術式）';if(n&&!by[day.date]){loadDay(Object.keys(by)[0]).then(render);return}}
+ else if(k==='addCase'){const proc=$('#mProc').value.trim();if(!proc)return;const room=$('#mRoom').value;const c={id:nid(),date:day.date,room,surgeon:$('#mSur').value.trim()||'未定',procs:[proc],spec:[],md:$('#mMin').value?+$('#mMin').value:null,order:Math.max(0,...day.cases.filter(x=>x.room===room).map(x=>x.order))+1};day.cases.push(c)}
+ else{ // config actions
+  if(k==='addRes')cfg.res.push({id:'r'+Date.now().toString(36),n:'新成員',lv:'R1',on:true,ab:mkAb([1,1,1,0,0,0,0,1,1,1,0])});
+  if(k==='delRes')cfg.res.splice(i,1);if(k==='addWl')cfg.wl.push({s:cfg.sur[0].n,cat:'robot',allow:[]});if(k==='delWl')cfg.wl.splice(i,1);
+  if(k==='addSur')cfg.sur.push({n:'新主治',p:5,sp:1});if(k==='delSur')cfg.sur.splice(i,1);if(k==='addRoom')cfg.rooms.push({id:'新',tower:'',need:1,opn:1});if(k==='delRoom')cfg.rooms.splice(i,1);
+  if(k==='addHelp')(cfg.help=cfg.help||[]).push({s:'黃冠華',dow:'2',half:'am',h:''});if(k==='delHelp')cfg.help.splice(i,1);
+  if(k==='addLeave'){const f=$('#lvF').value,t=$('#lvTo').value||f;if(!f)return;(cfg.leaves=cfg.leaves||[]).push({r:$('#lvR').value,type:$('#lvT').value,from:f<=t?f:t,to:f<=t?t:f,half:$('#lvH').value})}
+  if(k==='delLeave')cfg.leaves.splice(i,1);
+  if(k==='addProc')cfg.procs.unshift({k:'新術式',cat:'minor',m:30,lv:1});if(k==='delProc')cfg.procs.splice(i,1);
+  saveCfg();render();return}
+ saveDay();render()}
+function ch(k,el){const i=+el.dataset.i,v=el.type==='checkbox'?el.checked:el.value;
+ if(k==='date'){if(!v)return;saveDay();loadDay(v).then(render);return}
+ if(k==='dutyM'){dutyMonth=v;render();return}
+ if(k==='dutyAdd'){if(!v)return;const d=el.dataset.d;cfg.duty=cfg.duty||{};cfg.duty[d]=[...(cfg.duty[d]||[]),v];saveCfg();render();return}
+ if(k==='postCall'){cfg.set.postCall=v;saveCfg();render();return}
+ if(k==='impFile'){const f=el.files[0];if(!f)return;f.text().then(t=>{try{const o=JSON.parse(t);if(o.cfg){cfg=fixCfg(o.cfg);saveCfg()}for(const[d,v]of Object.entries(o.days||{}))persist('days/'+d,v);if(o.days&&o.days[day.date])day=o.days[day.date];render();const m=$('#cfgmsg');if(m)m.textContent='已還原備份'}catch(e){const m=$('#cfgmsg');if(m)m.textContent='檔案格式錯誤'}});return}
+ if(k==='file'){const fs=[...el.files];el.value='';if(fs.length)handleFiles(fs);return}
+ const dayK={sur:()=>{const c=byId(el.dataset.id);c.surgeon=v.trim();c.sq=false;delete c.raw},par:()=>{day.par=v},dur:()=>{const c=byId(el.dataset.id);c.md=v===''?null:+v},mv:()=>moveTo(byId(el.dataset.id),v),st:()=>{day.st[el.dataset.r]={...(day.st[el.dataset.r]||{}),[el.dataset.h]:v}},note:()=>{day.notes[el.dataset.r]=v},opnOn:()=>{day.opn[i].on=v},opnRoom:()=>{day.opn[i].room=v},inst:()=>{day.inst[el.dataset.h]=v},tower:()=>{day.tower[el.dataset.room]=v},lineExtra:()=>{day.lineExtra=v},open:()=>{const s=new Set(day.open||[]);v?s.add(el.value):s.delete(el.value);day.open=[...s]}};
+ if(dayK[k]){dayK[k]();saveDay();render();return}
+ const num=x=>x===''||isNaN(+x)?x:+x;
+ const cfgK={resF:()=>{cfg.res[i][el.dataset.f]=v},ab:()=>{cfg.res[i].ab[el.dataset.c]=+v},wlF:()=>{cfg.wl[i][el.dataset.f]=v},wlR:()=>{const s=new Set(cfg.wl[i].allow||[]);v?s.add(el.value):s.delete(el.value);cfg.wl[i].allow=[...s]},surF:()=>{const f=el.dataset.f;cfg.sur[i][f]=f==='p'||f==='sp'?+v:v},setF:()=>{cfg.set[el.dataset.k]=el.type==='number'?+v:v},tpl:()=>{(cfg.tpl[el.dataset.k]=cfg.tpl[el.dataset.k]||{})[el.dataset.r]=v},roomF:()=>{const f=el.dataset.f;cfg.rooms[i][f]=f==='id'||f==='tower'?String(v).replace(/^R/i,''):num(v)},roomA:()=>{cfg.rooms[i].alias=v},roomGA:()=>{cfg.rooms[i].ga=!!v},roomB:()=>{cfg.rooms[i][el.dataset.f]=v},leaveF:()=>{cfg.leaves[i][el.dataset.f]=v},helpF:()=>{cfg.help[i][el.dataset.f]=v},procF:()=>{const f=el.dataset.f;cfg.procs[i][f]=f==='m'||f==='lv'?+v:v}};
+ if(cfgK[k]){cfgK[k]();saveCfg();render()}}
+function handleFiles(fs){thumbs=[];for(const f of fs){try{thumbs.push(URL.createObjectURL(f))}catch(e){}}if(sampler)aiParse(fs);else if(!IN_CLAUDE)ocrParse(fs);else{busy='AI 讀圖目前無法使用，請改貼文字。';render()}}
+function loadTess(){return new Promise((ok,no)=>{if(window.Tesseract)return ok(window.Tesseract);const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';sc.onload=()=>ok(window.Tesseract);sc.onerror=()=>no(new Error('load'));document.head.appendChild(sc)})}
+async function prep(file){const img=await createImageBitmap(file);const k=Math.min(3,Math.max(1.5,1800/img.width));const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.drawImage(img,0,0,c.width,c.height);const d=x.getImageData(0,0,c.width,c.height),a=d.data;for(let i=0;i<a.length;i+=4){const r=a[i],g=a[i+1],b=a[i+2];const red=r>150&&g<110&&b<110;let v=red?0:(.3*r+.59*g+.11*b);v=v<165?0:255;a[i]=a[i+1]=a[i+2]=v}x.putImageData(d,0,0);return c}
+async function ocrParse(files){if(ocrBusy)return;ocrBusy=true;let out=[];try{busy='載入文字辨識引擎…';render();const Ts=await loadTess();const w=await Ts.createWorker('chi_tra+eng',1,{logger:m=>{if(m.status==='recognizing text'){const el=$('#aimsg');if(el)el.textContent=`辨識中 ${Math.round(m.progress*100)}%`}else if(/load/.test(m.status)){const el=$('#aimsg');if(el)el.textContent='下載中文字庫…（只有第一次較久）'}}});await w.setParameters({preserve_interword_spaces:'1'});
+ for(const f of files){const c=await prep(f);const r=await w.recognize(c);out.push(r.data.text)}await w.terminate();
+ pasteText=out.join('\n').split('\n').map(l=>l.replace(/\s{2,}/g,'  ').trim()).filter(Boolean).join('\n');const n=parseText(pasteText,day.date).length;busy=n?`辨識出 ${n} 列，請檢查下方文字（主治、房號、TF）後按「解析並加入」。`:'辨識不到刀單列，請改用貼上 HIS 文字，或修正下方文字後再解析。'}catch(e){busy='無法載入文字辨識（可能網路被擋），請改用貼上 HIS 文字。'}ocrBusy=false;render()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b&&!b.disabled)act(b.dataset.act,b)});
+document.addEventListener('change',e=>{const el=e.target.closest('[data-ch]');if(el)ch(el.dataset.ch,el)});
+document.addEventListener('paste',e=>{const t=e.target;if(t&&(t.tagName==='TEXTAREA'||t.tagName==='INPUT'))return;const fs=[...(e.clipboardData||{}).files||[]].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();tab='plan';handleFiles(fs)}});
+document.addEventListener('dragover',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.add('on')}});
+document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();const fs=[...e.dataTransfer.files].filter(f=>/^image\//.test(f.type));if(fs.length)handleFiles(fs)}});
+function placeCase(c,room,beforeId){const from=c.room;c.eve=false;c.room=room;const list=day.cases.filter(x=>x.room===room&&!x.eve&&x!==c).sort((a,b)=>(b.fixed?1:0)-(a.fixed?1:0)||a.order-b.order);let i=beforeId?list.findIndex(x=>x.id===beforeId):list.length;if(i<0)i=list.length;while(i<list.length&&list[i].fixed)i++;list.splice(i,0,c);list.forEach((x,j)=>x.order=j+1);if(from!==room)renum(from)}
+let drag=null;
+function clearMarks(){document.querySelectorAll('.dropb,.dropend').forEach(e=>e.classList.remove('dropb','dropend'))}
+function dropTarget(x,y){const el=document.elementFromPoint(x,y);if(!el)return null;const li=el.closest('.case[data-id]');if(li&&li.dataset.id!==drag.id){const rc=li.getBoundingClientRect();const room=li.closest('[data-room]').dataset.room;if(y>rc.top+rc.height/2){const nx=li.nextElementSibling;return nx?{room,before:nx.dataset.id,el:nx,cls:'dropb'}:{room,before:null,el:li.parentElement,cls:'dropend'}}return{room,before:li.dataset.id,el:li,cls:'dropb'}}const card=el.closest('.room[data-room]');if(card){const ul=card.querySelector('.cases');return{room:card.dataset.room,before:null,el:ul,cls:'dropend'}}return null}
+document.addEventListener('pointerdown',e=>{const g=e.target.closest('[data-grip]');if(!g)return;e.preventDefault();const li=g.closest('.case');const c=byId(g.dataset.grip);if(!c)return;const gh=document.createElement('div');gh.className='ghost';gh.textContent=`${c.surgeon}　${short(c)}`;document.body.appendChild(gh);li.classList.add('dragging');drag={id:c.id,gh,li,t:null};gh.style.left=e.clientX+12+'px';gh.style.top=e.clientY+8+'px'});
+document.addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();drag.gh.style.left=e.clientX+12+'px';drag.gh.style.top=e.clientY+8+'px';clearMarks();drag.t=dropTarget(e.clientX,e.clientY);if(drag.t)drag.t.el.classList.add(drag.t.cls);const m=60;if(e.clientY<m)window.scrollBy(0,-12);else if(e.clientY>window.innerHeight-m)window.scrollBy(0,12)},{passive:false});
+function endDrag(ok){if(!drag)return;const d=drag;drag=null;d.gh.remove();d.li.classList.remove('dragging');clearMarks();if(ok&&d.t){placeCase(byId(d.id),d.t.room,d.t.before);saveDay();render()}}
+document.addEventListener('pointerup',()=>endDrag(true));document.addEventListener('pointercancel',()=>endDrag(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')endDrag(false)});
+render();gsBoot();
+if(/^#(line|today)$/.test(location.hash))setTimeout(()=>{const e=$('#line-sec');if(e)e.scrollIntoView()},300);
+(async()=>{const C=typeof window.claude!=='undefined'&&window.claude&&window.claude.use?window.claude:null;if(!C)return;
+ try{db=await C.use('db')}catch(e){db=null}
+ if(db){const tm=setTimeout(()=>{syncState='err';const el=$('#sync');if(el)el.textContent=syncTxt()},10000);
+  try{const s=await db.doc('config/main').get();clearTimeout(tm);if(s.exists&&s.data().cfg){cfg=fixCfg(JSON.parse(JSON.stringify(s.data().cfg)))}syncState='cloud';
+   const d=await db.doc('days/'+curDate).get();if(d.exists){day=JSON.parse(JSON.stringify(d.data()));for(const k of Object.keys(newDay(curDate)))if(day[k]==null)day[k]=newDay(curDate)[k]}}catch(e){clearTimeout(tm);syncState='err'}
+  render()}
+ try{sampler=await C.use('sample')}catch(e){sampler=null}render()})();
+}
+</script>
+</body>
+</html>
