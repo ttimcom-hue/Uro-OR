@@ -299,12 +299,12 @@ const ruleHit=(rl,c)=>{const kw=String(rl.kw||'').split(/[,，]/).map(x=>x.trim(
 const ER_T=[['insert','插刀'],['urgent','緊急刀'],['general','一般急']];
 const SATS={full:'報一天',half:'報半天',opd:'上午OPD',duty:'值班'};const SATCYC=['','full','half','opd','duty'];
 const satPlan=ds=>dowOf(ds)===6?((cfg.sat||{})[ds]||null):null;
-function satSt(rid,ds,h){if(dowOf(ds)!==6)return null;const P=satPlan(ds);if(!P){const fri=onDuty(rid,addDays(ds,-1));if(fri)return h==='am'?'OPD':'off';return null}const v=(P.ppl||{})[rid]||'';if(!v)return'off';if(v==='opd')return h==='am'?'OPD':'off';if(v==='half')return h==='am'?'auto':'off';return'auto'}
+function satSt(rid,ds,h){if(dowOf(ds)!==6)return null;const P=satPlan(ds);if(!P){if(onDuty(rid,addDays(ds,1)))return'off';const fri=onDuty(rid,addDays(ds,-1));if(fri)return h==='am'?'OPD':'off';return null}const v=(P.ppl||{})[rid]||'';if(!v)return'off';if(v==='opd')return h==='am'?'OPD':'off';if(v==='half')return h==='am'?'auto':'off';return'auto'}
 function satSuggest(mo){const[Y,M]=mo.split('-').map(Number);const n=new Date(Date.UTC(Y,M,0)).getUTCDate();const cnt={};const res=cfg.res.filter(r=>r.on&&!isFel(r));cfg.sat=cfg.sat||{};let made=0;
  for(let d=1;d<=n;d++){const ds=`${mo}-${String(d).padStart(2,'0')}`;if(dowOf(ds)!==6)continue;const ppl={};const lv=r=>leaveOf(r.id,ds,'am');
-  const fri=res.filter(r=>onDuty(r.id,addDays(ds,-1))&&!lv(r));if(fri[0])ppl[fri[0].id]='opd';else{const j=res.filter(r=>isJr(r)&&!r.sup&&!lv(r)&&!onDuty(r.id,ds)).sort((a,b)=>(cnt[a.id]||0)-(cnt[b.id]||0))[0];if(j)ppl[j.id]='opd'}
-  const C=crew(ds);const satD=[...C.sec,...C.un,...C.w1,...C.tot].map(id=>res.find(r=>r.id===id)).filter(r=>r&&!lv(r)&&!ppl[r.id]);if(satD[0])ppl[satD[0].id]='duty';
-  let or=Object.values(ppl).filter(v=>v==='duty'||v==='full').length;const pool=res.filter(r=>!ppl[r.id]&&!lv(r)&&!isJr(r)&&!fri.includes(r)&&!onDuty(r.id,ds)).sort((a,b)=>(cnt[a.id]||0)-(cnt[b.id]||0));
+  const sun=r=>onDuty(r.id,addDays(ds,1));const fri=res.filter(r=>onDuty(r.id,addDays(ds,-1))&&!lv(r)&&!sun(r));if(fri[0])ppl[fri[0].id]='opd';else{const j=res.filter(r=>isJr(r)&&!r.sup&&!lv(r)&&!onDuty(r.id,ds)&&!sun(r)).sort((a,b)=>(cnt[a.id]||0)-(cnt[b.id]||0))[0];if(j)ppl[j.id]='opd'}
+  const C=crew(ds);const satD=[...C.sec,...C.un,...C.w1,...C.tot].map(id=>res.find(r=>r.id===id)).filter(r=>r&&!lv(r)&&!ppl[r.id]&&!sun(r));if(satD[0])ppl[satD[0].id]='duty';
+  let or=Object.values(ppl).filter(v=>v==='duty'||v==='full').length;const pool=res.filter(r=>!ppl[r.id]&&!lv(r)&&!isJr(r)&&!fri.includes(r)&&!onDuty(r.id,ds)&&!sun(r)).sort((a,b)=>(cnt[a.id]||0)-(cnt[b.id]||0));
   for(const r of pool){if(or>=2)break;ppl[r.id]='full';or++}
   for(const id of Object.keys(ppl))cnt[id]=(cnt[id]||0)+1;cfg.sat[ds]={ppl};made++}
  return made}
@@ -713,11 +713,11 @@ async function dutyImgParse(f){const msg=t=>{const m=$('#dutyimgmsg');if(m)m.tex
   dutyMonth=`${Y}-${pad(M)}`;saveCfg();render();msg(`已匯入 ${Y}/${M} 共 ${days} 天、本科 ${n} 人次。請對照月曆，名字不對可點掉重加。`)}catch(e){msg(e&&e.code==='rate_limited'?'請稍後再試':'辨識失敗，請改用貼上文字。')}}
 function satView(){const mo=dutyMonth||day.date.slice(0,7);const[Y,M]=mo.split('-').map(Number);const n=new Date(Date.UTC(Y,M,0)).getUTCDate();const res=cfg.res.filter(r=>r.on);const sats=[];for(let d=1;d<=n;d++){const ds=`${mo}-${String(d).padStart(2,'0')}`;if(dowOf(ds)===6)sats.push(ds)}
  return `<section class="card"><h2>週六人力 ${Y}/${M} <small>每月預排；點名字切換：不上 → 報一天（刀房）→ 報半天（上午刀房）→ 上午 OPD → 值班</small></h2>
- <div class="row" style="margin-bottom:8px"><button class="btn p" data-act="satAuto">依值班表自動建議本月週六</button><span class="note">規則：週五值班的人上午 cover OPD（報半天）；週六值班的人進刀房；其餘挑 R3 以上補到刀房約 2 人，盡量輪流。</span></div>
+ <div class="row" style="margin-bottom:8px"><button class="btn p" data-act="satAuto">依值班表自動建議本月週六</button><span class="note">規則：週五值班的人上午 cover OPD（報半天）；週六值班的人進刀房；週日值班的人週六不排；其餘挑 R3 以上補到刀房約 2 人，盡量輪流。</span></div>
  <div class="satg">${sats.map(ds=>{const P=(cfg.sat||{})[ds];const ppl=(P&&P.ppl)||{};const C=crew(ds),fri=res.filter(r=>onDuty(r.id,addDays(ds,-1)));const orN=Object.values(ppl).filter(v=>v==='full'||v==='duty'||v==='half').length,opdN=Object.values(ppl).filter(v=>v==='opd').length;
   return `<div class="satc"><div class="row" style="justify-content:space-between"><b>${+ds.slice(5,7)}/${+ds.slice(8)}（六）</b><span class="note">${tplOwner({date:ds},'6').join('/')||''} R6・${tplOwner({date:ds},'24').join('/')||''} R24</span></div>
-  <div class="note">週五值班：${esc(fri.map(r=>r.n).join('、')||'—')}｜週六值班：${esc([...C.sec,...C.un,...C.w1,...C.tot,...C.icu].map(rn).join('、')||'—')}</div>
-  <div class="row" style="gap:4px;margin-top:6px">${res.map(r=>{const v=ppl[r.id]||'';const lvx=leaveOf(r.id,ds,'am');return `<button class="btn s satb ${v?'on s-'+v:''}" data-act="satCyc" data-d="${ds}" data-r="${r.id}" ${lvx?'disabled title="請假"':''}>${esc(r.n)}${v?'・'+SATS[v]:''}${lvx?'（假）':''}</button>`}).join('')}</div>
+  <div class="note">週五值班：${esc(fri.map(r=>r.n).join('、')||'—')}｜週六值班：${esc([...C.sec,...C.un,...C.w1,...C.tot,...C.icu].map(rn).join('、')||'—')}｜週日值班（週六不上）：${esc(res.filter(r=>onDuty(r.id,addDays(ds,1))).map(r=>r.n).join('、')||'—')}</div>
+  <div class="row" style="gap:4px;margin-top:6px">${res.map(r=>{const v=ppl[r.id]||'';const lvx=leaveOf(r.id,ds,'am'),su=onDuty(r.id,addDays(ds,1));return `<button class="btn s satb ${v?'on s-'+v:''}" data-act="satCyc" data-d="${ds}" data-r="${r.id}" ${lvx?'disabled title="請假"':''}>${esc(r.n)}${v?'・'+SATS[v]:''}${lvx?'（假）':su&&!v?'（週日班）':''}${su&&v?' ⚠週日班':''}</button>`}).join('')}</div>
   <div class="note" style="margin-top:4px">${P?`刀房 ${orN} 人、OPD ${opdN} 人`:'<span style="color:var(--amb)">尚未排（目前只會自動讓週五值班的人上午 OPD）</span>'}</div></div>`}).join('')}</div></section>`}
 let dutyMonth=null,advF='',view=LS.get('view')||((typeof innerWidth!=='undefined'&&innerWidth<700)?'m':'v'),mroom='',ppm=+LS.get('ppm')||2,zfit=LS.get('zfit')!==false;
 function dutyView(){const mo=dutyMonth||day.date.slice(0,7);const[Y,M]=mo.split('-').map(Number);const n=new Date(Date.UTC(Y,M,0)).getUTCDate();const off=(new Date(Date.UTC(Y,M-1,1)).getUTCDay()+6)%7;const nm=id=>(cfg.res.find(r=>r.id===id)||{}).n||id;
