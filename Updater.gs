@@ -67,10 +67,17 @@ function updateFromGitHub() {
   const used = new Set();
   let changed = [], cancerChanged = false;
   fresh.forEach(n => {
-    let i = files.findIndex((f, k) => !used.has(k) && f.type === n.type && f.name === n.name);
+    const same = f => ghName_(f.name) === ghName_(n.name);
+    // 順序：同名同類型 → 內容有特徵字串 → 同名但類型不同（多半是建錯成 HTML，直接接管）→ 新增
+    let i = files.findIndex((f, k) => !used.has(k) && f.type === n.type && same(f));
     if (i < 0 && n.sig) i = files.findIndex((f, k) => !used.has(k) && f.type === n.type && f.source.indexOf(n.sig) >= 0);
-    if (i < 0) { files.push({ name: n.name, type: n.type, source: '' }); i = files.length - 1; }
+    if (i < 0) i = files.findIndex((f, k) => !used.has(k) && same(f));
+    if (i < 0) {
+      if (files.some(same)) throw new Error('專案裡已有同名檔「' + n.name + '」無法對應，現有檔案：' + ghList_(files));
+      files.push({ name: n.name, type: n.type, source: '' }); i = files.length - 1;
+    }
     used.add(i);
+    if (files[i].type !== n.type) { files[i].type = n.type; files[i].source = ''; }
     if (files[i].source.trim() !== n.src.trim()) {
       files[i].source = n.src;
       changed.push(n.path);
@@ -80,7 +87,8 @@ function updateFromGitHub() {
   if (!changed.length) { ghLog_('已是最新'); return '已是最新，不用更新'; }
 
   // 3) 寫回專案、建新版本、更新網頁應用程式部署
-  ghApi_('put', id + '/content', { files });
+  try { ghApi_('put', id + '/content', { files }); }
+  catch (e) { throw new Error(e.message + '\n現有檔案：' + ghList_(cur)); }
   const ver = ghApi_('post', id + '/versions', { description: 'GitHub 自動更新 ' + ghNow_() }).versionNumber;
   const deps = (ghApi_('get', id + '/deployments').deployments || [])
     .filter(d => d.deploymentConfig && d.deploymentConfig.versionNumber &&
@@ -112,6 +120,8 @@ function ghApi_(method, path, body) {
   }
   return t ? JSON.parse(t) : {};
 }
+function ghName_(s) { return String(s || '').trim().replace(/\.(gs|html)$/i, '').toLowerCase(); }
+function ghList_(files) { return files.map(f => f.name + (f.type === 'HTML' ? '.html' : f.type === 'JSON' ? '.json' : '.gs')).join('、'); }
 function ghNow_() { return Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd HH:mm'); }
 function ghLog_(m) {
   console.log(m);
