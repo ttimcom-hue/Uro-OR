@@ -147,8 +147,8 @@ function links(){if(S.err==='nosync')return setupCard();const it=(S.links&&S.lin
    資料只存在 Google 試算表（CANCER_URL，後台）。入口只透過 Apps Script ?action=cancerStatus 讀「人數、日期、分頁編號」，
    不經過入口傳病人資料；名單用 iframe 直接顯示試算表（要登入有權限的 Google 帳號才看得到）。 */
 const CANCER_ID='1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI';
-const CC_GID={next:772796418,todo:10,trk:0,stat:1426015442};
-const CC_VIEWS=[['next','下次討論會'],['todo','注意事項'],['stat','統計'],['trk','個案追蹤（編輯）']];
+const CC_GID={next:772796418,todo:10,dv:1572085460,trk:0,stat:1426015442};
+const CC_VIEWS=[['next','下次討論會'],['todo','注意事項'],['dv','達文西術前'],['stat','統計'],['trk','個案追蹤（編輯）']];
 let ccView='next';
 async function ccLoad(){if(!on())return;try{const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=cancerStatus&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok||!j.value)throw 0;S.cc=j.value}catch(e){S.cc={err:1}}render()}
 const ccDate=c=>{const d=String((c&&c.mtg)||'').replace(/\//g,'-').slice(0,10);return /^\d{4}-\d\d-\d\d$/.test(d)?d:''};
