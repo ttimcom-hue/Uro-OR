@@ -144,7 +144,7 @@ function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<a href="./#import">📥 匯入刀表</a>'+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
+ $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<a href="https://shengmin.notion.site/a40ece61b33441b8950284c54ab01f55" target="_blank" rel="noopener">📒 Notion ↗</a><a href="./#import">📥 匯入刀表</a>'+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  $('#app').innerHTML=pg==='ho'?handoff():pg==='people'?people():pg==='links'?links():home()}
 
