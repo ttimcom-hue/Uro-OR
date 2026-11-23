@@ -59,6 +59,7 @@ tr.off td{opacity:.5}
    共用資料鍵（給之後的小工具用）：
    common/people  人員名冊 {ts, people:[{id,n,full,role:'VS'|'R'|'F',lv,on,ts}]}
    common/links   常用連結 {items:[{n,u,d}]}
+   common/handoff 黃部長交班單 {u:Google 文件網址, ts}（網址不寫進 repo）
    config/main    調度板設定（含 duty 值班、leaves 休假、vsLeaves 主治休假）
    days/YYYY-MM-DD 當日刀表與人力；er/list 急診刀清單 */
 const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec';
@@ -85,10 +86,10 @@ const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||
 const page=()=>(location.hash||'#home').slice(1);
 
 async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}
- const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list'];
+ const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff'];
  const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
  if(r.every(x=>x.status==='rejected'))S.err='conn';else S.err='';
- S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:'https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI/edit',d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);
+ S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:'https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI/edit',d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);S.ho=v(6);
  if(!S.people&&S.cfg)S.people=seed(S.cfg);S.loading=false;render()}
 function seed(c){const now=Date.now();return{ts:now,seeded:true,people:[...(c.res||[]).map(r=>({id:r.id,n:r.n,full:(String(r.alias||'').split(/[,，]/)[0]||'').trim(),role:r.lv==='Fellow'?'F':'R',lv:r.lv,on:!!r.on,ts:now})),...(c.sur||[]).map(x=>({id:'vs_'+x.n,n:x.n,full:x.n,role:'VS',lv:x.t||'主治醫師',on:true,ts:now}))]}}
 const P=()=>(S.people&&S.people.people)||[];
@@ -126,15 +127,26 @@ function links(){if(S.err==='nosync')return setupCard();const it=(S.links&&S.lin
  return `<section class="card"><h2>常用連結 <small>全科共用，顯示在首頁</small></h2><table class="stack"><thead><tr><th>名稱</th><th>網址</th><th>說明</th><th></th></tr></thead><tbody>${it.map((l,i)=>`<tr><td data-l="名稱"><input data-ch="lf" data-i="${i}" data-f="n" value="${esc(l.n)}"></td><td data-l="網址"><input data-ch="lf" data-i="${i}" data-f="u" value="${esc(l.u)}" placeholder="https://" style="width:100%"></td><td data-l="說明"><input data-ch="lf" data-i="${i}" data-f="d" value="${esc(l.d||'')}"></td><td><button class="btn s" data-act="ldel" data-i="${i}">刪除</button></td></tr>`).join('')}</tbody></table>
  <div class="row" style="margin-top:8px"><button class="btn p" data-act="ladd">新增連結</button><span class="note" id="lmsg"></span></div></section>`}
 
+/* 黃部長交班單：Google 文件網址只存在同步資料 common/handoff {u,ts}，不寫進公開的 repo */
+const docId=u=>(String(u||'').match(/docs\.google\.com\/document\/d\/([\w-]{20,})/)||[])[1]||'';
+function handoff(){if(S.err==='nosync')return setupCard();const id=docId(S.ho&&S.ho.u);
+ const form=`<div class="row" style="margin-top:8px"><input id="hou" placeholder="https://docs.google.com/document/d/…" style="flex:1;min-width:260px" value="${esc((S.ho&&S.ho.u)||'')}"><button class="btn p" data-act="hosave">儲存</button><span class="note" id="homsg"></span></div>`;
+ if(!id)return `<section class="card"><h2>黃部長交班單</h2><p>還沒設定交班單。請貼上 Google 文件網址（只存在科內同步資料，不會出現在公開網頁原始碼）。</p>${form}</section>`;
+ const ed=`https://docs.google.com/document/d/${id}/edit`;
+ return `<section class="card" style="padding:10px"><div class="row" style="margin-bottom:8px"><h2 style="margin:0;flex:1">黃部長交班單</h2><a class="btn p" style="text-decoration:none" href="${ed}" target="_blank" rel="noopener">在 Google 文件開啟 ↗</a><button class="btn s" data-act="hoedit">更換網址</button></div>
+ <div id="hoform" hidden>${form}</div>
+ <iframe src="${ed}?rm=minimal" title="黃部長交班單" style="width:100%;height:calc(100vh - 210px);min-height:480px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
+ <p class="note">要先登入有權限的 Google 帳號才看得到；手機上建議按「在 Google 文件開啟」用 App 編輯。</p></section>`}
+
 function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p>入口網頁和刀房調度板共用同一個 Google 同步網址。若調度板已經設定好，請先在同一支手機／電腦打開一次<a href="./">刀房調度板</a>，再回來重新整理。</p>
  <div class="row"><input id="u" placeholder="https://script.google.com/macros/s/…/exec" style="flex:1;min-width:260px" value="${esc(gs.url)}"><input id="tk" placeholder="密碼（沒有就留空）" value="${esc(gs.token||'')}" style="width:150px"><button class="btn p" data-act="conn">連線</button></div></section>`}
 
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<a href="https://shengmin.notion.site/a40ece61b33441b8950284c54ab01f55" target="_blank" rel="noopener">📒 Notion ↗</a><a href="./#import">📥 匯入刀表</a>'+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
+ $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<a href="https://shengmin.notion.site/a40ece61b33441b8950284c54ab01f55" target="_blank" rel="noopener">📒 Notion ↗</a><a href="./#import">📥 匯入刀表</a>'+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
- $('#app').innerHTML=pg==='people'?people():pg==='links'?links():home()}
+ $('#app').innerHTML=pg==='ho'?handoff():pg==='people'?people():pg==='links'?links():home()}
 
 async function savePeople(mut){saving++;render();try{const fresh=(await get('common/people'))||S.people||{people:[]};fresh.people=fresh.people||[];
   if(S.people&&S.people.seeded&&!fresh.ts)fresh.people=S.people.people;delete fresh.seeded;mut(fresh);fresh.ts=Date.now();await set('common/people',fresh);S.people=fresh}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
@@ -143,6 +155,8 @@ async function saveLinks(){try{await set('common/links',S.links);const m=$('#lms
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const k=b.dataset.act;
  if(k==='filt'){filt=b.dataset.v;render()}
  if(k==='add'){const r=b.dataset.r;const p={id:'p'+Date.now().toString(36),n:'新成員',full:'',role:r,lv:r==='R'?'R1':r==='F'?'Fellow':'主治醫師',on:true,ts:Date.now()};savePeople(f=>f.people.push(p))}
+ if(k==='hoedit'){const f=$('#hoform');if(f)f.hidden=!f.hidden}
+ if(k==='hosave'){const u=$('#hou').value.trim();if(!docId(u)){alert('請貼上 Google 文件網址（docs.google.com/document/d/…）');return}const v={u,ts:Date.now()};set('common/handoff',v).then(()=>{S.ho=v;render()},()=>{const m=$('#homsg');if(m)m.textContent='儲存失敗'})}
  if(k==='ladd'){S.links=S.links||{items:[]};S.links.items.push({n:'新連結',u:'',d:''});render();saveLinks()}
  if(k==='ldel'){S.links.items.splice(+b.dataset.i,1);render();saveLinks()}
  if(k==='conn'){const u=$('#u').value.trim();if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(u)){alert('網址應以 https://script.google.com/ 開頭');return}gs={url:u,token:$('#tk').value.trim(),on:true};LS.set('gsync',gs);load()}});
