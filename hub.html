@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="hub.webmanifest"><link rel="apple-touch-icon" href="hub-apple-touch-icon.png"><link rel="icon" type="image/png" href="hub-favicon.png"><meta name="theme-color" content="#2e346e"><meta property="og:title" content="泌尿科 科務入口"><meta property="og:description" content="人員名冊・常用連結・今日總覽"><meta property="og:image" content="og-hub.png"><meta property="og:type" content="website">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="hub.webmanifest"><link rel="apple-touch-icon" href="hub-apple-touch-icon.png?v=2"><link rel="icon" type="image/png" href="hub-favicon.png?v=2"><meta name="theme-color" content="#2e346e"><meta property="og:title" content="泌尿科 科務入口"><meta property="og:description" content="今日總覽・人員名冊・交班・回饋"><meta property="og:image" content="og-hub.png?v=2"><meta property="og:type" content="website">
 <title>泌尿科 科務入口</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://script.google.com"><link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{color-scheme:light dark;--bg:light-dark(#f4f7f7,#0b1315);--card:light-dark(#fff,#121e21);--ink:light-dark(#0f262b,#e2edee);--mut:light-dark(#587076,#8ea6aa);--line:light-dark(#d8e2e3,#24363a);--scrub:light-dark(#0b5563,#0e6474);--soft:light-dark(#e4f0f1,#15313a);--red:#e5484d;--redbg:light-dark(#fdecec,#3a1a1c);--amb:#c77d00;--ambbg:light-dark(#fff4dc,#3a2c10);--ok:#1f8a5b}
 *{box-sizing:border-box;min-width:0}
@@ -54,6 +55,9 @@ tr.off td{opacity:.5}
  .kpis{grid-template-columns:repeat(2,1fr);gap:8px}.kpi{padding:10px}.kpi b{font-size:22px}.kpi span{font-size:12px}.tool{min-height:0}
  table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}table.stack td{border:0;padding:0}table.stack td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--mut)}table.stack input,table.stack select{width:100%}
 }
+.fbl{list-style:none;padding:0;margin:0}.fbl li{border-top:1px solid var(--line);padding:10px 0}.fbl li:first-child{border-top:0}.fbl li.dn .fbt{opacity:.6}
+textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}
+.ver{border-left:3px solid var(--line);padding:2px 0 2px 14px;margin:0 0 14px}.ver.cur{border-left-color:var(--scrub)}.ver h3{margin:0;font-size:16px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.ver ul{margin:4px 0 0;padding-left:20px}.ver li{margin:2px 0}
 .imodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9999;padding:12px}.ibox{background:var(--card,#fff);color:var(--ink,#0f262b);border-radius:16px;max-width:420px;width:100%;padding:16px 18px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)}.ihead{display:flex;gap:12px;align-items:center;margin-bottom:8px}.ihead img{border-radius:11px}.ibox ol{padding-left:22px;margin:8px 0}.ibox li{margin:4px 0}.ik{display:inline-block;border:1px solid var(--line,#ccc);border-radius:6px;padding:0 6px;font-weight:700}.inote{color:var(--mut,#587076);font-size:13px;margin:4px 0}.ishare{border-top:1px solid var(--line,#ddd);margin-top:10px;padding-top:10px}.ishare input{width:100%;font-size:13px;margin:4px 0}.ibtn{border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;margin:4px 6px 0 0;cursor:pointer}.ibtn.p{background:#0b5563;color:#fff;border-color:#0b5563}@media(min-width:700px){.imodal{align-items:center}}
 </style>
 </head>
@@ -76,6 +80,10 @@ const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){r
 let gs=LS.get('gsync');if(!gs||!gs.url)gs=SYNC_URL?{url:SYNC_URL,token:'',on:true}:{url:'',token:'',on:false};
 const on=()=>gs.on&&gs.url;
 async function get(key){const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
+/* 一次讀多個鍵（Code.gs ?keys=）；舊版 Apps Script 不支援時自動改回逐鍵讀取 */
+async function getMany(keys){try{const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'keys='+encodeURIComponent(keys.join(','))+'&token='+encodeURIComponent(gs.token||''));const j=await r.json();
+  if(j.ok&&j.value&&typeof j.value==='object'&&!Array.isArray(j.value))return keys.map(k=>({status:'fulfilled',value:j.value[k]??null}))}catch(e){}
+ return Promise.allSettled(keys.map(get))}
 async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token||'',key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -98,12 +106,18 @@ let S={people:null,links:null,cfg:null,dT:null,dM:null,er:null,err:'',loading:tr
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
 const page=()=>(location.hash||'#home').slice(1);
 
-async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}ccLoad();
- const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff','meeting/drive','meeting/plan'];
- const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
- if(r.every(x=>x.status==='rejected'))S.err='conn';else S.err='';
- S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:CANCER_URL,d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);S.ho=v(6);S.md=v(7);S.mp=v(8);
- if(!S.people&&S.cfg)S.people=seed(S.cfg);S.loading=false;render()}
+/* 載入：先用上次存在本機的資料立刻畫出來（hubcache），背景再一次向 Apps Script 取最新資料 */
+const KEYS=()=>['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff','meeting/drive','meeting/plan','feedback/list'];
+function apply(m){const v=k=>m[k]===undefined?null:m[k];
+ S.people=v('common/people');S.links=v('common/links');S.cfg=v('config/main')&&v('config/main').cfg;S.dT=v('days/'+today);S.dM=v('days/'+tmr);S.er=v('er/list');S.ho=v('common/handoff');S.md=v('meeting/drive');S.mp=v('meeting/plan');S.fb=v('feedback/list');
+ if(!S.people&&S.cfg)S.people=seed(S.cfg)}
+{const c=LS.get('hubcache');if(c&&c.m){apply(c.m);if(c.cc)S.cc=c.cc;S.loading=false;S.stale=true}}
+async function load(){if(!S.stale)S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}ccLoad();
+ const k=KEYS(),r=await getMany(k),m={};k.forEach((x,i)=>{if(r[i].status==='fulfilled')m[x]=r[i].value});
+ if(r.every(x=>x.status==='rejected')){S.err='conn';S.loading=false;render();return}S.err='';
+ const old=LS.get('hubcache')||{};LS.set('hubcache',{ts:Date.now(),m,cc:old.cc});
+ apply(m);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:CANCER_URL,d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(m['common/links']||{}).done){set('common/links',L0).catch(()=>{})}}
+ S.loading=false;S.stale=false;render()}
 function seed(c){const now=Date.now();return{ts:now,seeded:true,people:[...(c.res||[]).map(r=>({id:r.id,n:r.n,full:(String(r.alias||'').split(/[,，]/)[0]||'').trim(),role:r.lv==='Fellow'?'F':'R',lv:r.lv,on:!!r.on,ts:now})),...(c.sur||[]).map(x=>({id:'vs_'+x.n,n:x.n,full:x.n,role:'VS',lv:x.t||'主治醫師',on:true,ts:now}))]}}
 const P=()=>(S.people&&S.people.people)||[];
 const nm=id=>{const p=P().find(x=>x.id===id);if(p)return p.n;const r=((S.cfg||{}).res||[]).find(x=>x.id===id);return r?r.n:id};
@@ -124,7 +138,8 @@ function home(){if(S.err==='nosync')return setupCard();
    <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
    <dt>主治休假</dt><dd>${vl.length?vl.join('、'):'<span class="note">無</span>'}</dd></dl></div></section>
  <section><h2>② 工具</h2><div class="grid">${TOOLS.map(tool).join('')}</div><p class="note" style="margin:8px 2px 0">規劃中：${SOON.join('・')}</p></section>
- <section><h2>③ 常用連結 <small><a href="#links">編輯</a></small></h2>${lk.length?`<div class="grid">${lk.map(l=>`<a class="tool" href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.n)}</b><p>${esc(l.d||l.u)}</p></a>`).join('')}</div>`:'<p class="note">還沒有其他連結。可以在「常用連結」分頁加入醫院系統入口等。</p>'}</section>`}
+ <section><h2>③ 常用連結 <small><a href="#links">編輯</a></small></h2>${lk.length?`<div class="grid">${lk.map(l=>`<a class="tool" href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.n)}</b><p>${esc(l.d||l.u)}</p></a>`).join('')}</div>`:'<p class="note">還沒有其他連結。可以在「常用連結」分頁加入醫院系統入口等。</p>'}</section>
+ <p class="note" style="margin-top:-6px">目前版本 <b>v${CHANGELOG[0].v}</b>・${esc(CHANGELOG[0].t)}　<a href="#fb">💬 意見回饋・更新紀錄 →</a></p>`}
 
 function people(){if(S.err==='nosync')return setupCard();const all=P();
  const L=all.filter(p=>filt==='cur'?p.on!==false:filt==='off'?p.on===false:true).sort((a,b)=>(a.on===false)-(b.on===false)||'VSFR'.indexOf(a.role)-'VSFR'.indexOf(b.role)||String(b.lv).localeCompare(String(a.lv))||String(a.n).localeCompare(String(b.n)));
@@ -150,7 +165,7 @@ const CANCER_ID='1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI';
 const CC_GID={next:772796418,todo:10,dv:1572085460,trk:0,stat:1426015442};
 const CC_VIEWS=[['next','下次討論會'],['todo','注意事項'],['dv','達文西術前'],['stat','統計'],['trk','個案追蹤（編輯）']];
 let ccView='next',ccMsg='';
-async function ccLoad(){if(!on())return;try{const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=cancerStatus&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok||!j.value)throw 0;S.cc=j.value}catch(e){S.cc={err:1}}render()}
+async function ccLoad(){if(!on())return;try{const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=cancerStatus&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok||!j.value)throw 0;S.cc=j.value;const c=LS.get('hubcache');if(c){c.cc=j.value;LS.set('hubcache',c)}}catch(e){S.cc={err:1}}render()}
 const ccDate=c=>{const d=String((c&&c.mtg)||'').replace(/\//g,'-').slice(0,10);return /^\d{4}-\d\d-\d\d$/.test(d)?d:''};
 const ccN=c=>{const n=(c&&c.cnt)||{};return{pend:n['待討論']||0,todo:(n['已討論-待手術']||0)+(n['暫緩/改期']||0)+(n['待確認']||0)}};
 function ccKpi(){const c=S.cc;if(!c||c.err)return'';const d=ccDate(c),k=ccN(c);
@@ -179,16 +194,48 @@ function handoff(){if(S.err==='nosync')return setupCard();const hu=(S.ho&&S.ho.u
  <iframe src="${ed}?rm=minimal" title="黃部長交班單" style="width:100%;height:calc(100vh - 210px);min-height:480px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
  <p class="note">要先登入有權限的 Google 帳號才看得到；手機上建議按「在 Google 文件開啟」用 App 編輯。</p></section>`}
 
+/* ===== 意見回饋與更新紀錄（#fb）=====
+   全站唯一的回饋處：調度板、晨會等其他頁面只放連到 hub.html#fb 的按鈕（可帶 ?from= 預選類別，例：hub.html?from=or#fb）。
+   資料鍵 feedback/list {items:[{id,name,cat,text,at,st:'new'|'done',re}], ts}（與舊版調度板回饋同一份）。
+   更新紀錄：每次合併到 main 時在 CHANGELOG 最前面加一筆（v 版本、d 日期、t 標題、s 影響的網站、i 摘要）。 */
+const CHANGELOG=[
+ {v:'1.6',d:'2026-11-23',t:'入口加速、新圖示、意見回饋集中',s:['科務入口','刀房調度板','晨會'],i:['科務入口打開時先顯示上次的資料，背景再一次讀取最新資料，不用再等好幾秒','三個網站換上新的主畫面圖示與分享縮圖（刀房＝青綠、科務＝靛藍、晨會＝橘）','意見回饋集中到科務入口這一頁；調度板、晨會只留「💬 意見回饋」按鈕','新增版本紀錄']},
+ {v:'1.5',d:'2026-11-23',t:'癌症討論會整合',s:['科務入口','癌症討論會'],i:['科務入口新增「癌症討論會」分頁：人數卡片＋直接看試算表','試算表新增「統計」與「達文西術前」頁','從 Drive 每週名單與討論紀錄自動更新個案追蹤']},
+ {v:'1.4',d:'2026-11-23',t:'晨會網站',s:['晨會'],i:['晨會改成獨立網站：重要公告與規定、重要會議加入日曆、未來 12 週時程','自動讀取每週簡報議程（只讀標題，不放 Drive 連結）','下次晨會建議、紀錄與統計']},
+ {v:'1.3',d:'2026-11-23',t:'科務入口重整',s:['科務入口'],i:['新增「黃部長交班」分頁（Google 文件交班單）','首頁分成今日總覽、工具、常用連結三區','分頁列加上 Notion 連結']},
+ {v:'1.2',d:'2026-11-23',t:'急診刀與自動更新',s:['刀房調度板'],i:['急診刀改填全院等待的插刀／緊急刀／一般急台數','Apps Script 會自動從 GitHub 更新程式']},
+ {v:'1.1',d:'2026-11-23',t:'調度板簡潔化',s:['刀房調度板'],i:['分成「看刀表」與「✏️ 排刀模式」，設定收進 ⚙','時間軸依主治上色，可切回依術式','人力表只顯示分派結果']},
+ {v:'1.0',d:'2026-11-22',t:'第一版上線',s:['刀房調度板','科務入口'],i:['匯入刀表、自動排序與人力分派、急診刀、術前準備','科務入口：今日總覽、人員名冊、常用連結','可加到手機主畫面']}];
+const FBC=['刀房調度板','科務入口','晨會','癌症討論會','黃部長交班','其他'];
+const FROM={or:'刀房調度板',meeting:'晨會',cc:'癌症討論會',ho:'黃部長交班',hub:'科務入口'};
+let fbShow='open',fbMsg='',fbDraft='';
+const fbItems=()=>((S.fb&&S.fb.items)||[]);
+async function fbSave(mut){if(S.fb&&S.fb.items)mut(S.fb.items);fbMsg='儲存中…';render();try{const fresh=(await get('feedback/list'))||{items:[]};fresh.items=fresh.items||[];mut(fresh.items);fresh.ts=Date.now();await set('feedback/list',fresh);S.fb=fresh;fbMsg='已儲存'}catch(e){fbMsg='儲存失敗，請稍後再試'}render()}
+function fbPage(){if(S.err==='nosync')return setupCard();
+ const all=fbItems().slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));const open=all.filter(f=>f.st!=='done'),done=all.filter(f=>f.st==='done');
+ const pre=FROM[new URLSearchParams(location.search).get('from')]||'';
+ const item=f=>`<li class="${f.st==='done'?'dn':''}"><div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap"><label class="row" style="gap:8px;align-items:flex-start;flex:1;flex-wrap:nowrap"><input type="checkbox" data-ch="fbDone" data-id="${esc(f.id)}" ${f.st==='done'?'checked':''} style="width:22px;height:22px;min-height:0;flex:none;margin-top:2px" aria-label="已解決"><span><span class="chip">${esc(f.cat||'其他')}</span> <b>${esc(f.name||'匿名')}</b> <span class="note">${esc(String(f.at||'').replace('T',' ').slice(0,16))}</span><span class="fbt" style="display:block;margin-top:4px;white-space:pre-wrap">${esc(f.text)}</span></span></label><button class="btn s" data-act="fbdel" data-id="${esc(f.id)}" aria-label="刪除">✕</button></div>
+  <input data-ch="fbRe" data-id="${esc(f.id)}" value="${esc(f.re||'')}" placeholder="回覆（例：已在 v${CHANGELOG[0].v} 加入）" style="width:100%;margin-top:6px"></li>`;
+ const L=fbShow==='done'?done:open;
+ return `<section class="card"><h2>💬 意見回饋 <small>刀房調度板、科務入口、晨會、癌症討論會的建議與問題都寫在這裡</small></h2>
+  <div class="row"><input id="fbName" placeholder="你的名字（可不填）" style="width:160px" value="${esc(LS.get('fbname')||'')}"><select id="fbCat" aria-label="哪個網站">${FBC.map(c=>`<option ${c===pre?'selected':''}>${c}</option>`).join('')}</select></div>
+  <textarea id="fbText" rows="3" style="width:100%;margin-top:8px" placeholder="例：希望首頁可以顯示明天的值班…（請勿填病人姓名或病歷號）">${esc(fbDraft)}</textarea>
+  <div class="row"><button class="btn p" data-act="fbadd">送出回饋</button><span class="note">${esc(fbMsg)}</span></div></section>
+ <section class="card" style="margin-top:14px"><div class="row" style="justify-content:space-between;margin-bottom:6px"><div class="seg"><button class="${fbShow==='open'?'on':''}" data-act="fbshow" data-v="open">待處理 ${open.length}</button><button class="${fbShow==='done'?'on':''}" data-act="fbshow" data-v="done">已解決 ${done.length}</button></div><span class="note">處理完把左邊打勾，就會移到「已解決」。</span></div>
+  ${L.length?`<ul class="fbl">${L.map(item).join('')}</ul>`:`<p class="note">${fbShow==='done'?'還沒有已解決的回饋。':'沒有待處理的回饋。'}</p>`}</section>
+ <section class="card" style="margin-top:14px"><h2>📋 版本紀錄 <small>目前 v${CHANGELOG[0].v}</small></h2>
+  ${CHANGELOG.map((c,i)=>`<div class="ver ${i?'':'cur'}"><h3><span class="t">v${c.v}</span>${esc(c.t)} <small class="note">${md(c.d)}・${c.s.map(esc).join('、')}</small></h3><ul>${c.i.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}</section>`}
+
 function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p>入口網頁和刀房調度板共用同一個 Google 同步網址。若調度板已經設定好，請先在同一支手機／電腦打開一次<a href="./">刀房調度板</a>，再回來重新整理。</p>
  <div class="row"><input id="u" placeholder="https://script.google.com/macros/s/…/exec" style="flex:1;min-width:260px" value="${esc(gs.url)}"><input id="tk" placeholder="密碼（沒有就留空）" value="${esc(gs.token||'')}" style="width:150px"><button class="btn p" data-act="conn">連線</button></div></section>`}
 
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
- $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['cc','癌症討論會'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="meeting.html">🕣 晨會</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
+ $('#sync').textContent=S.stale?'更新中…':S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
+ $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['cc','癌症討論會'],['people','人員名冊'],['links','常用連結'],['fb','💬 回饋・更新']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="meeting.html">🕣 晨會</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
  $('#inst').innerHTML=isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>';
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
- $('#app').innerHTML=pg==='ho'?handoff():pg==='cc'?cancer():pg==='people'?people():pg==='links'?links():home()}
+ $('#app').innerHTML=pg==='ho'?handoff():pg==='cc'?cancer():pg==='people'?people():pg==='links'?links():pg==='fb'?fbPage():home()}
 
 async function savePeople(mut){saving++;render();try{const fresh=(await get('common/people'))||S.people||{people:[]};fresh.people=fresh.people||[];
   if(S.people&&S.people.seeded&&!fresh.ts)fresh.people=S.people.people;delete fresh.seeded;mut(fresh);fresh.ts=Date.now();await set('common/people',fresh);S.people=fresh}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
@@ -196,6 +243,10 @@ async function saveLinks(){try{await set('common/links',S.links);const m=$('#lms
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const k=b.dataset.act;
  if(k==='filt'){filt=b.dataset.v;render()}
+ if(k==='fbshow'){fbShow=b.dataset.v;render()}
+ if(k==='fbdel'){if(!confirm('刪除這則回饋？'))return;const id=b.dataset.id;fbSave(L=>{const i=L.findIndex(x=>x.id===id);if(i>=0)L.splice(i,1)})}
+ if(k==='fbadd'){const t=$('#fbText').value.trim();if(!t){fbMsg='請先寫下內容';render();return}const name=$('#fbName').value.trim(),cat=$('#fbCat').value;LS.set('fbname',name);const n=new Date(),pad=x=>String(x).padStart(2,'0');
+  const f={id:'f'+Date.now().toString(36),name,cat,text:t,at:`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}T${pad(n.getHours())}:${pad(n.getMinutes())}`,st:'new'};fbShow='open';fbDraft=t;fbSave(L=>L.push(f)).then(()=>{if(fbMsg==='已儲存'){fbDraft='';fbMsg='已送出，謝謝！';render()}})}
  if(k==='add'){const r=b.dataset.r;const p={id:'p'+Date.now().toString(36),n:'新成員',full:'',role:r,lv:r==='R'?'R1':r==='F'?'Fellow':'主治醫師',on:true,ts:Date.now()};savePeople(f=>f.people.push(p))}
  if(k==='ccv'){e.preventDefault();ccView=b.dataset.v;render();return}
  if(k==='ccre'){S.cc=null;render();ccLoad();return}
@@ -207,6 +258,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  if(k==='conn'){const u=$('#u').value.trim();if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(u)){alert('網址應以 https://script.google.com/ 開頭');return}gs={url:u,token:$('#tk').value.trim(),on:true};LS.set('gsync',gs);load()}});
 document.addEventListener('change',e=>{const el=e.target;const v=el.type==='checkbox'?el.checked:el.value.trim();
  if(el.dataset.ch==='pf'){const id=el.dataset.id,f=el.dataset.f;savePeople(R=>{const p=R.people.find(x=>x.id===id);if(!p)return;p[f]=v;if(f==='role')p.lv=v==='R'?'R1':v==='F'?'Fellow':'主治醫師';p.ts=Date.now()})}
+ if(el.dataset.ch==='fbDone'||el.dataset.ch==='fbRe'){const id=el.dataset.id,f=el.dataset.ch==='fbDone';fbSave(L=>{const x=L.find(y=>y.id===id);if(x){if(f)x.st=v?'done':'new';else x.re=v}})}
  if(el.dataset.ch==='lf'){S.links.items[+el.dataset.i][el.dataset.f]=v;saveLinks()}});
 addEventListener('hashchange',render);
 load();setInterval(()=>{if(!document.hidden&&!saving&&page()==='home')load()},120000);
@@ -219,7 +271,7 @@ function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Inst
   :ios?`<ol><li>點 Safari 下方（或上方）的<b>分享</b>按鈕 <span class="ik">⬆︎</span></li><li>往下滑，點<b>「加入主畫面」</b> <span class="ik">＋</span></li><li>右上角按<b>「新增」</b></li></ol><p class="inote">要用 Safari 開才有這個選項；Chrome 也可以從「分享」裡找到。</p>`
   :and?`<ol><li>點 Chrome 右上角 <span class="ik">⋮</span></li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li><li>按<b>「安裝」</b></li></ol>`
   :`<ol><li>Chrome／Edge：網址列右邊的 <span class="ik">⊕</span> 安裝圖示，或選單 →「安裝」</li><li>手機上用 Safari／Chrome 開這個網址，再按「📲 加到主畫面」</li></ol>`;
- const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="hub-apple-touch-icon.png" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
+ const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="hub-apple-touch-icon.png?v=2" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
  <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟，再按「📲 加到主畫面」即可。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製安裝連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
  document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科 科務入口（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);
