@@ -55,6 +55,7 @@ function updateNow() {
 function ghAutoUpdate() {
   try { updateFromGitHub(false); } catch (e) { console.log(e); }
   // 每小時順便做癌症討論會表的自動加入與交班單同步（編輯時沒觸發到的也會補上）
+  try { if (typeof cancerDriveScan === 'function') cancerDriveScan(); } catch (e) { console.log(e); }
   try { if (typeof cancerSync === 'function') cancerSync(); } catch (e) { console.log(e); }
   // 晨會：掃 Drive「W2 科部晨會」資料夾，更新 meeting/drive（入口「晨會」分頁）
   try { if (typeof meetingScan === 'function') meetingScan(); } catch (e) { console.log(e); }
