@@ -1,0 +1,17 @@
+{
+  "id": "./meeting.html",
+  "name": "泌尿科 晨會",
+  "short_name": "晨會",
+  "description": "泌尿科晨會：重要公告與規定、重要會議、未來晨會時程",
+  "lang": "zh-Hant-TW",
+  "start_url": "./meeting.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f7",
+  "theme_color": "#0b5563",
+  "icons": [
+    {"src": "hub-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "hub-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "hub-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
