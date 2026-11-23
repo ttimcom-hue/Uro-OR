@@ -2,7 +2,7 @@
 const TOKEN = '';  // 想加密碼再填，例如 'uro2026'；留空＝不用密碼
 function sh(){const ss=SpreadsheetApp.getActiveSpreadsheet();return ss.getSheetByName('data')||ss.insertSheet('data')}
 function row(s,k){const n=s.getLastRow();if(!n)return 0;const v=s.getRange(1,1,n,1).getValues();for(let i=0;i<n;i++)if(v[i][0]===k)return i+1;return 0}
-function apiGet(k){const s=sh(),r=row(s,k);return r?String(s.getRange(r,2).getValue()||''):''}
+function apiGet(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());const s=sh(),r=row(s,k);return r?String(s.getRange(r,2).getValue()||''):''}
 function apiSet(k,v){const L=LockService.getScriptLock();L.waitLock(15000);try{const s=sh();let r=row(s,k);if(!r){r=s.getLastRow()+1;s.getRange(r,1).setValue(k)}s.getRange(r,2).setValue(v);s.getRange(r,3).setValue(new Date())}finally{L.releaseLock()}return true}
 function out(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
 // ===== 癌症討論會追蹤表連動 =====
@@ -18,26 +18,44 @@ function cancerImport(text){const ss=SpreadsheetApp.openById(CANCER_ID);const sh
 function apiCancer(action,text){return JSON.stringify(action==='import'?cancerImport(text):cancerStatus())}
 // ===== 晨會（Google Drive「W2 科部晨會」資料夾）=====
 // 每週一個子資料夾（名稱 MMDD），主簡報 YYYYMMDD.pptx 的 OUTLINE 頁＝當週議程。
-// 只存議程標題與檔名（不讀各頁內文，避免存到病人姓名），寫進同步鍵 meeting/drive 給科務入口「晨會」分頁用。
+// 只存議程標題與檔名（不讀各頁內文，避免存到病人姓名），存在「meeting」工作表，用同步鍵 meeting/drive 讀出給科務入口「晨會」分頁用。
 // 需要 drive.readonly 權限（Updater.gs 的 GH_SCOPES）。每小時（ghAutoUpdate）與入口按「從 Drive 更新」時執行。
 const MTG_FOLDER='1NsEvZfchGMt49LbPkJztHz2t1Ewhg6mL';
 const MTG_SKIP=/履歷|甄審|申請|成績|病歷/;  // 這些檔名不列出
-function meetingScan(){
-  let old=null;try{old=JSON.parse(apiGet('meeting/drive')||'null')}catch(e){}
-  const cache={};((old&&old.weeks)||[]).forEach(w=>{if(w.mid)cache[w.mid+'|'+w.mt]=w});
-  const weeks=[];
-  const walk=(f,depth)=>{const it=f.getFolders();while(it.hasNext()){const c=it.next();
-    if(/^\d{4}$/.test(c.getName())){try{weeks.push(mtgWeek_(c,cache))}catch(e){console.log(c.getName(),e)}}
-    else if(depth<3)walk(c,depth+1)}};
-  walk(DriveApp.getFolderById(MTG_FOLDER),0);
+// 結果存在「meeting」工作表，一週一列（整包放一格會超過試算表 5 萬字上限）
+function mtgSheet_(){const ss=SpreadsheetApp.getActiveSpreadsheet();return ss.getSheetByName('meeting')||ss.insertSheet('meeting')}
+function meetingRead(){const sh=mtgSheet_(),n=sh.getLastRow();let ts=0,left=0;const weeks=[];
+  if(n)sh.getRange(1,1,n,2).getDisplayValues().forEach(r=>{if(r[0]==='ts')ts=+r[1]||0;else if(r[0]==='left')left=+r[1]||0;else if(r[1]){try{weeks.push(JSON.parse(r[1]))}catch(e){}}});
+  weeks.sort((a,b)=>a.d<b.d?1:-1);return{ts,left,weeks}}
+function meetingWrite_(o){const sh=mtgSheet_();sh.clearContents();
+  const rows=[['ts',String(o.ts)],['left',String(o.left||0)]].concat(o.weeks.map(w=>[w.d,JSON.stringify(w)]));
+  const rg=sh.getRange(1,1,rows.length,2);rg.setNumberFormat('@');rg.setValues(rows);SpreadsheetApp.flush()}
+// 一次最多跑 4.5 分鐘（Apps Script 上限 6 分鐘）；沒讀完的 1 分鐘後自動接著讀，讀過且沒改的簡報不會重讀
+function meetingScan(){const t0=Date.now();
+  const old=meetingRead(),cache={},byFolder={};
+  old.weeks.forEach(w=>{if(w.mid)cache[w.mid+'|'+w.mt]=w;if(w.fu)byFolder[w.fu]=w});
+  const folders=[];
+  // 週資料夾＝MMDD（月 01–12）；年份資料夾（例如「2026」）往下找，並記下年份
+  const walk=(f,depth,yr)=>{const it=f.getFolders();while(it.hasNext()){const c=it.next(),n=c.getName();
+    if(/^(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/.test(n))folders.push({c,yr});
+    else if(depth<3)walk(c,depth+1,(n.match(/^(20\d\d)\b/)||[])[1]||yr)}};
+  walk(DriveApp.getFolderById(MTG_FOLDER),0,'');
+  const weeks=[];let left=0,errs=0;
+  folders.forEach(({c,yr})=>{
+    if(Date.now()-t0>270000){const o=byFolder[c.getUrl()];if(o)weeks.push(o);left++;return}
+    try{const w=mtgWeek_(c,cache,yr);if(w.err)errs++;weeks.push(w)}catch(e){errs++;console.log(c.getName(),e)}});
   weeks.sort((a,b)=>a.d<b.d?1:-1);
-  const out={ts:Date.now(),weeks};apiSet('meeting/drive',JSON.stringify(out));return out}
-function mtgWeek_(f,cache){const mmdd=f.getName();const files=[];let main=null;
+  const res={ts:Date.now(),left,weeks};meetingWrite_(res);
+  ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==='meetingScan').forEach(t=>ScriptApp.deleteTrigger(t));
+  if(left)ScriptApp.newTrigger('meetingScan').timeBased().after(60*1000).create();
+  console.log('晨會：找到 '+folders.length+' 個週資料夾，讀到議程 '+weeks.filter(w=>w.outline&&w.outline.length).length+' 週'+(errs?'，'+errs+' 週讀取失敗':'')+(left?'，還有 '+left+' 週下次繼續':''));
+  return res}
+function mtgWeek_(f,cache,yr){const mmdd=f.getName();const files=[];let main=null;
   const re=new RegExp('^(20\\d\\d)'+mmdd+'(\\.pptx?)?$','i');
   const it=f.getFiles();while(it.hasNext()){const x=it.next(),n=x.getName();
     if(re.test(n)&&(!main||/\.pptx$/i.test(n)))main=x;
     if(!MTG_SKIP.test(n))files.push({n,u:x.getUrl(),m:String(x.getMimeType()).split(/[./]/).pop()})}
-  let y;if(main)y=+main.getName().match(re)[1];else{const c=f.getDateCreated();y=c.getFullYear();
+  let y;if(main)y=+main.getName().match(re)[1];else if(yr)y=+yr;else{const c=f.getDateCreated();y=c.getFullYear();
     const d=new Date(y,+mmdd.slice(0,2)-1,+mmdd.slice(2));if(d<new Date(c.getTime()-60*864e5))y++}
   const w={d:y+'-'+mmdd.slice(0,2)+'-'+mmdd.slice(2),fu:f.getUrl(),files,outline:[]};
   if(main){w.mid=main.getId();w.mt=main.getLastUpdated().getTime();w.mn=main.getName();w.mu=main.getUrl();
