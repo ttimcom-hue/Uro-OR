@@ -59,7 +59,7 @@ tr.off td{opacity:.5}
    共用資料鍵（給之後的小工具用）：
    common/people  人員名冊 {ts, people:[{id,n,full,role:'VS'|'R'|'F',lv,on,ts}]}
    common/links   常用連結 {items:[{n,u,d}]}
-   common/handoff 黃部長交班單 {u:Google 文件網址, ts}（網址不寫進 repo）
+   common/handoff 黃部長交班單 {u:Google 文件網址, ts}（沒設定時用 HO_URL）
    config/main    調度板設定（含 duty 值班、leaves 休假、vsLeaves 主治休假）
    days/YYYY-MM-DD 當日刀表與人力；er/list 急診刀清單 */
 const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec';
@@ -127,11 +127,12 @@ function links(){if(S.err==='nosync')return setupCard();const it=(S.links&&S.lin
  return `<section class="card"><h2>常用連結 <small>全科共用，顯示在首頁</small></h2><table class="stack"><thead><tr><th>名稱</th><th>網址</th><th>說明</th><th></th></tr></thead><tbody>${it.map((l,i)=>`<tr><td data-l="名稱"><input data-ch="lf" data-i="${i}" data-f="n" value="${esc(l.n)}"></td><td data-l="網址"><input data-ch="lf" data-i="${i}" data-f="u" value="${esc(l.u)}" placeholder="https://" style="width:100%"></td><td data-l="說明"><input data-ch="lf" data-i="${i}" data-f="d" value="${esc(l.d||'')}"></td><td><button class="btn s" data-act="ldel" data-i="${i}">刪除</button></td></tr>`).join('')}</tbody></table>
  <div class="row" style="margin-top:8px"><button class="btn p" data-act="ladd">新增連結</button><span class="note" id="lmsg"></span></div></section>`}
 
-/* 黃部長交班單：Google 文件網址只存在同步資料 common/handoff {u,ts}，不寫進公開的 repo */
+/* 黃部長交班單：預設網址寫在 HO_URL；同步資料 common/handoff {u,ts} 有值時以它為準（可在分頁內更換） */
+const HO_URL='https://docs.google.com/document/d/1MUwbZVat96vpyil2ahjP6lIv-NzW_MHbOC99EXTx7Yk/edit';
 const docId=u=>(String(u||'').match(/docs\.google\.com\/document\/d\/([\w-]{20,})/)||[])[1]||'';
-function handoff(){if(S.err==='nosync')return setupCard();const id=docId(S.ho&&S.ho.u);
- const form=`<div class="row" style="margin-top:8px"><input id="hou" placeholder="https://docs.google.com/document/d/…" style="flex:1;min-width:260px" value="${esc((S.ho&&S.ho.u)||'')}"><button class="btn p" data-act="hosave">儲存</button><span class="note" id="homsg"></span></div>`;
- if(!id)return `<section class="card"><h2>黃部長交班單</h2><p>還沒設定交班單。請貼上 Google 文件網址（只存在科內同步資料，不會出現在公開網頁原始碼）。</p>${form}</section>`;
+function handoff(){if(S.err==='nosync')return setupCard();const hu=(S.ho&&S.ho.u)||HO_URL,id=docId(hu);
+ const form=`<div class="row" style="margin-top:8px"><input id="hou" placeholder="https://docs.google.com/document/d/…" style="flex:1;min-width:260px" value="${esc(hu)}"><button class="btn p" data-act="hosave">儲存</button><span class="note" id="homsg"></span></div>`;
+ if(!id)return `<section class="card"><h2>黃部長交班單</h2><p>還沒設定交班單。請貼上 Google 文件網址。</p>${form}</section>`;
  const ed=`https://docs.google.com/document/d/${id}/edit`;
  return `<section class="card" style="padding:10px"><div class="row" style="margin-bottom:8px"><h2 style="margin:0;flex:1">黃部長交班單</h2><a class="btn p" style="text-decoration:none" href="${ed}" target="_blank" rel="noopener">在 Google 文件開啟 ↗</a><button class="btn s" data-act="hoedit">更換網址</button></div>
  <div id="hoform" hidden>${form}</div>
