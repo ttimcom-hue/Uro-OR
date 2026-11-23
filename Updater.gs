@@ -28,6 +28,7 @@ const GH_SCOPES = [
   'https://www.googleapis.com/auth/script.container.ui',
   'https://www.googleapis.com/auth/documents',
   'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/drive.file',   // 癌症討論會：PDF 暫時轉成文件讀文字，讀完刪除
 ];
 
 function onOpen() {
