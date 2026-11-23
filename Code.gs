@@ -4,6 +4,8 @@ function sh(){const ss=SpreadsheetApp.getActiveSpreadsheet();return ss.getSheetB
 function row(s,k){const n=s.getLastRow();if(!n)return 0;const v=s.getRange(1,1,n,1).getValues();for(let i=0;i<n;i++)if(v[i][0]===k)return i+1;return 0}
 function apiGet(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());const s=sh(),r=row(s,k);return r?String(s.getRange(r,2).getValue()||''):''}
 function apiSet(k,v){const L=LockService.getScriptLock();L.waitLock(15000);try{const s=sh();let r=row(s,k);if(!r){r=s.getLastRow()+1;s.getRange(r,1).setValue(k)}s.getRange(r,2).setValue(v);s.getRange(r,3).setValue(new Date())}finally{L.releaseLock()}return true}
+function apiGetMany(keys){const s=sh(),n=s.getLastRow(),m={};if(n)s.getRange(1,1,n,2).getValues().forEach(r=>{if(r[0])m[r[0]]=r[1]});
+  const v={};keys.forEach(k=>{try{const x=k==='meeting/drive'?JSON.stringify(meetingRead()):m[k];v[k]=x?JSON.parse(String(x)):null}catch(e){v[k]=null}});return v}
 function out(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
 // ===== 癌症討論會追蹤表連動 =====
 const CANCER_ID='1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI';
@@ -86,6 +88,8 @@ function doGet(e){const p=(e&&e.parameter)||{};
   if(p.action==='cancerScan'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:cancerDriveScan()})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.action==='meetingScan'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:meetingScan()})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.action==='cancerStatus'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:cancerStatus()})}catch(x){return out({ok:false,err:String(x)})}}
+  // ?keys=a,b,c：一次讀多個鍵（入口網頁載入用，只讀一次 data 工作表，比逐鍵請求快很多）
+  if(p.keys){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});return out({ok:true,value:apiGetMany(String(p.keys).split(',').slice(0,40))})}
   if(p.action==='handoff'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:handoffFor(p.dates)})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.key){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});const v=apiGet(p.key);return out({ok:true,value:v?JSON.parse(v):null})}
   return HtmlService.createHtmlOutputFromFile('index').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}

@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="晨會"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="meeting.webmanifest"><link rel="apple-touch-icon" href="hub-apple-touch-icon.png"><link rel="icon" type="image/png" href="hub-favicon.png"><meta name="theme-color" content="#0b5563"><meta property="og:title" content="泌尿科 晨會"><meta property="og:description" content="重要公告與規定・重要會議日曆・未來晨會時程"><meta property="og:image" content="og-hub.png"><meta property="og:type" content="website">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="晨會"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="meeting.webmanifest"><link rel="apple-touch-icon" href="meeting-apple-touch-icon.png?v=2"><link rel="icon" type="image/png" href="meeting-favicon.png?v=2"><meta name="theme-color" content="#0b5563"><meta property="og:title" content="泌尿科 晨會"><meta property="og:description" content="重要公告與規定・重要會議日曆・未來晨會時程"><meta property="og:image" content="og-meeting.png?v=2"><meta property="og:type" content="website">
 <title>泌尿科 晨會</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{color-scheme:light dark;--bg:light-dark(#f4f7f7,#0b1315);--card:light-dark(#fff,#121e21);--ink:light-dark(#0f262b,#e2edee);--mut:light-dark(#587076,#8ea6aa);--line:light-dark(#d8e2e3,#24363a);--scrub:light-dark(#0b5563,#0e6474);--soft:light-dark(#e4f0f1,#15313a);--red:#e5484d;--redbg:light-dark(#fdecec,#3a1a1c);--amb:#c77d00;--ambbg:light-dark(#fff4dc,#3a2c10);--ok:#1f8a5b}
 *{box-sizing:border-box;min-width:0}
@@ -93,6 +93,7 @@ const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){r
 let gs=LS.get('gsync');if(!gs||!gs.url)gs={url:SYNC_URL,token:'',on:true};
 const on=()=>gs.on&&gs.url;
 const q_=k=>gs.url+(gs.url.includes('?')?'&':'?')+k+'&token='+encodeURIComponent(gs.token||'');
+async function getMany(keys){try{const r=await fetch(q_('keys='+encodeURIComponent(keys.join(','))));const j=await r.json();if(j.ok&&j.value&&typeof j.value==='object'&&!Array.isArray(j.value))return keys.map(k=>({status:'fulfilled',value:j.value[k]??null}))}catch(e){}return Promise.allSettled(keys.map(get))}
 async function get(key){const r=await fetch(q_('key='+encodeURIComponent(key)));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
 async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token||'',key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
 const $=s=>document.querySelector(s);
@@ -322,14 +323,14 @@ function render(){const pg=page();
  $('#sub').textContent=`週二 科部晨會・今天 ${md(today)}`;
  const t=S.md&&S.md.ts?new Date(S.md.ts):null;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步':t?`議程更新 ${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}${S.md.left?`（還有 ${S.md.left} 週讀取中）`:''}`:'已同步';
- $('#tabs').innerHTML=TABS.map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a>';
+ $('#tabs').innerHTML=TABS.map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a><a class="ext" href="hub.html?from=meeting#fb">💬 意見回饋</a>';
  $('#tools').innerHTML=`${edit?'<button class="hbtn" data-act="scan">🔄 從 Drive 更新</button>':''}<button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
  if(!on()){$('#app').innerHTML=setupCard();return}
  if(S.loading&&!S.mp&&!S.md){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  const y=scrollY;$('#app').innerHTML=pplList()+(pg==='plan'?planPage():pg==='next'?nextPage():pg==='log'?logPage():pg==='stat'?statPage():home())+`<p class="note foot">議程由每週主簡報的 OUTLINE 頁自動讀取，只有標題，不含簡報內容。請勿在這裡填病人姓名、病歷號。</p>`;scrollTo(0,y)}
 
 async function load(){S.loading=true;render();if(!on()){S.loading=false;render();return}
- const k=['common/people','meeting/drive','meeting/plan'];const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
+ const k=['common/people','meeting/drive','meeting/plan'];const r=await getMany(k);const v=i=>r[i].status==='fulfilled'?r[i].value:null;
  S.err=r.every(x=>x.status==='rejected')?'conn':'';S.people=v(0);S.md=v(1);S.mp=v(2);S.loading=false;render()}
 async function savePlan(mut){saving++;try{const fresh=(await get('meeting/plan'))||S.mp||{};S.mp=fresh;const M=MP();mut(M);M.ts=Date.now();await set('meeting/plan',M)}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
 async function scan(){$('#sync').textContent='讀取 Drive 中…（最多 5 分鐘）';
@@ -382,7 +383,7 @@ function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Inst
   :ios?`<ol><li>點 Safari 下方（或上方）的<b>分享</b>按鈕 <span class="ik">⬆︎</span></li><li>往下滑，點<b>「加入主畫面」</b> <span class="ik">＋</span></li><li>右上角按<b>「新增」</b></li></ol><p class="inote">要用 Safari 開才有這個選項；Chrome 也可以從「分享」裡找到。</p>`
   :and?`<ol><li>點 Chrome 右上角 <span class="ik">⋮</span></li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li><li>按<b>「安裝」</b></li></ol>`
   :`<ol><li>Chrome／Edge：網址列右邊的 <span class="ik">⊕</span> 安裝圖示，或選單 →「安裝」</li><li>手機上用 Safari／Chrome 開這個網址，再按「📲 加到主畫面」</li></ol>`;
- const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="hub-apple-touch-icon.png" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
+ const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="meeting-apple-touch-icon.png?v=2" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
  <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟，再按「📲 加到主畫面」即可。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製安裝連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
  document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科 晨會（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);

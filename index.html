@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="刀房調度"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="favicon.png"><meta name="theme-color" content="#0b5563"><meta property="og:title" content="泌尿科刀房調度板"><meta property="og:description" content="刀序・人力・急診刀・術前準備"><meta property="og:image" content="og-or.png"><meta property="og:type" content="website">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="刀房調度"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=2"><link rel="icon" type="image/png" href="favicon.png?v=2"><meta name="theme-color" content="#0b5563"><meta property="og:title" content="泌尿科刀房調度板"><meta property="og:description" content="刀序・人力・急診刀・術前準備"><meta property="og:image" content="og-or.png?v=2"><meta property="og:type" content="website">
 <title>泌尿科刀房調度板</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -182,7 +182,9 @@ const vsCol=n=>{const L=(cfg&&cfg.sur)||[];n=String(n||'').replace(/部長$/,'')
 const dispN=n=>{const x=(cfg.sur||[]).find(y=>y.n===n);return x&&x.t?n+x.t:n};
 let resAdv=false,gearOpen=false;
 let edMode=(()=>{try{return localStorage.getItem('or:edit')==='true'}catch(e){return false}})();
-const GEAR=[['res','人力與能力'],['set','術式與房間設定'],['fb','意見回饋'],['help','❓ 怎麼用']];
+const GEAR=[['res','人力與能力'],['set','術式與房間設定'],['help','❓ 怎麼用']];
+/* 意見回饋集中在科務入口 hub.html#fb（Apps Script 版用 GitHub Pages 網址） */
+const fbUrl=()=>(GAS?'https://ttimcom-hue.github.io/Uro-OR/':'')+'hub.html?from=or#fb';
 const caseCol=x=>colMode()==='vs'?vsCol(x.c.surgeon):(CATC[x.cat]||'#6f9bb6');
 const colLegend=tl=>colMode()==='vs'?[...new Set(tl.rooms.flatMap(r=>r.cases.map(x=>x.c.surgeon)))].map(n=>`<span><i style="background:${vsCol(n)}"></i>${esc(dispN(n))}</span>`).join(''):CATS.map(([k,n])=>`<span><i class="c-${k}"></i>${n}</span>`).join('');
 const CATN=Object.fromEntries(CATS);const isRob=c=>c==='robot'||c==='sp';
@@ -539,11 +541,11 @@ async function loadDay(date){setTimeout(()=>{if(day&&Array.isArray(day.er)&&day.
 function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=planMoves(day,tl),L=advise(day,tl,asg,pl);cache={asg};
  const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
  const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
- $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${!IN_CLAUDE&&!GAS?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a><a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
+ $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${!IN_CLAUDE&&!GAS?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a><a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
  <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn edonly" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
  <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
- <main>${tab==='plan'?planView(tl,asg,L):tab==='er'?erNight()+erSlotCard()+erCard():tab==='prep'?prepView():tab==='res'?resView():tab==='fb'?fbView():tab==='help'?helpView():setView()}</main>`;$('#app').classList.toggle('ro',!edMode);titleize($('#app'))}
+ <main>${tab==='plan'?planView(tl,asg,L):tab==='er'?erNight()+erSlotCard()+erCard():tab==='prep'?prepView():tab==='res'?resView():tab==='fb'?fbMoved():tab==='help'?helpView():setView()}</main>`;$('#app').classList.toggle('ro',!edMode);titleize($('#app'))}
 
 function planView(tl,asg,L){const S=cfg.set,dl=T(S.deadline),ot=T(S.nurseOT);
  const late=tl.rooms.filter(r=>otRm(r.id)&&r.end>dl),last=tl.rooms.filter(r=>otRm(r.id)).reduce((m,r)=>Math.max(m,r.end),0);
@@ -676,6 +678,7 @@ function prepView(){const TD=localISO();const gd=x=>x===day.date?day:upDays[x];c
 let fb=null;const FBC=['時間軸排刀','人力分配','急診刀','術前準備','匯入刀表','介面／手機','其他'];
 async function loadFb(){let v=null;try{if(gsOn())v=await gsGet('feedback/list');else if(db){const x=await db.doc('feedback/list').get();if(x.exists)v=JSON.parse(JSON.stringify(x.data()))}}catch(e){}fb=(v&&v.items)||((LS.get('feedback/list')||{}).items)||[];render()}
 const saveFb=()=>persist('feedback/list',{items:fb});
+function fbMoved(){return `<section class="card"><h2>意見回饋已搬到科務入口</h2><p>所有網站的建議與問題、以及版本更新紀錄，現在都集中在科務入口的「💬 回饋・更新」頁。</p><a class="btn p" style="text-decoration:none" href="${fbUrl()}"${GAS?' target="_blank" rel="noopener"':''}>前往意見回饋 →</a></section>`}
 function fbView(){if(fb===null){setTimeout(loadFb,0);return '<p class="card note">讀取回饋中…</p>'}
  const L=fb.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));const open=L.filter(f=>f.st!=='done'),done=L.filter(f=>f.st==='done');
  const item=f=>{const i=fb.indexOf(f);return `<li class="${f.st==='done'?'dn':''}"><div class="row" style="justify-content:space-between;align-items:flex-start"><label class="row" style="gap:8px;align-items:flex-start;flex:1"><input type="checkbox" data-ch="fbDone" data-i="${i}" ${f.st==='done'?'checked':''} style="width:22px;height:22px;flex:none;margin-top:2px" aria-label="已解決"><span><span class="chip">${esc(f.cat)}</span> <b>${esc(f.name||'匿名')}</b> <span class="note">${esc(String(f.at).replace('T',' ').slice(0,16))}</span><span class="fbt" style="display:block;margin-top:4px;white-space:pre-wrap">${esc(f.text)}</span></span></label><button class="btn s" data-act="fbDel" data-i="${i}" aria-label="刪除">✕</button></div><input type="text" data-ch="fbRe" data-i="${i}" value="${esc(f.re||'')}" placeholder="回覆（例：已在新版加入）" style="width:100%;margin-top:6px"></li>`};
@@ -1079,7 +1082,7 @@ function helpView(){const go=(k,t)=>`<button class="btn s" data-act="tab" data-k
  <div class="card"><h3>② 調整、發公告</h3><ol><li>時間軸上<b>拖曳色塊</b>換順序或換房；點色塊可改時間、刪除</li><li>人力表可把人改成 OPD、pm 或固定某房</li><li>拉到最下面「LINE 群組公告」按「複製文字」貼到群組</li></ol>${go('plan','去排程')}</div>
  <div class="card"><h3>③ 急診刀</h3><ol><li>「急診刀」分頁按「新增急診刀」，填主治、術式、類別（床號勿填姓名）<br><span class="note">或 HIS「科別查詢」→「轉檔」→ 複製表格內容（不含標題）→ 貼到「匯入急診刀表」</span></li><li>病人開始禁食就按 NPO 旁的「現在」</li><li>看到全院順位時，<b>只要更新最前面那台</b>（＋／−），其他自動推估</li><li>要調順序：按住 ☰ 上下拖；接完改「完成」</li></ol><p class="note">全科共用、自動同步。</p>${go('er','去急診刀')}</div>
  <div class="card"><h3>④ 術前準備</h3><ol><li>「術前準備」分頁會列出明天要做的事：自費同意書、IIEF、灌腸＋DRE、MR fusion 畫圖、影像確認…</li><li>做完打勾，LINE 公告會自動拿掉</li></ol>${go('prep','去術前準備')}</div>
- </div><p class="note" style="margin-top:10px">手機：用瀏覽器開網址 →「分享／⋮」→「加入主畫面」，就像 App 一樣。有問題或建議請寫在「意見回饋」。</p></section>`}
+ </div><p class="note" style="margin-top:10px">手機：用瀏覽器開網址 →「分享／⋮」→「加入主畫面」，就像 App 一樣。有問題或建議請寫在<a href="${fbUrl()}"${GAS?' target="_blank" rel="noopener"':''}>💬 意見回饋</a>。</p></section>`}
 
 /* 顯示用職稱（例如 黃冠華 → 黃冠華部長）；資料本身仍用原名比對刀表 */
 function titleize(root){const T=(cfg.sur||[]).filter(x=>x.t&&x.n);if(!T.length||!root)return;const re=new RegExp('('+T.map(x=>x.n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')(?!'+T.map(x=>x.t).join('|')+')','g');const mp=Object.fromEntries(T.map(x=>[x.n,x.n+x.t]));
@@ -1171,7 +1174,7 @@ function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Inst
   :ios?`<ol><li>點 Safari 下方（或上方）的<b>分享</b>按鈕 <span class="ik">⬆︎</span></li><li>往下滑，點<b>「加入主畫面」</b> <span class="ik">＋</span></li><li>右上角按<b>「新增」</b></li></ol><p class="inote">要用 Safari 開才有這個選項；Chrome 也可以從「分享」裡找到。</p>`
   :and?`<ol><li>點 Chrome 右上角 <span class="ik">⋮</span></li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li><li>按<b>「安裝」</b></li></ol>`
   :`<ol><li>Chrome／Edge：網址列右邊的 <span class="ik">⊕</span> 安裝圖示，或選單 →「安裝」</li><li>手機上用 Safari／Chrome 開這個網址，再按「📲 加到主畫面」</li></ol>`;
- const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="apple-touch-icon.png" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
+ const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="apple-touch-icon.png?v=2" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
  <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟，再按「📲 加到主畫面」即可。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製安裝連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
  document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科刀房調度板（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);
