@@ -51,7 +51,7 @@ tr.off td{opacity:.5}
 .dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 14px}.dl dt{color:var(--mut)}.dl dd{margin:0}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border:0;background:var(--card);color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}.seg button.on{background:var(--scrub);color:#fff}
 @media (max-width:700px){
- .kpis{grid-template-columns:repeat(3,1fr);gap:8px}.kpi{padding:10px}.kpi b{font-size:22px}.kpi span{font-size:12px}.tool{min-height:0}
+ .kpis{grid-template-columns:repeat(2,1fr);gap:8px}.kpi{padding:10px}.kpi b{font-size:22px}.kpi span{font-size:12px}.tool{min-height:0}
  table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}table.stack td{border:0;padding:0}table.stack td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--mut)}table.stack input,table.stack select{width:100%}
 }
 .imodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9999;padding:12px}.ibox{background:var(--card,#fff);color:var(--ink,#0f262b);border-radius:16px;max-width:420px;width:100%;padding:16px 18px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)}.ihead{display:flex;gap:12px;align-items:center;margin-bottom:8px}.ihead img{border-radius:11px}.ibox ol{padding-left:22px;margin:8px 0}.ibox li{margin:4px 0}.ik{display:inline-block;border:1px solid var(--line,#ccc);border-radius:6px;padding:0 6px;font-weight:700}.inote{color:var(--mut,#587076);font-size:13px;margin:4px 0}.ishare{border-top:1px solid var(--line,#ddd);margin-top:10px;padding-top:10px}.ishare input{width:100%;font-size:13px;margin:4px 0}.ibtn{border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;margin:4px 6px 0 0;cursor:pointer}.ibtn.p{background:#0b5563;color:#fff;border-color:#0b5563}@media(min-width:700px){.imodal{align-items:center}}
@@ -88,19 +88,20 @@ const CANCER_URL='https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_a
 /* 首頁「工具」：ext＝開新分頁；sub＝調度板分頁捷徑 */
 const TOOLS=[
  {i:'🗓️',n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',sub:[['import','📥 匯入刀表'],['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與能力']]},
+ {i:'🕣',n:'晨會',u:'#mtg',d:'週二科部晨會：未來規劃、歷次議程、科內公告與報告統計（讀 Drive「W2 科部晨會」）'},
  {i:'📝',n:'黃部長交班',u:'#ho',d:'交班單（Google 文件），可直接在入口內檢視'},
  {i:'🎗️',n:'癌症討論會',u:CANCER_URL,d:'每週名單整理與統計（Google 試算表）',ext:1},
  {i:'📒',n:'Notion 科內筆記',u:NOTION_URL,d:'科內共筆、規範與教學資料',ext:1}];
-const SOON=['科會事項追蹤','住院醫師排班','晨會課程'];
+const SOON=['科會事項追蹤','住院醫師排班'];
 let S={people:null,links:null,cfg:null,dT:null,dM:null,er:null,err:'',loading:true},filt='cur',saving=0;
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
 const page=()=>(location.hash||'#home').slice(1);
 
 async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}
- const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff'];
+ const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff','meeting/drive','meeting/plan'];
  const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
  if(r.every(x=>x.status==='rejected'))S.err='conn';else S.err='';
- S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:CANCER_URL,d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);S.ho=v(6);
+ S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:CANCER_URL,d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);S.ho=v(6);S.md=v(7);S.mp=v(8);
  if(!S.people&&S.cfg)S.people=seed(S.cfg);S.loading=false;render()}
 function seed(c){const now=Date.now();return{ts:now,seeded:true,people:[...(c.res||[]).map(r=>({id:r.id,n:r.n,full:(String(r.alias||'').split(/[,，]/)[0]||'').trim(),role:r.lv==='Fellow'?'F':'R',lv:r.lv,on:!!r.on,ts:now})),...(c.sur||[]).map(x=>({id:'vs_'+x.n,n:x.n,full:x.n,role:'VS',lv:x.t||'主治醫師',on:true,ts:now}))]}}
 const P=()=>(S.people&&S.people.people)||[];
@@ -116,7 +117,7 @@ function home(){if(S.err==='nosync')return setupCard();
  const tu=new Set(TOOLS.map(t=>t.u)),lk=((S.links&&S.links.items)||[]).filter(l=>l.u&&!tu.has(l.u));
  const tool=t=>{const tg=t.ext?'target="_blank" rel="noopener"':'';return `<div class="tool"><a class="go" href="${t.u}" ${tg}><b><span class="ic">${t.i}</span>${t.n}${t.ext?' <small class="note">↗</small>':''}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`};
  return `<section><h2>① 今日總覽 <small>${md(today)}</small></h2><div class="kpis">${day(S.dT,'今天',today)}${day(S.dM,'明天',tmr)}
-  <a class="kpi" href="./#er"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></a></div>
+  ${(()=>{if(typeof mtgDates!=='function')return'';const d=mtgDates(1)[0],w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),n=mItems().filter(x=>x.d===d&&!x.dup&&!x.hide).length;return `<a class="kpi" href="#mtg"><span>下次晨會 ${md(d)}</span><b>${n?n+' 項':'—'}</b><span>${w?'Drive 已有簡報':'還沒有簡報'}</span></a>`})()}<a class="kpi" href="./#er"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></a></div>
   <div class="card" style="margin-top:10px"><dl class="dl">
    <dt>今晚值班</dt><dd>${duty||'<span class="note">值班表未匯入（在調度板「人力與能力」匯入）</span>'}</dd>
    <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
@@ -153,16 +154,140 @@ function handoff(){if(S.err==='nosync')return setupCard();const hu=(S.ho&&S.ho.u
  <iframe src="${ed}?rm=minimal" title="黃部長交班單" style="width:100%;height:calc(100vh - 210px);min-height:480px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
  <p class="note">要先登入有權限的 Google 帳號才看得到；手機上建議按「在 Google 文件開啟」用 App 編輯。</p></section>`}
 
+/* ===== 晨會（週二科部晨會）=====
+   meeting/drive  Apps Script 掃 Drive「W2 科部晨會」得到的議程 {ts, weeks:[{d,fu,mid,mn,mu,outline:[標題],files:[{n,u,m}]}]}（只讀）
+   meeting/plan   入口編輯 {ts, items:[{id,d,t,title,who,note,until,ts,del}], ov:{'日期|標題':{t,who,hide,ts}}, pins:{key:{on,until,ts}}}
+   d 空字串＝待排主題；Drive 議程的分類與報告人是自動判斷，可在「紀錄」用 ov 修正 */
+const MTG_DOW=2;
+const MT=[['notice','公告／規定','r'],['event','會議活動','a'],['people','人事',''],['mm','MM',''],['pre','預報',''],['share','心得分享',''],['teach','教學／影像',''],['vendor','廠商',''],['other','其他','']];
+const MTN=Object.fromEntries(MT.map(x=>[x[0],x[1]])),NOTICE=['notice','event','people'],RPT=['mm','pre','share','teach'];
+const mcls=t=>{t=String(t);return /自我介紹|新進|甄審|歡送|到職|離職/.test(t)?'people':/\bMM\b|Mortality|Morbidity|再入院|事件檢討/i.test(t)?'mm':/預報/.test(t)?'pre':/注意事項|須知|決議|規定|公告|排刀|人力|抽籤|值班|流程|政策|提醒|連假|業務調整|改善|機制|評核|CCC/.test(t)?'notice':/心得|分享|參訪|觀摩|交流|visiting/i.test(t)?'share':/會議|月會|年會|研討|討論會|Masterclass|課程|投稿|報名|Congress|Meeting/i.test(t)?'event':/廠商|產品|介紹/.test(t)?'vendor':/journal|book reading|chart run|口試|教學|review|論文|影像|\bCT\b|MRI|case/i.test(t)?'teach':'other'};
+/* 報告人：題目最後「- 某某醫師」「：某某醫師」，或結尾括號裡的名字「預報(甲、乙)」 */
+const mwho=t=>{t=String(t);const m=t.match(/[-－–—：:]\s*([^-－–—：:]+)$/),pm=t.match(/[(（]([^)）]+)[)）]\s*$/);
+ const pick=s=>s.replace(/[(（][^)）]*[)）]/g,'').split(/[、,，\/／&]/).map(x=>x.replace(/醫師|主任|部長|教授|^\s*(CR|VS|R\d)\s*/g,'').trim()).filter(x=>/^[一-鿿]{2,4}$/.test(x));
+ let r=m?pick(m[1]):[];if(!r.length&&pm)r=pick(pm[1]);return r.join('、')};
+const mcanon=n=>{n=String(n||'').trim();if(!n)return'';const p=P().find(x=>x.n===n||x.full===n)||P().find(x=>x.full&&x.full.length>n.length&&x.full.endsWith(n));return p?(p.full||p.n):n};
+const mpers=n=>P().find(x=>(x.full||x.n)===n);
+/* 自動抓到的名字：在名冊裡，或像三個字的全名才算（避免「小兒、婦女泌尿」被當成人） */
+const mname=n=>{const c=mcanon(n);return mpers(c)||/^[一-鿿]{3}$/.test(c)?c:''};
+const MP=()=>{const m=S.mp||{};m.items=m.items||[];m.ov=m.ov||{};m.pins=m.pins||{};return m};
+const mtgDates=n=>{const out=[];let d=today;for(let i=0;out.length<n&&i<400;i++){if(new Date(d+'T00:00:00').getDay()===MTG_DOW)out.push(d);d=addD(d,1)}return out};
+let mv=LS.get('mtgView')||'plan',mq='',mtf='',mfix=false,mrange='6m';
+/* 全部項目：Drive 議程＋入口填的（同一天同類型同報告人的入口項目視為已在 Drive 出現，不重複計） */
+function mItems(){const M=MP(),out=[];
+ ((S.md&&S.md.weeks)||[]).forEach(w=>(w.outline||[]).forEach(t=>{const k=w.d+'|'+t,o=M.ov[k]||{};out.push({k,d:w.d,title:t,t:o.t||mcls(t),who:(o.who!=null?String(o.who).split(/[、,，]/).map(mcanon):mwho(t).split('、').map(mname)).filter(Boolean).join('、'),src:'drive',hide:!!o.hide})}));
+ M.items.filter(x=>!x.del).forEach(x=>{const who=String(x.who||'').split(/[、,，]/).map(mcanon).filter(Boolean).join('、');
+  const dup=x.d&&out.some(y=>y.src==='drive'&&y.d===x.d&&y.t===x.t&&(!who||y.who.split('、').some(n=>n&&who.includes(n))));out.push({...x,k:'p:'+x.id,who,src:'plan',dup})});
+ return out}
+const mWeeks=()=>{const W={};((S.md&&S.md.weeks)||[]).forEach(w=>W[w.d]=w);return W};
+const mchip=t=>{const x=MT.find(y=>y[0]===t)||MT[MT.length-1];return `<span class="chip ${x[2]}">${x[1]}</span>`};
+const mtypeSel=(v,attr)=>`<select ${attr}>${MT.map(([k,n])=>`<option value="${k}" ${v===k?'selected':''}>${n}</option>`).join('')}</select>`;
+const mdl=()=>`<datalist id="mppl">${P().filter(p=>p.on!==false).map(p=>`<option value="${esc(p.full||p.n)}">`).join('')}</datalist>`;
+function mrow(x,dates){return `<tr${x.dup?' title="簡報議程已有同類型、同報告人的項目"':''}><td data-l="類型">${mtypeSel(x.t,`data-ch="mi" data-id="${esc(x.id)}" data-f="t"`)}${x.dup?'<div class="chip g" style="margin-top:4px">✓ 簡報已有</div>':''}</td>
+ <td data-l="題目"><input data-ch="mi" data-id="${esc(x.id)}" data-f="title" value="${esc(x.title)}" placeholder="例：MM 報告、12/26 月會預報" style="width:100%"></td>
+ <td data-l="報告人"><input data-ch="mi" data-id="${esc(x.id)}" data-f="who" value="${esc(x.who||'')}" list="mppl" style="width:110px"></td>
+ <td data-l="${dates?'排到':'備註'}">${dates?`<select data-ch="mi" data-id="${esc(x.id)}" data-f="d"><option value="">（待排）</option>${dates.map(d=>`<option value="${d}" ${x.d===d?'selected':''}>${md(d)}</option>`).join('')}</select>`:`<input data-ch="mi" data-id="${esc(x.id)}" data-f="note" value="${esc(x.note||'')}" placeholder="備註" style="width:100%">`}</td>
+ <td><button class="btn s" data-act="mdel" data-id="${esc(x.id)}" aria-label="刪除">✕</button></td></tr>`}
+
+function meeting(){if(S.err==='nosync')return setupCard();
+ const md0=S.md&&S.md.ts?new Date(S.md.ts):null;
+ const head=`<section><div class="row" style="justify-content:space-between"><div class="seg">${[['plan','📅 規劃'],['log','📚 紀錄'],['notice','📢 科內公告'],['stat','📊 統計']].map(([k,v])=>`<button class="${mv===k?'on':''}" data-act="mv" data-v="${k}">${v}</button>`).join('')}</div>
+  <div class="row"><span class="note" id="mscanmsg">${md0?`Drive 議程更新於 ${md0.getMonth()+1}/${md0.getDate()} ${String(md0.getHours()).padStart(2,'0')}:${String(md0.getMinutes()).padStart(2,'0')}`:'尚未讀取 Drive 議程'}</span><button class="btn s" data-act="mscan">🔄 從 Drive 更新</button><a class="btn s" style="text-decoration:none" href="https://drive.google.com/drive/folders/1NsEvZfchGMt49LbPkJztHz2t1Ewhg6mL" target="_blank" rel="noopener">📁 Drive 資料夾 ↗</a></div></div></section>`;
+ return head+mdl()+(mv==='log'?mLog():mv==='notice'?mNotice():mv==='stat'?mStat():mPlan())+`<p class="note">議程從每週主簡報（YYYYMMDD.pptx）的 OUTLINE 頁自動讀取，只存標題與檔名。請勿在這裡填病人姓名、病歷號。</p>`}
+
+function mPlan(){const M=MP(),W=mWeeks(),dates=mtgDates(8),all=mItems();
+ const card=d=>{const w=W[d],dr=w?(w.outline||[]):[],its=all.filter(x=>x.src==='plan'&&x.d===d);
+  return `<div class="card" style="margin-bottom:10px"><h2 style="font-size:17px">${md(d)}${d===today?' <span class="chip r">今天</span>':''}<small>${w?`<a href="${esc(w.fu)}" target="_blank" rel="noopener">Drive 已有 ${w.files.length} 個檔案 ↗</a>`:'Drive 還沒有這週的資料夾'}</small></h2>
+  ${dr.length?`<p class="note" style="margin:0 0 4px">簡報議程（${esc(w.mn||'')}）</p><ul style="margin:0 0 8px;padding-left:20px">${dr.map(t=>`<li>${mchip(mcls(t))} ${esc(t)}</li>`).join('')}</ul>`:''}
+  ${its.length?`<table class="stack"><tbody>${its.map(x=>mrow(x)).join('')}</tbody></table>`:''}
+  <div class="row" style="margin-top:6px"><button class="btn s" data-act="madd" data-d="${d}">＋ 加項目</button></div></div>`};
+ const pend=all.filter(x=>x.src==='plan'&&!x.d);
+ /* 輪值參考：每位住院醫師／Fellow 各類報告最近一次 */
+ const rs=P().filter(p=>p.on!==false&&p.role!=='VS'),past=all.filter(x=>!x.hide&&!x.dup&&x.d&&x.d<=today),fut=all.filter(x=>x.src==='plan'&&x.d>today);
+ const last=(n,t)=>past.filter(x=>x.t===t&&x.who.split('、').includes(n)).map(x=>x.d).sort().pop()||'';
+ const six=addD(today,-183);
+ const rows=rs.map(p=>{const n=p.full||p.n;return{p,n,l:RPT.map(t=>last(n,t)),c:past.filter(x=>x.d>=six&&x.who.split('、').includes(n)).length,f:fut.filter(x=>x.who.split('、').includes(n))}}).sort((a,b)=>a.c-b.c||String(b.p.lv).localeCompare(String(a.p.lv)));
+ const ago=d=>d?`${md(d)}<br><span class="note">${Math.round((new Date(today)-new Date(d))/864e5/7)} 週前</span>`:'<span class="note">—</span>';
+ return `<section><h2>未來 8 次晨會 <small>每週二；先看 Drive 有沒有上傳簡報，再補上要報告的內容</small></h2>${dates.map(card).join('')}</section>
+ <section class="card"><h2>待排主題 <small>還沒決定日期的報告、要宣布的事；決定後選日期就會排進去</small></h2>
+  ${pend.length?`<table class="stack"><thead><tr><th>類型</th><th>題目</th><th>報告人</th><th>排到</th><th></th></tr></thead><tbody>${pend.map(x=>mrow(x,dates)).join('')}</tbody></table>`:'<p class="note">目前沒有。</p>'}
+  <div class="row" style="margin-top:6px"><button class="btn s p" data-act="madd" data-d="">＋ 新增待排主題</button></div></section>
+ <section class="card" style="margin-top:14px"><h2>輪值參考 <small>各類報告最近一次；近 6 個月報告少的排上面</small></h2>
+  ${rows.length?`<div style="overflow-x:auto"><table class="stack"><thead><tr><th>住院醫師</th>${RPT.map(t=>`<th>最近${MTN[t]}</th>`).join('')}<th>近 6 月</th><th>已排</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td data-l="住院醫師"><b>${esc(r.n)}</b> <span class="note">${esc(r.p.lv||'')}</span></td>${r.l.map((d,i)=>`<td data-l="最近${MTN[RPT[i]]}">${ago(d)}</td>`).join('')}<td data-l="近 6 月">${r.c}</td><td data-l="已排">${r.f.map(x=>`${md(x.d)} ${MTN[x.t]}`).map(esc).join('<br>')||'<span class="note">—</span>'}</td></tr>`).join('')}</tbody></table></div>`:'<p class="note">人員名冊還沒有住院醫師。</p>'}</section>`}
+
+function mLog(){const W=mWeeks(),all=mItems(),q=mq.toLowerCase();
+ const ds=[...new Set(all.filter(x=>x.d&&x.d<=today).map(x=>x.d).concat(Object.keys(W).filter(d=>d<=today)))].sort().reverse();
+ const hit=x=>(!mtf||x.t===mtf)&&(!q||(x.title+' '+x.who+' '+(x.note||'')).toLowerCase().includes(q));
+ const body=ds.map(d=>{const w=W[d],its=all.filter(x=>x.d===d&&!x.dup&&(mfix||!x.hide)&&hit(x));if((q||mtf)&&!its.length)return'';
+  return `<div class="card" style="margin-bottom:10px"><h2 style="font-size:17px">${md(d)} <small>${d.slice(0,4)}</small>${w?`<small><a href="${esc(w.mu||w.fu)}" target="_blank" rel="noopener">簡報 ↗</a>　<a href="${esc(w.fu)}" target="_blank" rel="noopener">資料夾 ↗</a></small>`:''}</h2>
+  ${its.length?`<table><tbody>${its.map(x=>`<tr class="${x.hide?'off':''}"><td style="width:1%">${mfix&&x.src==='drive'?mtypeSel(x.t,`data-ch="mo" data-k="${esc(x.k)}" data-f="t"`):mchip(x.t)}</td><td>${esc(x.title)}${x.note?` <span class="note">${esc(x.note)}</span>`:''}${x.src==='plan'?' <span class="note">（入口填寫）</span>':''}</td>
+   <td style="white-space:nowrap">${mfix&&x.src==='drive'?`<input data-ch="mo" data-k="${esc(x.k)}" data-f="who" value="${esc(x.who)}" list="mppl" style="width:110px"> <label class="note"><input type="checkbox" data-ch="mo" data-k="${esc(x.k)}" data-f="hide" ${x.hide?'checked':''} style="min-height:0">不列入</label>`:esc(x.who)}</td></tr>`).join('')}</tbody></table>`:`<p class="note">${w&&w.err?'讀不到簡報：'+esc(w.err):'沒有議程'}</p>`}
+  ${w&&w.files.length?`<details style="margin-top:6px"><summary class="note">檔案 ${w.files.length} 個</summary><ul style="margin:4px 0;padding-left:20px">${w.files.map(f=>`<li><a href="${esc(f.u)}" target="_blank" rel="noopener">${esc(f.n)}</a></li>`).join('')}</ul></details>`:''}</div>`}).join('');
+ return `<section class="card" style="margin-bottom:12px"><div class="row"><input id="mq" data-ch="mq" value="${esc(mq)}" placeholder="搜尋題目或報告人" style="flex:1;min-width:200px">
+  <select data-ch="mtf"><option value="">全部類型</option>${MT.map(([k,n])=>`<option value="${k}" ${mtf===k?'selected':''}>${n}</option>`).join('')}</select>
+  <button class="btn s ${mfix?'p':''}" data-act="mfix">${mfix?'✓ 完成修正':'✏️ 修正分類／報告人'}</button></div>
+  ${mfix?'<p class="note" style="margin:6px 0 0">分類與報告人是依題目自動判斷的；改了以後統計會跟著變。「不列入」＝不算進統計與公告。</p>':''}</section>
+ ${body||'<p class="note">還沒有晨會紀錄。按上方「🔄 從 Drive 更新」讀取 Drive 資料夾。</p>'}`}
+
+function mNotice(){const M=MP(),all=mItems().filter(x=>NOTICE.includes(x.t)&&!x.hide&&!x.dup&&x.d);
+ const pin=x=>{const p=M.pins[x.k];return p&&p.on&&(!p.until||p.until>=today)};
+ const act=all.filter(x=>pin(x)||(x.src==='plan'&&x.until&&x.until>=today)).sort((a,b)=>a.d<b.d?1:-1);
+ const yr=today.slice(0,4),thisY=all.filter(x=>x.d.startsWith(yr));
+ const mons=[...new Set(all.map(x=>x.d.slice(0,7)))].sort().reverse();
+ const line=x=>{const p=M.pins[x.k]||{};return `<tr><td data-l="日期" class="t">${md(x.d)}</td><td data-l="類別">${mchip(x.t)}</td><td data-l="內容">${esc(x.title)}${x.note?`<br><span class="note">${esc(x.note)}</span>`:''}</td>
+  <td data-l="長期有效"><button class="btn s ${pin(x)?'p':''}" data-act="mpin" data-k="${esc(x.k)}" title="釘選成目前有效的規定">${pin(x)?'📌 有效中':'📌 釘選'}</button>${pin(x)||p.until?` <input type="date" data-ch="mpu" data-k="${esc(x.k)}" value="${esc(p.until||'')}" title="有效到（空白＝一直有效）" style="min-height:32px">`:''}</td></tr>`};
+ return `<section><div class="kpis">${NOTICE.map(t=>`<div class="kpi"><span>${yr} 年${MTN[t]}</span><b>${thisY.filter(x=>x.t===t).length}</b><span>則</span></div>`).join('')}<div class="kpi"><span>目前有效</span><b>${act.length}</b><span>則規定／提醒</span></div></div></section>
+ <section class="card"><h2>📌 目前有效的規定與提醒 <small>從下面的公告按「釘選」加入；可設定有效到哪天</small></h2>
+  ${act.length?`<table class="stack"><tbody>${act.map(line).join('')}</tbody></table>`:'<p class="note">還沒有釘選的公告。例如「達文西以一換一房不能超過 18:00」「Lumenis 只能 R6/R16」這類長期規定可以釘選在這裡。</p>'}
+  <div class="row" style="margin-top:8px"><button class="btn s p" data-act="mnadd">＋ 新增公告</button><span class="note">不在簡報裡的口頭公告、LINE 群組通知也可以記在這裡（記在今天的晨會）</span></div>
+  ${M.items.filter(x=>!x.del&&x.d===today&&NOTICE.includes(x.t)).length?`<table class="stack" style="margin-top:8px"><tbody>${M.items.filter(x=>!x.del&&x.d===today&&NOTICE.includes(x.t)).map(x=>mrow(x)).join('')}</tbody></table>`:''}</section>
+ <section class="card" style="margin-top:14px"><h2>每月公告數</h2><div style="overflow-x:auto"><table><thead><tr><th>月份</th>${NOTICE.map(t=>`<th>${MTN[t]}</th>`).join('')}<th>合計</th></tr></thead><tbody>
+  ${mons.map(m=>{const L=all.filter(x=>x.d.startsWith(m));return `<tr><td class="t">${m.replace('-','/')}</td>${NOTICE.map(t=>`<td>${L.filter(x=>x.t===t).length||''}</td>`).join('')}<td><b>${L.length}</b></td></tr>`}).join('')||'<tr><td colspan="5" class="note">沒有資料</td></tr>'}</tbody></table></div></section>
+ <section style="margin-top:14px"><h2>所有公告 <small>依日期，新的在上面</small></h2>${mons.map(m=>`<div class="card" style="margin-bottom:10px"><h2 style="font-size:16px">${+m.slice(5)} 月 <small>${m.slice(0,4)}</small></h2><table class="stack"><tbody>${all.filter(x=>x.d.startsWith(m)).sort((a,b)=>a.d<b.d?1:-1).map(line).join('')}</tbody></table></div>`).join('')||'<p class="note">沒有資料</p>'}</section>`}
+
+function mStat(){const from=mrange==='6m'?addD(today,-183):mrange==='y'?today.slice(0,4)+'-01-01':'0000';
+ const L=mItems().filter(x=>!x.hide&&!x.dup&&x.d&&x.d>=from&&x.d<=today),days=new Set(L.map(x=>x.d));
+ const ppl={};L.forEach(x=>x.who.split('、').filter(Boolean).forEach(n=>{const r=ppl[n]=ppl[n]||{n,c:{},tot:0,last:''};r.c[x.t]=(r.c[x.t]||0)+1;r.tot++;if(x.d>r.last)r.last=x.d}));
+ const cols=MT.map(x=>x[0]).filter(t=>Object.values(ppl).some(r=>r.c[t]));
+ const R=Object.values(ppl).sort((a,b)=>b.tot-a.tot||a.n.localeCompare(b.n));
+ const role=n=>{const p=mpers(n);return p?(p.role==='R'?p.lv:p.role==='F'?'Fellow':p.lv||'主治'):''};
+ return `<section><div class="row" style="margin-bottom:10px"><div class="seg">${[['6m','近 6 個月'],['y','今年'],['all','全部']].map(([k,v])=>`<button class="${mrange===k?'on':''}" data-act="mrange" data-v="${k}">${v}</button>`).join('')}</div></div>
+ <div class="kpis"><div class="kpi"><span>晨會次數</span><b>${days.size}</b><span>次</span></div><div class="kpi"><span>議程項目</span><b>${L.length}</b><span>平均每次 ${days.size?(L.length/days.size).toFixed(1):0} 項</span></div>
+ ${MT.filter(x=>L.some(y=>y.t===x[0])).map(([k,n])=>`<div class="kpi"><span>${n}</span><b>${L.filter(x=>x.t===k).length}</b><span>項</span></div>`).join('')}</div></section>
+ <section class="card"><h2>個人報告次數 <small>依議程題目後面的「- 某某醫師」判斷，不準的地方到「紀錄」修正</small></h2>
+ ${R.length?`<div style="overflow-x:auto"><table><thead><tr><th>報告人</th>${cols.map(t=>`<th>${MTN[t]}</th>`).join('')}<th>合計</th><th>最近一次</th></tr></thead><tbody>${R.map(r=>`<tr><td><b>${esc(r.n)}</b> <span class="note">${esc(role(r.n))}</span></td>${cols.map(t=>`<td>${r.c[t]||''}</td>`).join('')}<td><b>${r.tot}</b></td><td class="t">${md(r.last)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="note">這段期間沒有資料。</p>'}</section>`}
+
+async function savePlan(mut){saving++;try{const fresh=(await get('meeting/plan'))||S.mp||{};S.mp=fresh;const M=MP();mut(M);M.ts=Date.now();await set('meeting/plan',M)}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
+async function mScan(){const m=$('#mscanmsg');if(m)m.textContent='讀取 Drive 中…（第一次可能要 1 分鐘）';
+ try{const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=meetingScan&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');S.md=j.value;render()}
+ catch(e){const m=$('#mscanmsg');if(m)m.textContent='讀不到 Drive：'+(/drive|DriveApp|權限|permission/i.test(String(e))?'Apps Script 需要重新授權 Drive 權限（見開發說明）':String(e.message||e)).slice(0,80)}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!/^m(v|scan|add|del|pin|nadd|fix|range)$/.test(b.dataset.act))return;e.stopPropagation();const k=b.dataset.act;
+ if(k==='mv'){mv=b.dataset.v;LS.set('mtgView',mv);render()}
+ if(k==='mrange'){mrange=b.dataset.v;render()}
+ if(k==='mfix'){mfix=!mfix;render()}
+ if(k==='mscan')mScan();
+ if(k==='madd'){const x={id:'m'+Date.now().toString(36),d:b.dataset.d,t:'other',title:'',who:'',note:'',ts:Date.now()};savePlan(M=>M.items.push(x))}
+ if(k==='mnadd'){const x={id:'m'+Date.now().toString(36),d:today,t:'notice',title:'',who:'',note:'',ts:Date.now()};savePlan(M=>M.items.push(x))}
+ if(k==='mdel'){const id=b.dataset.id;savePlan(M=>{const x=M.items.find(y=>y.id===id);if(x){x.del=true;x.ts=Date.now()}})}
+ if(k==='mpin'){const key=b.dataset.k;savePlan(M=>{const p=M.pins[key]||{};const on=!(p.on&&(!p.until||p.until>=today));M.pins[key]={on,until:on?'':p.until||'',ts:Date.now()}})}},true);
+document.addEventListener('change',e=>{const el=e.target,c=el.dataset.ch;if(!c||!/^m/.test(c))return;e.stopPropagation();const v=el.type==='checkbox'?el.checked:el.value.trim();
+ if(c==='mq'){mq=v;render()}
+ if(c==='mtf'){mtf=v;render()}
+ if(c==='mi'){const id=el.dataset.id,f=el.dataset.f;savePlan(M=>{const x=M.items.find(y=>y.id===id);if(!x)return;x[f]=v;if(f==='title'&&x.t==='other'&&v)x.t=mcls(v);if(f==='title'&&!x.who)x.who=mwho(v);x.ts=Date.now()})}
+ if(c==='mo'){const key=el.dataset.k,f=el.dataset.f;savePlan(M=>{const o=M.ov[key]=M.ov[key]||{};o[f]=v;o.ts=Date.now()})}
+ if(c==='mpu'){const key=el.dataset.k;savePlan(M=>{const p=M.pins[key]=M.pins[key]||{on:true};p.until=v;p.ts=Date.now()})}},true);
+
 function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p>入口網頁和刀房調度板共用同一個 Google 同步網址。若調度板已經設定好，請先在同一支手機／電腦打開一次<a href="./">刀房調度板</a>，再回來重新整理。</p>
  <div class="row"><input id="u" placeholder="https://script.google.com/macros/s/…/exec" style="flex:1;min-width:260px" value="${esc(gs.url)}"><input id="tk" placeholder="密碼（沒有就留空）" value="${esc(gs.token||'')}" style="width:150px"><button class="btn p" data-act="conn">連線</button></div></section>`}
 
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
+ $('#tabs').innerHTML=[['home','首頁'],['mtg','晨會'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
  $('#inst').innerHTML=isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>';
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
- $('#app').innerHTML=pg==='ho'?handoff():pg==='people'?people():pg==='links'?links():home()}
+ $('#app').innerHTML=pg==='mtg'?meeting():pg==='ho'?handoff():pg==='people'?people():pg==='links'?links():home()}
 
 async function savePeople(mut){saving++;render();try{const fresh=(await get('common/people'))||S.people||{people:[]};fresh.people=fresh.people||[];
   if(S.people&&S.people.seeded&&!fresh.ts)fresh.people=S.people.people;delete fresh.seeded;mut(fresh);fresh.ts=Date.now();await set('common/people',fresh);S.people=fresh}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
