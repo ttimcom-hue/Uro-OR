@@ -68,6 +68,7 @@ tr.off td{opacity:.5}
    common/people  人員名冊 {ts, people:[{id,n,full,role:'VS'|'R'|'F',lv,on,ts}]}
    common/links   常用連結 {items:[{n,u,d}]}
    common/handoff 黃部長交班單 {u:Google 文件網址, ts}（沒設定時用 HO_URL）
+   ?action=cancerStatus 癌症討論會人數（Code.gs cancerStatus，不含病人資料）
    config/main    調度板設定（含 duty 值班、leaves 休假、vsLeaves 主治休假）
    days/YYYY-MM-DD 當日刀表與人力；er/list 急診刀清單 */
 const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec';
@@ -90,14 +91,14 @@ const TOOLS=[
  {i:'🗓️',n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',sub:[['import','📥 匯入刀表'],['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與能力']]},
  {i:'🕣',n:'晨會',u:'#mtg',d:'週二科部晨會：未來規劃、歷次議程、科內公告與報告統計（讀 Drive「W2 科部晨會」）'},
  {i:'📝',n:'黃部長交班',u:'#ho',d:'交班單（Google 文件），可直接在入口內檢視'},
- {i:'🎗️',n:'癌症討論會',u:CANCER_URL,d:'每週名單整理與統計（Google 試算表）',ext:1},
+ {i:'🎗️',n:'癌症討論會',u:'#cc',d:'下次討論會要挑的個案、討論後注意事項、統計（資料在 Google 試算表）'},
  {i:'📒',n:'Notion 科內筆記',u:NOTION_URL,d:'科內共筆、規範與教學資料',ext:1}];
 const SOON=['科會事項追蹤','住院醫師排班'];
 let S={people:null,links:null,cfg:null,dT:null,dM:null,er:null,err:'',loading:true},filt='cur',saving=0;
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
 const page=()=>(location.hash||'#home').slice(1);
 
-async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}
+async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}ccLoad();
  const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff','meeting/drive','meeting/plan'];
  const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
  if(r.every(x=>x.status==='rejected'))S.err='conn';else S.err='';
@@ -117,7 +118,7 @@ function home(){if(S.err==='nosync')return setupCard();
  const tu=new Set(TOOLS.map(t=>t.u)),lk=((S.links&&S.links.items)||[]).filter(l=>l.u&&!tu.has(l.u));
  const tool=t=>{const tg=t.ext?'target="_blank" rel="noopener"':'';return `<div class="tool"><a class="go" href="${t.u}" ${tg}><b><span class="ic">${t.i}</span>${t.n}${t.ext?' <small class="note">↗</small>':''}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`};
  return `<section><h2>① 今日總覽 <small>${md(today)}</small></h2><div class="kpis">${day(S.dT,'今天',today)}${day(S.dM,'明天',tmr)}
-  ${(()=>{if(typeof mtgDates!=='function')return'';const d=mtgDates(1)[0],w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),n=mItems().filter(x=>x.d===d&&!x.dup&&!x.hide).length;return `<a class="kpi" href="#mtg"><span>下次晨會 ${md(d)}</span><b>${n?n+' 項':'—'}</b><span>${w?'簡報已上傳':'還沒有簡報'}</span></a>`})()}<a class="kpi" href="./#er"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></a></div>
+  ${(()=>{if(typeof mtgDates!=='function')return'';const d=mtgDates(1)[0],w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),n=mItems().filter(x=>x.d===d&&!x.dup&&!x.hide).length;return `<a class="kpi" href="#mtg"><span>下次晨會 ${md(d)}</span><b>${n?n+' 項':'—'}</b><span>${w?'簡報已上傳':'還沒有簡報'}</span></a>`})()}${ccKpi()}<a class="kpi" href="./#er"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></a></div>
   <div class="card" style="margin-top:10px"><dl class="dl">
    <dt>今晚值班</dt><dd>${duty||'<span class="note">值班表未匯入（在調度板「人力與能力」匯入）</span>'}</dd>
    <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
@@ -141,6 +142,29 @@ function people(){if(S.err==='nosync')return setupCard();const all=P();
 function links(){if(S.err==='nosync')return setupCard();const it=(S.links&&S.links.items)||[];
  return `<section class="card"><h2>常用連結 <small>全科共用，顯示在首頁</small></h2><table class="stack"><thead><tr><th>名稱</th><th>網址</th><th>說明</th><th></th></tr></thead><tbody>${it.map((l,i)=>`<tr><td data-l="名稱"><input data-ch="lf" data-i="${i}" data-f="n" value="${esc(l.n)}"></td><td data-l="網址"><input data-ch="lf" data-i="${i}" data-f="u" value="${esc(l.u)}" placeholder="https://" style="width:100%"></td><td data-l="說明"><input data-ch="lf" data-i="${i}" data-f="d" value="${esc(l.d||'')}"></td><td><button class="btn s" data-act="ldel" data-i="${i}">刪除</button></td></tr>`).join('')}</tbody></table>
  <div class="row" style="margin-top:8px"><button class="btn p" data-act="ladd">新增連結</button><span class="note" id="lmsg"></span></div></section>`}
+
+/* ===== 癌症討論會 =====
+   資料只存在 Google 試算表（CANCER_URL，後台）。入口只透過 Apps Script ?action=cancerStatus 讀「人數、日期、分頁編號」，
+   不經過入口傳病人資料；名單用 iframe 直接顯示試算表（要登入有權限的 Google 帳號才看得到）。 */
+const CANCER_ID='1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI';
+const CC_GID={next:772796418,todo:10,trk:0,stat:1426015442};
+const CC_VIEWS=[['next','下次討論會'],['todo','注意事項'],['stat','統計'],['trk','個案追蹤（編輯）']];
+let ccView='next';
+async function ccLoad(){if(!on())return;try{const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=cancerStatus&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok||!j.value)throw 0;S.cc=j.value}catch(e){S.cc={err:1}}render()}
+const ccDate=c=>{const d=String((c&&c.mtg)||'').replace(/\//g,'-').slice(0,10);return /^\d{4}-\d\d-\d\d$/.test(d)?d:''};
+const ccN=c=>{const n=(c&&c.cnt)||{};return{pend:n['待討論']||0,todo:(n['已討論-待手術']||0)+(n['暫緩/改期']||0)+(n['待確認']||0)}};
+function ccKpi(){const c=S.cc;if(!c||c.err)return'';const d=ccDate(c),k=ccN(c);
+ return `<a class="kpi" href="#cc"><span>癌症討論會 ${d?md(d):''}</span><b>${c.listed||0} 人</b><span>已排入・待討論 ${k.pend}${c.warn?`（⚠${c.warn}）`:''}</span></a>`}
+function cancer(){if(S.err==='nosync')return setupCard();const c=S.cc||{},g={...CC_GID,...(c.gid||{})},d=ccDate(c),k=ccN(c);
+ const kp=(v,lab,big,sub,cls,nohl)=>`<a class="kpi" href="#cc" data-act="ccv" data-v="${v}" style="${ccView===v&&!nohl?'border-color:var(--scrub)':''}"><span>${lab}</span><b${cls?` style="color:var(--${cls})"`:''}>${big}</b><span>${sub}</span></a>`;
+ const kpis=!S.cc?'<p class="note">讀取人數中…</p>':c.err?'<p class="note">讀不到人數（Apps Script 可能需要更新或重新授權），下面的試算表仍可使用。</p>':
+  `<div class="kpis" style="margin-bottom:12px">${kp('next',`下次討論會 ${d?md(d):''}`,`${c.listed||0} 人`,'已排入')}${kp('next','還沒討論、可挑',`${k.pend} 人`,c.warn||c.late?`⚠ ${c.warn||0} 人需排入${c.late?`・${c.late} 人已過最晚日`:''}`:'沒有急迫個案',c.warn||c.late?'red':'',1)}${kp('todo','討論後、待手術',`${k.todo} 人`,'注意事項會同步到交班單')}${kp('trk','刀表新個案',`${c.newN||0}`,c.newN?'等待自動加入追蹤':'都已在追蹤表')}</div>`;
+ const gid=g[ccView]??g.next,src=`https://docs.google.com/spreadsheets/d/${CANCER_ID}/edit?rm=minimal&gid=${gid}#gid=${gid}`;
+ return `<section class="card" style="padding:10px"><div class="row" style="margin-bottom:10px"><h2 style="margin:0;flex:1">🎗️ 癌症討論會 <small>黃部長・每週四 07:30</small></h2><a class="btn p" style="text-decoration:none" href="${CANCER_URL}#gid=${gid}" target="_blank" rel="noopener">開啟試算表 ↗</a><button class="btn s" data-act="ccre">重新整理</button></div>
+ ${kpis}
+ <div class="row" style="margin-bottom:8px"><div class="seg">${CC_VIEWS.map(([v,n])=>`<button class="${ccView===v?'on':''}" data-act="ccv" data-v="${v}">${n}</button>`).join('')}</div></div>
+ <iframe src="${src}" title="癌症討論會試算表" style="width:100%;height:calc(100vh - 300px);min-height:460px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
+ <p class="note">資料只存在 Google 試算表；要先登入有權限的 Google 帳號才看得到。平常只要在「個案追蹤」填資料，其他頁都會自動更新。手機上建議按「開啟試算表」用 App。</p></section>`}
 
 /* 黃部長交班單：預設網址寫在 HO_URL；同步資料 common/handoff {u,ts} 有值時以它為準（可在分頁內更換） */
 const HO_URL='https://docs.google.com/document/d/1MUwbZVat96vpyil2ahjP6lIv-NzW_MHbOC99EXTx7Yk/edit';
@@ -284,10 +308,10 @@ function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['mtg','晨會'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
+ $('#tabs').innerHTML=[['home','首頁'],['mtg','晨會'],['ho','黃部長交班'],['cc','癌症討論會'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
  $('#inst').innerHTML=isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>';
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
- $('#app').innerHTML=pg==='mtg'?meeting():pg==='ho'?handoff():pg==='people'?people():pg==='links'?links():home()}
+ $('#app').innerHTML=pg==='mtg'?meeting():pg==='ho'?handoff():pg==='cc'?cancer():pg==='people'?people():pg==='links'?links():home()}
 
 async function savePeople(mut){saving++;render();try{const fresh=(await get('common/people'))||S.people||{people:[]};fresh.people=fresh.people||[];
   if(S.people&&S.people.seeded&&!fresh.ts)fresh.people=S.people.people;delete fresh.seeded;mut(fresh);fresh.ts=Date.now();await set('common/people',fresh);S.people=fresh}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
@@ -296,6 +320,8 @@ async function saveLinks(){try{await set('common/links',S.links);const m=$('#lms
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const k=b.dataset.act;
  if(k==='filt'){filt=b.dataset.v;render()}
  if(k==='add'){const r=b.dataset.r;const p={id:'p'+Date.now().toString(36),n:'新成員',full:'',role:r,lv:r==='R'?'R1':r==='F'?'Fellow':'主治醫師',on:true,ts:Date.now()};savePeople(f=>f.people.push(p))}
+ if(k==='ccv'){e.preventDefault();ccView=b.dataset.v;render();return}
+ if(k==='ccre'){S.cc=null;render();ccLoad();return}
  if(k==='hoedit'){const f=$('#hoform');if(f)f.hidden=!f.hidden}
  if(k==='hosave'){const u=$('#hou').value.trim();if(!docId(u)){alert('請貼上 Google 文件網址（docs.google.com/document/d/…）');return}const v={u,ts:Date.now()};set('common/handoff',v).then(()=>{S.ho=v;render()},()=>{const m=$('#homsg');if(m)m.textContent='儲存失敗'})}
  if(k==='ladd'){S.links=S.links||{items:[]};S.links.items.push({n:'新連結',u:'',d:''});render();saveLinks()}
