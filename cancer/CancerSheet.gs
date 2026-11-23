@@ -711,7 +711,7 @@ function csSyncDoc_(ss, st) {
 // 讀 說明!B4 資料夾（含子資料夾）裡近 CS_DRIVE_DAYS 天新增／修改的 docx：
 //   「…給放射科.docx」：Combined Conference 名單表格（姓名病歷號年齡｜病史｜影像＋Plan｜主治＋報告醫師；下一列 Discussion）
 //   「…癌症討論會….docx」：泌尿生殖癌團隊會議個案討論紀錄單（開會日期、主治、姓名、病歷號、Investigation 表、@Surgery）
-// 已讀過且沒改過的檔案記在指令碼屬性 ccDriveSeen。寫入規則：新病人加一列；舊病人只補空白欄位。
+// 已讀過且沒改過的檔案記在指令碼屬性 ccDriveSeen2（讀失敗的不記，下次重試）。寫入規則：新病人加一列；舊病人只補空白欄位。
 const CS_DRIVE_DAYS = 45;
 const CS_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -723,21 +723,28 @@ function cancerDriveScan() {
     const st = csSettings_(ss);
     if (!st.driveId) return '未設定討論會 Drive 資料夾（說明!B4）';
     const props = PropertiesService.getScriptProperties();
-    const seen = JSON.parse(props.getProperty('ccDriveSeen') || '{}');
+    const seen = JSON.parse(props.getProperty('ccDriveSeen2') || '{}');
     const since = Utilities.formatDate(new Date(Date.now() - CS_DRIVE_DAYS * 864e5), 'UTC', "yyyy-MM-dd'T'HH:mm:ss");
-    const it = DriveApp.searchFiles(`modifiedDate > '${since}' and mimeType = '${CS_DOCX}' and (title contains '放射科' or title contains '癌症討論會' or title contains '紀錄')`);
     const files = [];
-    while (it.hasNext()) {
-      const f = it.next(), m = f.getLastUpdated().getTime();
-      if (seen[f.getId()] === m || !csInFolder_(f, st.driveId)) continue;
-      files.push(f);
-    }
-    const pts = [];
-    files.forEach(f => {
-      try { pts.push(...csParseMeeting_(csDocx_(f.getBlob()), f)); } catch (e) { console.log('讀不到 ' + f.getName(), e); }
-      seen[f.getId()] = f.getLastUpdated().getTime();
+    [`mimeType = '${CS_DOCX}' and (title contains '放射科' or title contains '癌症討論會' or title contains '紀錄')`,
+      `mimeType = 'application/pdf' and (title contains '討論會' or title contains 'GU' or title contains '紀錄')`].forEach(q => {
+      const it = DriveApp.searchFiles(`modifiedDate > '${since}' and ` + q);
+      while (it.hasNext()) {
+        const f = it.next(), m = f.getLastUpdated().getTime();
+        if (seen[f.getId()] === m || !csInFolder_(f, st.driveId)) continue;
+        files.push(f);
+      }
     });
-    let msg = '讀了 ' + files.length + ' 個新檔案';
+    const pts = [];
+    let bad = 0;
+    files.forEach(f => {
+      try {
+        if (f.getMimeType() === 'application/pdf') pts.push(...csParseRecordText_(csPdfText_(f), f));
+        else pts.push(...csParseMeeting_(csDocx_(f.getBlob()), f));
+        seen[f.getId()] = f.getLastUpdated().getTime();   // 讀成功才記住，失敗的下次重試
+      } catch (e) { bad++; console.log('讀不到 ' + f.getName(), e); }
+    });
+    let msg = '讀了 ' + (files.length - bad) + ' 個新檔案' + (bad ? `（${bad} 個讀不到，下次重試）` : '');
     if (pts.length) {
       const r = csApplyMeeting_(ss, pts);
       SpreadsheetApp.flush();
@@ -746,7 +753,7 @@ function cancerDriveScan() {
       msg += `：新增 ${r.add} 位、更新 ${r.upd} 位` + (dv ? `、達文西術前補 ${dv} 格` : '');
     }
     const keep = Object.entries(seen).sort((a, b) => b[1] - a[1]).slice(0, 300);
-    props.setProperty('ccDriveSeen', JSON.stringify(Object.fromEntries(keep)));
+    props.setProperty('ccDriveSeen2', JSON.stringify(Object.fromEntries(keep)));
     console.log(msg);
     return msg;
   } finally { lock.releaseLock(); }
@@ -939,4 +946,73 @@ function csDvFill_(ss, pts) {
     });
   });
   return n;
+}
+
+// ---------- PDF ----------
+// Apps Script 不能直接讀 PDF：用 Drive API 複製成 Google 文件（自動轉文字）→ 讀內文 → 立刻永久刪除暫存檔。
+// 需要 drive.file 權限（只能建立／刪除程式自己建的檔案）。
+function csPdfText_(f) {
+  // 上傳一份 PDF 並要求 Drive 轉成 Google 文件（新檔是程式建立的，drive.file 權限即可），讀完刪除
+  const h = { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, b = 'cc' + Date.now();
+  const meta = JSON.stringify({ name: '暫存-討論會轉文字（會自動刪除）', mimeType: 'application/vnd.google-apps.document' });
+  const body = Utilities.newBlob(`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: application/pdf\r\n\r\n`).getBytes()
+    .concat(f.getBlob().getBytes()).concat(Utilities.newBlob(`\r\n--${b}--`).getBytes());
+  const r = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=zh-TW&fields=id', {
+    method: 'post', contentType: 'multipart/related; boundary=' + b, payload: body, headers: h, muteHttpExceptions: true });
+  if (r.getResponseCode() >= 300) throw new Error('PDF 轉文字失敗 ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
+  const id = JSON.parse(r.getContentText()).id;
+  try { return DocumentApp.openById(id).getBody().getText(); }
+  finally { UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id, { method: 'delete', headers: h, muteHttpExceptions: true }); }
+}
+
+// 紀錄單轉成純文字後（PDF）表格會攤平，改用整段文字比對。中英文版紀錄單都適用
+function csParseRecordText_(text, f) {
+  const src = f.getName().replace(/\.(pdf|docx)$/i, ''), fdate = csMeetDate_(text, f);
+  const D = '(20\\d\\d)[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})';
+  const dt = (b, re) => { const m = b.match(re); return m ? csYmd_(m[1], m[2], m[3]) : ''; };
+  const ds = d => d ? Utilities.formatDate(d, 'Asia/Taipei', 'yyyy/MM/dd') : '';
+  const out = [];
+  text.split(/泌尿生殖癌團隊會議個案討論紀錄單|Case Discussion Record/i).forEach(b => {
+    const mrn = csFirst_(b, /(?:病歷號碼|Medical Record Number)[:：]\s*(\d{8})/i);
+    if (!mrn) return;
+    const one = b.replace(/\s+/g, ' ');
+    const p = { mrn, src, rep: '', disc: '', dv: {},
+      date: dt(one, new RegExp('(?:開會日期|Meeting Date)[:：]\\s*' + D, 'i')) || fdate,
+      name: csFirst_(one, /(?:姓名|Name)[:：]\s*(.+?)\s*(?:性別|Gender)/i).replace(/\s+/g, ''),
+      vs: csFirst_(one, /(?:主治醫師|Attending Physician)[:：]\s*(.+?)\s*(?:姓名|Name[:：])/i).replace(/(醫師|主任|部長|\s)/g, ''),
+    };
+    // PSA：取最後一筆（排除 Free PSA）
+    // PSA：有多筆就寫「最高 → 最近」（例如 ADT 前後）；排除 Free PSA
+    const ps = []; let m; const re = /(?<!Free )PSA\s*(?:[:：]\s*)?(?:(20\d\d[.\/-]\d{1,2}[.\/-]\d{1,2})\s*)?([\d.]+)\s*(?:ng)?/gi;
+    while ((m = re.exec(one))) if (+m[2] > 0) ps.push(m[2] + (m[1] ? `（${m[1].replace(/[.-]/g, '/')}）` : ''));
+    if (ps.length) {
+      const top = ps.reduce((a, b) => parseFloat(b) > parseFloat(a) ? b : a), last = ps[ps.length - 1];
+      p.dv.psa = top === last ? last : `${top} → ${last}`;
+    }
+    const gs = [...one.matchAll(/(?:Gleason[’'`s]*\s*score|GS)\s*[:：=]?\s*(\d)\s*\+\s*(\d)/gi)].map(x => +x[1] + +x[2] * 0.1).sort((a, b) => b - a)[0];
+    if (gs) p.dv.gs = 'GS ' + Math.floor(gs) + '+' + Math.round((gs % 1) * 10);
+    const bx = dt(one, new RegExp('(?:TRUS )?biopsy\\s*' + D, 'i'));
+    if (bx) p.dv.bx = ds(bx);
+    const mri = one.match(new RegExp('(?:Prostate )?MRI\\s*' + D + '\\s*(.{0,180}?)(?=\\s(?:Bone scan|Chi Mei|Risk group|Plan|@|Investigation)|$)', 'i'));
+    if (mri) p.dv.mri = `${mri[1]}/${mri[2]}/${mri[3]}：${mri[4].trim()}`;
+    const vol = csFirst_(one, /(?:TRUS echo\s*\S+\s*(?:About\s*)?|Prostate[:：]\s*)([\d.]+)\s*(?:cc|ml)/i);
+    if (vol) p.dv.vol = vol + '（TRUS）';
+    const adt = one.match(new RegExp('ADT\\s*' + D + '\\s*([A-Za-z ]{3,30})', 'i'));
+    if (adt) p.dv.adt = `${adt[4].trim()}（${adt[1]}/${adt[2]}/${adt[3]} 起）`;
+    const pmh = csFirst_(one, /Past medical history[:：]\s*(.+?)\s*(?:Presenting|Clinical findings|ECOG|Investigation|Date Result|$)/i);
+    if (/TURP|TUEP|HIFU|hernia|TURBT/i.test(pmh)) p.dv.hx = pmh;
+    const risk = csFirst_(one, /Risk group\s*[:：]?\s*((?:Very |Unfavorable |Favorable )?(?:low|intermediate|high)(?: risk)?)/i);
+    const bone = /Bone scan[^@]{0,120}?(no (obvious )?(bone )?metast|negative|low probability)/i.test(one) ? 'bone scan(-)' : '';
+    const cT = csFirst_(one, /\b(y?c?T[1-4x][a-c]?\s*N[0-9x](?:\s*M[0-9x])?)\b/i);
+    p.dv.note = [risk && risk.replace(/ risk$/i, '') + ' risk', bone, cT, pmh && 'PMH：' + pmh].filter(Boolean).join('；').slice(0, 200);
+    const pl = one.match(new RegExp('(?:@\\s*Plan|@\\s*Surgery|Plan)\\s*' + D + '(?:\\s*' + D.replace(/\(/g, '(?:') + ')?\\s*(\\d\\d:\\d\\d)?\\s*(.{0,80}?)(?=\\s奇美|\\s泌尿生殖|$)', 'i'));
+    p.opDate = pl ? csYmd_(pl[1], pl[2], pl[3]) : '';
+    p.op = pl ? ((pl[5] || '') + ' ' + pl[4]).trim() : '';
+    if (pl && !pl[4]) p.op = (pl[5] || '').trim();
+    const stop = '\\s*(?:ECOG|Investigation|Date\\b|Past|Clinical findings|$)';
+    const cf = csFirst_(one, new RegExp('Clinical findings[:：]\\s*(.*?)' + stop, 'i')) || csFirst_(one, new RegExp('Presenting symptoms[:：]\\s*(.*?)' + stop, 'i'));
+    p.diag = [cf, cT, p.dv.gs].filter(Boolean).join('，').slice(0, 250);
+    out.push(p);
+  });
+  return out;
 }
