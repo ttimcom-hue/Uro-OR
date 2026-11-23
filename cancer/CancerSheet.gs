@@ -9,12 +9,12 @@
 // CANCER_ID 定義在 Code.gs。交班單網址只存在試算表「說明」B1，不放在 repo（repo 是公開的）。
 
 const CS = {
-  NEXT: '下次討論會', TODO: '注意事項', TRK: '個案追蹤', STAT: '統計', DONE: '已討論個案', WEEK: '週會名單',
+  NEXT: '下次討論會', TODO: '注意事項', TRK: '個案追蹤', DV: '達文西術前', STAT: '統計', DONE: '已討論個案', WEEK: '週會名單',
   PEND: '待討論清單', CAND: '刀表候選', RAW: '刀表匯入', PARSE: '刀表解析', HELP: '說明',
 };
 const CS_RENAMED = { '會後待辦': CS.TODO };   // 舊分頁名 → 新分頁名
 // 前四頁是平常會用的，其餘是後台（隱藏，需要時從左下「所有工作表」打開）
-const CS_ORDER = [CS.NEXT, CS.TODO, CS.TRK, CS.STAT, CS.HELP, CS.DONE, CS.WEEK, CS.PEND, CS.CAND, CS.RAW, CS.PARSE];
+const CS_ORDER = [CS.NEXT, CS.TODO, CS.DV, CS.TRK, CS.STAT, CS.HELP, CS.DONE, CS.WEEK, CS.PEND, CS.CAND, CS.RAW, CS.PARSE];
 const CS_HIDDEN = [CS.DONE, CS.WEEK, CS.PEND, CS.CAND, CS.RAW, CS.PARSE];
 const CS_STATUS = ['待討論', '已排入', '已討論-待手術', '已開刀', '待確認', '暫緩/改期', '不需手術'];
 const CS_STATUS_COLOR = {
@@ -31,7 +31,7 @@ const CS_PARSE_ROWS = 400;   // 一次刀表最多解析幾筆手術
 const CS_RAW_ROWS = 6000;    // 刀表匯入最多幾行
 const HDR_BG = '#EFEFEF', RED = '#C00000';
 const CS_TAB_COLOR = {
-  [CS.NEXT]: '#3D85C6', [CS.TODO]: '#E06666', [CS.TRK]: '#6AA84F', [CS.STAT]: '#8E7CC3', [CS.HELP]: '#CCCCCC', [CS.DONE]: '#CCCCCC',
+  [CS.NEXT]: '#3D85C6', [CS.TODO]: '#E06666', [CS.TRK]: '#6AA84F', [CS.DV]: '#F6B26B', [CS.STAT]: '#8E7CC3', [CS.HELP]: '#CCCCCC', [CS.DONE]: '#CCCCCC',
   [CS.WEEK]: '#CCCCCC', [CS.PEND]: '#CCCCCC', [CS.CAND]: '#CCCCCC', [CS.RAW]: '#FFD966', [CS.PARSE]: '#CCCCCC',
 };
 const CS_DOC_TAB = '癌症討論會';   // 交班單裡要寫入的分頁名稱（預設值，可在 說明!B2 改）
@@ -115,6 +115,8 @@ function setupCancerSheet() {
   });
   csNext_(ss.getSheetByName(CS.NEXT), keep.nextDate);
   csStat_(ss.getSheetByName(CS.STAT), keep.statFrom, keep.statTo);
+  csDv_(ss.getSheetByName(CS.DV));
+  csSyncDv_(ss);
   csTracker_(ss.getSheetByName(CS.TRK));
   csTodo_(ss.getSheetByName(CS.TODO));
   csDone_(ss.getSheetByName(CS.DONE));
@@ -134,6 +136,100 @@ function setupCancerSheet() {
 }
 
 function csToday_() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+
+// ---------- 達文西術前 ----------
+// 一人一列（以病歷號對應）。A–H 由程式從個案追蹤更新；I–R 人工填寫（第一次列入時從診斷欄帶入讀得到的值）；L、S 是公式
+const CS_DV_HEAD = ['手術日', '時段', '姓名', '病歷號', '術式', '主治', '狀態', '討論會',
+  'PSA（最近／日期）', '切片 GS／陽性針數', '切片日期', '切片→手術(週)', 'MRI（日期／PI-RADS／cT／EPE・SV・LN）',
+  '攝護腺體積(cc)', 'ADT（藥物／開始日）', '過去手術史（TURP、疝氣補片、腹部手術）', 'IIEF-5', '術前注意／備註', 'RARP 完成度'];
+const CS_DV_N = CS_DV_HEAD.length;   // 19 欄（A–S）
+const CS_DV_ROBOT = /davinci|robot|RARP|RAPN|RALN|RANU|RaNxUx|RARC|RALA|SP-RA/i;
+const CS_DV_RARP = '(?i)RARP|prostatectomy';
+function csDvFormulas_(r) {
+  return [`=IF(OR(A${r}="",K${r}=""),"",ROUND((A${r}-K${r})/7,1))`,
+    `=IF(REGEXMATCH(E${r}&"","${CS_DV_RARP}"),COUNTA(I${r}:K${r},M${r}:Q${r})&"/8","")`];
+}
+function csDv_(sh) {
+  sh.getRange(1, 1, 1, CS_DV_N).setValues([CS_DV_HEAD]).setFontWeight('bold').setWrap(true).setVerticalAlignment('middle');
+  sh.getRange(1, 1, 1, 8).setBackground(HDR_BG);
+  sh.getRange(1, 9, 1, 10).setBackground('#FCE5CD');
+  sh.getRange(1, 19).setBackground(HDR_BG);
+  sh.getRange('A2:A').setNumberFormat('m/d（ddd）');
+  sh.getRange('B2:B').setNumberFormat('@');   // 時段 08:30 存成文字，不要變成時間
+  sh.getRange('K2:K').setNumberFormat('yyyy/mm/dd');
+  sh.getRange('A2:S').setVerticalAlignment('top');
+  sh.getRange('E2:E').setWrap(true); sh.getRange('I2:R').setWrap(true);
+  sh.getRange('A2:H500').setBackground('#F3F3F3');
+  sh.getRange('L2:L500').setBackground('#F3F3F3'); sh.getRange('S2:S500').setBackground('#F3F3F3');
+  const rule = (f, rng, fmt) => fmt(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(f)).setRanges([sh.getRange(rng)]).build();
+  sh.setConditionalFormatRules([
+    rule('=OR($G2="已開刀",$G2="不需手術")', 'A2:S500', b => b.setFontColor('#A0A0A0')),
+    rule('=AND(ISNUMBER($L2),$L2<6)', 'L2:L500', b => b.setFontColor(RED).setBold(true)),
+    rule('=LEFT($H2,1)="⚠"', 'H2:H500', b => b.setFontColor(RED).setBold(true)),
+    rule('=AND($S2<>"",$S2<>"8/8")', 'S2:S500', b => b.setFontColor(RED)),
+  ]);
+  sh.setFrozenRows(1); sh.setFrozenColumns(4);
+  csWidths_(sh, [85, 55, 70, 80, 170, 60, 95, 80, 120, 120, 90, 70, 260, 75, 150, 200, 60, 220, 70]);
+}
+function csDvPrefill_(j) {
+  j = String(j || '');
+  const m = re => (j.match(re) || [])[0] || '';
+  const psa = j.match(/PSA[\s:：]*([\d.]+)(\s*→\s*[\d.]+)?/i);
+  const mri = [m(/PI-?RADS\s*\d/i), m(/y?c?T[1-4x][a-c]?\s*N[0-9x]\b/i)].filter(String).join('，');
+  const hx = [...new Set((j.match(/TURP|TUEP|TUIP|HIFU|hernia|TURBT/gi) || []).map(x => x.toUpperCase()))].join('、');
+  return {
+    psa: psa ? psa[1] + (psa[2] || '').replace(/\s/g, '') : '',
+    gs: m(/GS\s*\d\s*\+\s*\d/i).replace(/\s/g, ' '),
+    mri, vol: (j.match(/(\d+(?:\.\d+)?)\s*(?:cc|ml)\b/i) || [])[1] || '',
+    adt: /ADT/i.test(j) ? '有（' + m(/neo-?ADT|s\/p ADT|ADT/i) + '，藥物／日期待補）' : '',
+    hx: hx ? 'Hx ' + hx : '',
+  };
+}
+// 從個案追蹤更新「達文西術前」；回傳新增人數。只在自動欄位有變時才寫回
+function csSyncDv_(ss) {
+  const sh = ss.getSheetByName(CS.DV);
+  if (!sh) return 0;
+  const trk = ss.getSheetByName(CS.TRK), tn = trk.getLastRow();
+  const tv = tn > 1 ? trk.getRange(2, 1, tn - 1, 17).getValues() : [];
+  const today = csToday_();
+  const n0 = sh.getLastRow();
+  const old = n0 > 1 ? sh.getRange(2, 1, n0 - 1, CS_DV_N).getValues().filter(r => String(r[3]).trim()) : [];
+  const byMrn = new Map(old.map(r => [String(r[3]).trim().replace(/^'/, ''), r]));
+  let added = 0;
+  tv.forEach(t => {
+    const mrn = String(t[2]).trim().replace(/^'/, ''), op = String(t[4] || ''), st = String(t[0] || '');
+    if (!mrn || !CS_DV_ROBOT.test(op)) return;
+    const d = t[3] instanceof Date ? t[3] : '';
+    const mt = t[5] instanceof Date ? t[5] : '';
+    const slot = (op.match(/\b(0?8:?30|12:?00|TF\s*\d?)\b/i) || [])[1] || '';
+    const disc = mt ? (mt <= today ? Utilities.formatDate(mt, 'Asia/Taipei', 'M/d') + ' 已討論' : Utilities.formatDate(mt, 'Asia/Taipei', 'M/d') + ' 已排入') : '⚠ 未上討論會';
+    const auto = [d, slot.replace(/\s/g, '').toUpperCase(), t[1], "'" + mrn, op, t[8], st, disc];
+    let r = byMrn.get(mrn);
+    if (!r) {
+      const open = !['已開刀', '不需手術'].includes(st) && (!d || d >= today);
+      if (!open) return;
+      const p = csDvPrefill_(t[9]);
+      r = new Array(CS_DV_N).fill('');
+      r[8] = p.psa; r[9] = p.gs; r[12] = p.mri; r[13] = p.vol; r[14] = p.adt; r[15] = p.hx;
+      r[17] = '自動帶入（請核對）';
+      byMrn.set(mrn, r); added++;
+    }
+    auto.forEach((v, i) => { r[i] = v; });
+  });
+  const rows = [...byMrn.values()];
+  const done = r => ['已開刀', '不需手術'].includes(String(r[6]));
+  const tm = r => r[0] instanceof Date ? r[0].getTime() : 9e15;
+  rows.sort((a, b) => done(a) - done(b) || (done(a) ? tm(b) - tm(a) : tm(a) - tm(b)));
+  const key = r => JSON.stringify(r.slice(0, 18).map((v, i) => i === 11 ? '' : v instanceof Date ? v.getTime() : String(v).replace(/^'/, '')));
+  if (!added && rows.length === old.length && rows.every((r, i) => key(r) === key(old[i]))) return 0;
+  if (n0 > 1) sh.getRange(2, 1, n0 - 1, CS_DV_N).clearContent();
+  if (!rows.length) return 0;
+  sh.getRange(2, 1, rows.length, CS_DV_N).setValues(rows.map(r => r.map((v, i) => i === 11 || i === 18 ? '' : v)));
+  const f = rows.map((_, i) => csDvFormulas_(i + 2));
+  sh.getRange(2, 12, rows.length, 1).setFormulas(f.map(x => [x[0]]));
+  sh.getRange(2, 19, rows.length, 1).setFormulas(f.map(x => [x[1]]));
+  return added;
+}
 
 // ---------- 統計 ----------
 // 癌別：先看「預定手術」(E)，判斷不出來再看「診斷」(J)；依序比對，第一個符合的就是
@@ -473,6 +569,7 @@ function csHelp_(sh, st) {
   const rows = [
     ['項目', '內容'],
     ['平常只看三頁', '① 下次討論會：上面是已排入這次的人，下面是還沒討論、可以挑的個案（⚠ 是最晚這次就要討論）。\n② 注意事項：已討論、還沒開刀的人，討論結論與會後待辦，會自動同步到交班單。\n③ 個案追蹤：唯一要手動填的地方。其他分頁都是自動產生，已隱藏（左下「所有工作表」可打開）。'],
+    ['達文西術前', '個案追蹤裡預定達文西／機器手臂手術、還沒開的病人會自動列進來（依手術日排序，開完的移到下面並變灰）。灰底 A–H 欄自動更新；白底欄位（PSA、切片、MRI、體積、ADT、過去手術、IIEF-5、備註）請手動補，第一次列入時會從診斷欄自動帶入能讀到的值。完成度只算 RARP。切片到手術不足 6 週會標紅。'],
     ['統計', '依「個案追蹤」自動計算：已討論人數、場數、每月依癌別、依主治／報告醫師、討論後結果、手術前沒上討論會的個案。B2、D2 可設定期間。癌別依預定手術／診斷的關鍵字自動判斷。'],
     ['一個個案的流程', '刀表匯入後自動加入（狀態＝待討論）→ 排進討論會：填 F 討論會日期，狀態改「已排入」→ 討論完：填 K 討論結論、O 會後待辦（P 負責人、Q 期限），狀態改「已討論-待手術」→ 開完刀：狀態改「已開刀」、填 L 病理。不用討論的改「不需手術」。'],
     ['最晚討論日', '手術日前一個週四（自動計算）。'],
@@ -508,9 +605,11 @@ function cancerSync() {
     const ss = SpreadsheetApp.openById(CANCER_ID);
     const st = csSettings_(ss);
     const added = st.autoAdd ? csAutoAdd_(ss) : 0;
+    let dv = 0;
+    try { dv = csSyncDv_(ss); } catch (e) { console.log('達文西術前同步失敗', e); }
     let doc;
     try { doc = csSyncDoc_(ss, st); } catch (e) { doc = '同步交班單失敗：' + (e && e.message || e); }
-    const msg = (added ? '自動加入 ' + added + ' 位新個案；' : '') + doc;
+    const msg = (added ? '自動加入 ' + added + ' 位新個案；' : '') + (dv ? '達文西術前新增 ' + dv + ' 位；' : '') + doc;
     console.log(msg);
     return msg;
   } finally { lock.releaseLock(); }
