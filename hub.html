@@ -19,10 +19,17 @@ h1{font:800 clamp(24px,3.4vw,34px)/1.1 Figtree,"Noto Sans TC",sans-serif;margin:
 .tabs{display:flex;gap:4px;max-width:1100px;margin:14px auto 0;overflow-x:auto}
 .tabs a{color:#fff;text-decoration:none;border-radius:10px 10px 0 0;padding:11px 18px;opacity:.8;flex:none;min-height:44px}
 .tabs a[aria-current=page]{background:var(--bg);color:var(--ink);opacity:1;font-weight:700}
+.tabs .sep{flex:none;width:1px;background:rgba(255,255,255,.3);margin:10px 6px}
+.tabs a.ext{font-size:14px}
+.hbtn{color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:3px 12px;font-size:13px;text-decoration:none;white-space:nowrap}
+.hside{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+a.kpi{color:inherit;text-decoration:none}a.kpi:hover{border-color:var(--scrub)}
+.tool .go{color:inherit;text-decoration:none;display:block}
+.tool .ic{font-size:20px;margin-right:6px}
 main{max-width:1100px;margin:auto;padding:18px max(4vw,14px) 60px}
 section{margin-bottom:22px}
 h2{font:700 19px/1.3 "Noto Sans TC",sans-serif;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-h2 small{font-weight:400;color:var(--mut);font-size:13px}
+h2 small{font-weight:400;color:var(--mut);font-size:13px}h2 small a{color:var(--scrub)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
 .tool{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--scrub);border-radius:14px;padding:14px 16px;min-height:96px}
@@ -41,16 +48,17 @@ h2 small{font-weight:400;color:var(--mut);font-size:13px}
 input,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:38px}
 table{width:100%;border-collapse:collapse}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{font-size:13px;color:var(--mut);font-weight:500}
 tr.off td{opacity:.5}
-.dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}.dl dt{color:var(--mut)}.dl dd{margin:0}
+.dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 14px}.dl dt{color:var(--mut)}.dl dd{margin:0}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border:0;background:var(--card);color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}.seg button.on{background:var(--scrub);color:#fff}
 @media (max-width:700px){
+ .kpis{grid-template-columns:repeat(3,1fr);gap:8px}.kpi{padding:10px}.kpi b{font-size:22px}.kpi span{font-size:12px}.tool{min-height:0}
  table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}table.stack td{border:0;padding:0}table.stack td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--mut)}table.stack input,table.stack select{width:100%}
 }
 .imodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9999;padding:12px}.ibox{background:var(--card,#fff);color:var(--ink,#0f262b);border-radius:16px;max-width:420px;width:100%;padding:16px 18px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)}.ihead{display:flex;gap:12px;align-items:center;margin-bottom:8px}.ihead img{border-radius:11px}.ibox ol{padding-left:22px;margin:8px 0}.ibox li{margin:4px 0}.ik{display:inline-block;border:1px solid var(--line,#ccc);border-radius:6px;padding:0 6px;font-weight:700}.inote{color:var(--mut,#587076);font-size:13px;margin:4px 0}.ishare{border-top:1px solid var(--line,#ddd);margin-top:10px;padding-top:10px}.ishare input{width:100%;font-size:13px;margin:4px 0}.ibtn{border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;margin:4px 6px 0 0;cursor:pointer}.ibtn.p{background:#0b5563;color:#fff;border-color:#0b5563}@media(min-width:700px){.imodal{align-items:center}}
 </style>
 </head>
 <body>
-<header><div class="hrow"><div><h1>泌尿科 科務入口</h1><div class="sub" id="sub"></div></div><div class="sub" id="sync"></div></div>
+<header><div class="hrow"><div><h1>泌尿科 科務入口</h1><div class="sub" id="sub"></div></div><div class="hside"><span class="sub" id="sync"></span><span id="inst"></span></div></div>
 <nav class="tabs" id="tabs"></nav></header>
 <main id="app"><p class="note">載入中…</p></main>
 <script>
@@ -75,12 +83,15 @@ const addD=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);retu
 const DOW='日一二三四五六';const md=s=>`${+s.slice(5,7)}/${+s.slice(8)}（${DOW[new Date(s+'T00:00:00').getDay()]}）`;
 const today=iso(new Date()),tmr=addD(today,1);
 const ROLE={VS:'主治醫師',R:'住院醫師',F:'Fellow'};
+const NOTION_URL='https://shengmin.notion.site/a40ece61b33441b8950284c54ab01f55';
+const CANCER_URL='https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI/edit';
+/* 首頁「工具」：ext＝開新分頁；sub＝調度板分頁捷徑 */
 const TOOLS=[
- {n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',ok:1,sub:[['import','📥 匯入刀表'],['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與值班']]},
- {n:'癌症討論會',u:'https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI/edit',d:'每週名單整理與統計（Google 試算表）',ok:1,ext:1},
- {n:'科會事項追蹤',d:'決議、負責人、期限、進度'},
- {n:'住院醫師排班',d:'值班、門診、輪訓；排好直接帶入調度板'},
- {n:'晨會課程',d:'講者、題目、日期與提醒'}];
+ {i:'🗓️',n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',sub:[['import','📥 匯入刀表'],['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與能力']]},
+ {i:'📝',n:'黃部長交班',u:'#ho',d:'交班單（Google 文件），可直接在入口內檢視'},
+ {i:'🎗️',n:'癌症討論會',u:CANCER_URL,d:'每週名單整理與統計（Google 試算表）',ext:1},
+ {i:'📒',n:'Notion 科內筆記',u:NOTION_URL,d:'科內共筆、規範與教學資料',ext:1}];
+const SOON=['科會事項追蹤','住院醫師排班','晨會課程'];
 let S={people:null,links:null,cfg:null,dT:null,dM:null,er:null,err:'',loading:true},filt='cur',saving=0;
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
 const page=()=>(location.hash||'#home').slice(1);
@@ -89,7 +100,7 @@ async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='n
  const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff'];
  const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
  if(r.every(x=>x.status==='rejected'))S.err='conn';else S.err='';
- S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:'https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI/edit',d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);S.ho=v(6);
+ S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:CANCER_URL,d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);S.ho=v(6);
  if(!S.people&&S.cfg)S.people=seed(S.cfg);S.loading=false;render()}
 function seed(c){const now=Date.now();return{ts:now,seeded:true,people:[...(c.res||[]).map(r=>({id:r.id,n:r.n,full:(String(r.alias||'').split(/[,，]/)[0]||'').trim(),role:r.lv==='Fellow'?'F':'R',lv:r.lv,on:!!r.on,ts:now})),...(c.sur||[]).map(x=>({id:'vs_'+x.n,n:x.n,full:x.n,role:'VS',lv:x.t||'主治醫師',on:true,ts:now}))]}}
 const P=()=>(S.people&&S.people.people)||[];
@@ -99,16 +110,19 @@ function home(){if(S.err==='nosync')return setupCard();
  const c=S.cfg||{},L=(c.duty||{})[today]||[],g=r=>L.filter(x=>(String(x).split(':')[1]||'')===r).map(x=>nm(String(x).split(':')[0]));
  const lv=(c.leaves||[]).filter(l=>l.from<=today&&(l.to||l.from)>=today).map(l=>`${nm(l.r)}${l.type?'（'+l.type+(l.half&&l.half!=='all'?(l.half==='am'?'・上午':'・下午'):'')+'）':''}`);
  const vl=(c.vsLeaves||[]).filter(l=>l.from<=today&&(l.to||l.from)>=today).map(l=>esc(l.s));
- const day=(d,lab,ds)=>{const cs=(d&&d.cases||[]).filter(x=>!x.eve);const rooms=new Set(cs.map(x=>x.room).filter(r=>r!=='ESWL'));return `<div class="kpi"><span>${lab} ${md(ds)}刀房</span><b>${cs.length?cs.length+' 台':'—'}</b><span>${cs.length?rooms.size+' 間房':'刀表未匯入'}</span></div>`};
+ const day=(d,lab,ds)=>{const cs=(d&&d.cases||[]).filter(x=>!x.eve);const rooms=new Set(cs.map(x=>x.room).filter(r=>r!=='ESWL'));return `<a class="kpi" href="./#plan"><span>${lab} ${md(ds)}刀房</span><b>${cs.length?cs.length+' 台':'—'}</b><span>${cs.length?rooms.size+' 間房':'刀表未匯入'}</span></a>`};
  const er=((S.er&&S.er.items)||[]).filter(e=>!e.del&&(e.st||'wait')!=='done');const ct=t=>er.filter(e=>e.t===t).length;
- return `<section><h2>今天 ${md(today)}</h2><div class="kpis">${day(S.dT,'今天',today)}${day(S.dM,'明天',tmr)}
-  <div class="kpi"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></div></div>
+ const duty=[['sec','二線'],['icu','ICU'],['w1','一線'],['tot','總值'],['','']].map(([k,v])=>g(k).length?(v?v+' ':'')+g(k).join('、'):'').filter(Boolean).map(esc).join('　');
+ const tu=new Set(TOOLS.map(t=>t.u)),lk=((S.links&&S.links.items)||[]).filter(l=>l.u&&!tu.has(l.u));
+ const tool=t=>{const tg=t.ext?'target="_blank" rel="noopener"':'';return `<div class="tool"><a class="go" href="${t.u}" ${tg}><b><span class="ic">${t.i}</span>${t.n}${t.ext?' <small class="note">↗</small>':''}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`};
+ return `<section><h2>① 今日總覽 <small>${md(today)}</small></h2><div class="kpis">${day(S.dT,'今天',today)}${day(S.dM,'明天',tmr)}
+  <a class="kpi" href="./#er"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></a></div>
   <div class="card" style="margin-top:10px"><dl class="dl">
-   <dt>今晚值班</dt><dd>${L.length?[g('sec').length?'二線 '+g('sec').join('、'):'',g('icu').length?'ICU '+g('icu').join('、'):'',g('w1').length?'一線 '+g('w1').join('、'):'',g('tot').length?'總值 '+g('tot').join('、'):'',g('').length?g('').join('、'):''].filter(Boolean).map(esc).join('　'):'<span class="note">值班表未匯入（在調度板「人力設定」匯入）</span>'}</dd>
+   <dt>今晚值班</dt><dd>${duty||'<span class="note">值班表未匯入（在調度板「人力與能力」匯入）</span>'}</dd>
    <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
    <dt>主治休假</dt><dd>${vl.length?vl.join('、'):'<span class="note">無</span>'}</dd></dl></div></section>
- <section><h2>工具</h2><div class="grid">${TOOLS.map(t=>t.ok?`<div class="tool"><a href="${t.u}" ${t.ext?'target="_blank" rel="noopener"':''} style="color:inherit;text-decoration:none"><b>${t.n}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`:`<div class="tool soon"><b>${t.n}</b> <span class="chip">建置中</span><p>${t.d}</p></div>`).join('')}</div></section>
- <section><h2>常用連結 <small><a href="#links">編輯</a></small></h2>${((S.links&&S.links.items)||[]).length?`<div class="grid">${S.links.items.map(l=>`<a class="tool" href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.n)}</b><p>${esc(l.d||l.u)}</p></a>`).join('')}</div>`:'<p class="note">還沒有連結。可以加入科內 Notion 筆記、醫院系統入口等。</p>'}</section>`}
+ <section><h2>② 工具</h2><div class="grid">${TOOLS.map(tool).join('')}</div><p class="note" style="margin:8px 2px 0">規劃中：${SOON.join('・')}</p></section>
+ <section><h2>③ 常用連結 <small><a href="#links">編輯</a></small></h2>${lk.length?`<div class="grid">${lk.map(l=>`<a class="tool" href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.n)}</b><p>${esc(l.d||l.u)}</p></a>`).join('')}</div>`:'<p class="note">還沒有其他連結。可以在「常用連結」分頁加入醫院系統入口等。</p>'}</section>`}
 
 function people(){if(S.err==='nosync')return setupCard();const all=P();
  const L=all.filter(p=>filt==='cur'?p.on!==false:filt==='off'?p.on===false:true).sort((a,b)=>(a.on===false)-(b.on===false)||'VSFR'.indexOf(a.role)-'VSFR'.indexOf(b.role)||String(b.lv).localeCompare(String(a.lv))||String(a.n).localeCompare(String(b.n)));
@@ -145,7 +159,8 @@ function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<a href="https://shengmin.notion.site/a40ece61b33441b8950284c54ab01f55" target="_blank" rel="noopener">📒 Notion ↗</a><a href="./#import">📥 匯入刀表</a>'+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
+ $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
+ $('#inst').innerHTML=isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>';
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  $('#app').innerHTML=pg==='ho'?handoff():pg==='people'?people():pg==='links'?links():home()}
 
