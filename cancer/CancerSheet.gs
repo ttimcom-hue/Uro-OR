@@ -9,12 +9,12 @@
 // CANCER_ID 定義在 Code.gs。交班單網址只存在試算表「說明」B1，不放在 repo（repo 是公開的）。
 
 const CS = {
-  NEXT: '下次討論會', TODO: '注意事項', TRK: '個案追蹤', DONE: '已討論個案', WEEK: '週會名單',
+  NEXT: '下次討論會', TODO: '注意事項', TRK: '個案追蹤', STAT: '統計', DONE: '已討論個案', WEEK: '週會名單',
   PEND: '待討論清單', CAND: '刀表候選', RAW: '刀表匯入', PARSE: '刀表解析', HELP: '說明',
 };
 const CS_RENAMED = { '會後待辦': CS.TODO };   // 舊分頁名 → 新分頁名
 // 前四頁是平常會用的，其餘是後台（隱藏，需要時從左下「所有工作表」打開）
-const CS_ORDER = [CS.NEXT, CS.TODO, CS.TRK, CS.HELP, CS.DONE, CS.WEEK, CS.PEND, CS.CAND, CS.RAW, CS.PARSE];
+const CS_ORDER = [CS.NEXT, CS.TODO, CS.TRK, CS.STAT, CS.HELP, CS.DONE, CS.WEEK, CS.PEND, CS.CAND, CS.RAW, CS.PARSE];
 const CS_HIDDEN = [CS.DONE, CS.WEEK, CS.PEND, CS.CAND, CS.RAW, CS.PARSE];
 const CS_STATUS = ['待討論', '已排入', '已討論-待手術', '已開刀', '待確認', '暫緩/改期', '不需手術'];
 const CS_STATUS_COLOR = {
@@ -31,7 +31,7 @@ const CS_PARSE_ROWS = 400;   // 一次刀表最多解析幾筆手術
 const CS_RAW_ROWS = 6000;    // 刀表匯入最多幾行
 const HDR_BG = '#EFEFEF', RED = '#C00000';
 const CS_TAB_COLOR = {
-  [CS.NEXT]: '#3D85C6', [CS.TODO]: '#E06666', [CS.TRK]: '#6AA84F', [CS.HELP]: '#CCCCCC', [CS.DONE]: '#CCCCCC',
+  [CS.NEXT]: '#3D85C6', [CS.TODO]: '#E06666', [CS.TRK]: '#6AA84F', [CS.STAT]: '#8E7CC3', [CS.HELP]: '#CCCCCC', [CS.DONE]: '#CCCCCC',
   [CS.WEEK]: '#CCCCCC', [CS.PEND]: '#CCCCCC', [CS.CAND]: '#CCCCCC', [CS.RAW]: '#FFD966', [CS.PARSE]: '#CCCCCC',
 };
 const CS_DOC_TAB = '癌症討論會';   // 交班單裡要寫入的分頁名稱（預設值，可在 說明!B2 改）
@@ -104,6 +104,8 @@ function setupCancerSheet() {
     surgeon: csGet_(ss, CS.CAND, 'B2'),
     keywords: csGet_(ss, CS.CAND, 'B3'),
     settings: csSettings_(ss),
+    statFrom: csGet_(ss, CS.STAT, 'B2'),
+    statTo: csGet_(ss, CS.STAT, 'D2'),
   };
   CS_ORDER.forEach((name, i) => {
     let sh = ss.getSheetByName(name);
@@ -112,6 +114,7 @@ function setupCancerSheet() {
     sh.setTabColor(CS_TAB_COLOR[name]);
   });
   csNext_(ss.getSheetByName(CS.NEXT), keep.nextDate);
+  csStat_(ss.getSheetByName(CS.STAT), keep.statFrom, keep.statTo);
   csTracker_(ss.getSheetByName(CS.TRK));
   csTodo_(ss.getSheetByName(CS.TODO));
   csDone_(ss.getSheetByName(CS.DONE));
@@ -131,6 +134,101 @@ function setupCancerSheet() {
 }
 
 function csToday_() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+
+// ---------- 統計 ----------
+// 癌別：先看「預定手術」(E)，判斷不出來再看「診斷」(J)；依序比對，第一個符合的就是
+const CS_CATS = [
+  ['腎上腺', '(?i)adrenal|RALA|aldoster|腎上腺'],
+  ['上泛尿路', '(?i)UTUC|RNU|RANU|NxUx|NUx|nephroureter|ureter.{0,20}(UC|tumor)|renal pelvi'],
+  ['膀胱', '(?i)UBUC|RARC|cystectomy|bladder|TURBT'],
+  ['攝護腺', '(?i)RARP|prostat|\\bPC\\b|PSA|fusion'],
+  ['腎臟', '(?i)RCC|renal|kidney|nephrect|\\bNx\\b|RAPN|RALN|\\bPN\\b|AML|thrombect'],
+  ['其他', '(?i)retroperiton'],
+];
+const CS_CAT_LIST = ['攝護腺', '腎臟', '上泛尿路', '膀胱', '腎上腺', '其他'];
+// 統計頁右側隱藏的明細（AB:AH）：討論日,月份,癌別,狀態,主治,報告醫師,病歷號
+function csStatBaseFormula_() {
+  const T = q_(CS.TRK);
+  const ifs = v => 'ARRAYFORMULA(IFS(' + CS_CATS.map(([n, r]) => `REGEXMATCH(${v}&"","${r}"),"${n}"`).join(',') + ',TRUE,""))';
+  return `=IFERROR(LET(t,${T}!A2:Q,f,INDEX(t,,6),s,IF($B$2="",DATE(2000,1,1),$B$2),e,IF($D$2="",TODAY(),$D$2),` +
+    `b,FILTER(t,f<>"",f>=s,f<=e,INDEX(t,,2)<>""),pe,INDEX(b,,5),pj,INDEX(b,,10),ce,${ifs('pe')},cj,${ifs('pj')},` +
+    `HSTACK(INDEX(b,,6),ARRAYFORMULA(TEXT(INDEX(b,,6),"yyyy-mm")),ARRAYFORMULA(IF(ce<>"",ce,IF(cj<>"",cj,"其他"))),` +
+    `INDEX(b,,1),INDEX(b,,9),INDEX(b,,13),INDEX(b,,3))),"")`;
+}
+function csStatMonthFormula_() {
+  const c = CS_CAT_LIST.join(',');
+  return `=IFERROR(LET(m,SORT(UNIQUE(FILTER(AC4:AC,AC4:AC<>""))),c,SPLIT("${c}",","),n,COLUMNS(c),` +
+    `body,MAKEARRAY(ROWS(m),n+1,LAMBDA(i,j,IF(j>n,COUNTIF(AC4:AC,INDEX(m,i)),COUNTIFS(AC4:AC,INDEX(m,i),AD4:AD,INDEX(c,1,j))))),` +
+    `tot,MAKEARRAY(1,n+1,LAMBDA(i,j,IF(j>n,COUNTIF(AC4:AC,"?*"),COUNTIF(AD4:AD,INDEX(c,1,j))))),` +
+    `VSTACK(HSTACK("月份",c,"合計"),HSTACK(m,body),HSTACK("合計",tot))),"（無資料）")`;
+}
+function csStatGroupFormula_(col, label) {
+  return `=IFERROR(QUERY(AB4:AH,"select Col${col}, count(Col1) where Col1 is not null and Col${col} <> '' ` +
+    `group by Col${col} order by count(Col1) desc label Col${col} '${label}', count(Col1) '人數'",0),"（無資料）")`;
+}
+function csStatMissedFormula_() {
+  const T = q_(CS.TRK);
+  return `=IFERROR(LET(t,${T}!A2:Q,s,IF($B$2="",DATE(2000,1,1),$B$2),e,IF($D$2="",TODAY(),$D$2),d,INDEX(t,,4),f,INDEX(t,,6),` +
+    `SORT(FILTER(HSTACK(d,INDEX(t,,2),INDEX(t,,3),INDEX(t,,5),INDEX(t,,9)),INDEX(t,,1)="已開刀",d>=s,d<=e,(f="")+(f>d)),1,FALSE)),"（沒有）")`;
+}
+
+function csStat_(sh, from, to) {
+  csReset_(sh);
+  const T = q_(CS.TRK);
+  sh.getRange('A1').setValue('癌症討論會統計').setFontWeight('bold').setFontSize(13);
+  sh.getRange('A2:D2').setValues([['統計期間（討論會日期）', from || '', '～', to || '']]);
+  sh.getRange('B2').setNumberFormat('yyyy/mm/dd').setBackground('#FFF2CC');
+  sh.getRange('D2').setNumberFormat('yyyy/mm/dd').setBackground('#FFF2CC');
+  sh.getRange('E2').setValue('黃色格空白＝不限起日／到今天為止。統計來源是「個案追蹤」，討論會日期 ≤ 今天才算已討論。').setFontColor('#888888');
+  const range = `s,IF($B$2="",DATE(2000,1,1),$B$2),e,IF($D$2="",TODAY(),$D$2)`;
+  const st = x => `=COUNTIF($AE$4:$AE,"${x}")`;
+  const rows = [
+    ['總覽', '人數'],
+    ['已討論人數', '=COUNT($AB$4:$AB)'],
+    ['討論會場數', '=IFERROR(ROWS(UNIQUE(FILTER($AB$4:$AB,ISNUMBER($AB$4:$AB)))),0)'],
+    ['平均每場', '=IFERROR(ROUND(B6/B7,1),0)'],
+    ['討論後：已開刀', st('已開刀')],
+    ['　　　　待手術', st('已討論-待手術')],
+    ['　　　　暫緩/改期', st('暫緩/改期')],
+    ['　　　　待確認', st('待確認')],
+    ['　　　　不需手術', st('不需手術')],
+    ['期間內已開刀（依手術日）', `=LET(${range},COUNTIFS(${T}!A2:A,"已開刀",${T}!D2:D,">="&s,${T}!D2:D,"<="&e))`],
+    ['　其中手術前沒上討論會', '=COUNT($V$4:$V)'],
+    ['　討論率', '=IFERROR(TEXT(1-B16/B15,"0%"),"-")'],
+  ];
+  sh.getRange(5, 1, rows.length, 2).setValues(rows.map(r => [r[0], '']));
+  sh.getRange(6, 2, rows.length - 1, 1).setFormulas(rows.slice(1).map(r => [r[1]]));
+  sh.getRange('B5').setValue('人數');
+  csHeader_(sh.getRange('A5:B5'));
+  sh.getRange('A6:A16').setFontWeight('bold');
+
+  sh.getRange('D4').setValue('每月討論人數（依癌別）').setFontWeight('bold');
+  sh.getRange('D5').setFormula(csStatMonthFormula_());
+  sh.getRange('M4').setValue('依主治').setFontWeight('bold');
+  sh.getRange('M5').setFormula(csStatGroupFormula_(5, '主治'));
+  sh.getRange('P4').setValue('依報告醫師').setFontWeight('bold');
+  sh.getRange('P5').setFormula(csStatGroupFormula_(6, '報告醫師'));
+  sh.getRange('S4').setValue('每場討論會').setFontWeight('bold');
+  sh.getRange('S5').setFormula(`=IFERROR(QUERY(AB4:AH,"select Col1, count(Col1) where Col1 is not null group by Col1 order by Col1 desc label Col1 '討論會日期', count(Col1) '人數'",0),"（無資料）")`);
+  sh.getRange('S6:S').setNumberFormat('yyyy/mm/dd');
+  sh.getRange('V2').setValue('手術前沒上討論會的已開刀個案（期間內，依手術日新到舊）').setFontWeight('bold');
+  const mh = ['手術日', '姓名', '病歷號', '手術', '主治'];
+  sh.getRange(3, 22, 1, mh.length).setValues([mh]);
+  csHeader_(sh.getRange(3, 22, 1, mh.length));
+  sh.getRange('V4').setFormula(csStatMissedFormula_());
+  sh.getRange('V4:V').setNumberFormat('yyyy/mm/dd');
+  [[5, 4, 8], [5, 13, 2], [5, 16, 2], [5, 19, 2]].forEach(([r, c, n]) => csHeader_(sh.getRange(r, c, 1, n)));
+
+  // 明細（隱藏）
+  const bh = ['討論日', '月份', '癌別', '狀態', '主治', '報告醫師', '病歷號'];
+  sh.getRange(3, 28, 1, bh.length).setValues([bh]);
+  sh.getRange('AB4').setFormula(csStatBaseFormula_());
+  sh.getRange('AB4:AB').setNumberFormat('yyyy/mm/dd');
+  if (sh.getMaxColumns() >= 34) sh.hideColumns(28, 7);
+
+  sh.setFrozenRows(5);
+  csWidths_(sh, [190, 70, 20, 80, 60, 60, 70, 60, 60, 60, 60, 20, 90, 50, 20, 90, 50, 20, 100, 50, 20, 90, 80, 90, 200, 80]);
+}
 
 // ---------- 下次討論會 ----------
 function csNext_(sh, nextDate) {
@@ -375,6 +473,7 @@ function csHelp_(sh, st) {
   const rows = [
     ['項目', '內容'],
     ['平常只看三頁', '① 下次討論會：上面是已排入這次的人，下面是還沒討論、可以挑的個案（⚠ 是最晚這次就要討論）。\n② 注意事項：已討論、還沒開刀的人，討論結論與會後待辦，會自動同步到交班單。\n③ 個案追蹤：唯一要手動填的地方。其他分頁都是自動產生，已隱藏（左下「所有工作表」可打開）。'],
+    ['統計', '依「個案追蹤」自動計算：已討論人數、場數、每月依癌別、依主治／報告醫師、討論後結果、手術前沒上討論會的個案。B2、D2 可設定期間。癌別依預定手術／診斷的關鍵字自動判斷。'],
     ['一個個案的流程', '刀表匯入後自動加入（狀態＝待討論）→ 排進討論會：填 F 討論會日期，狀態改「已排入」→ 討論完：填 K 討論結論、O 會後待辦（P 負責人、Q 期限），狀態改「已討論-待手術」→ 開完刀：狀態改「已開刀」、填 L 病理。不用討論的改「不需手術」。'],
     ['最晚討論日', '手術日前一個週四（自動計算）。'],
     ['匯入新刀表', '用調度板匯入刀表時會自動送到這裡；也可以把 HIS 手術工作表文字貼在隱藏的「刀表匯入」A2。符合主刀與關鍵字（隱藏的「刀表候選」B2、B3）的重大手術會自動加入個案追蹤。'],
