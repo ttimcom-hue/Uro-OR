@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="favicon.png"><meta name="theme-color" content="#0b5563">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="hub.webmanifest"><link rel="apple-touch-icon" href="hub-apple-touch-icon.png"><link rel="icon" type="image/png" href="hub-favicon.png"><meta name="theme-color" content="#2e346e"><meta property="og:title" content="泌尿科 科務入口"><meta property="og:description" content="人員名冊・常用連結・今日總覽"><meta property="og:image" content="og-hub.png"><meta property="og:type" content="website">
 <title>泌尿科 科務入口</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -154,15 +154,15 @@ load();setInterval(()=>{if(!document.hidden&&!saving&&page()==='home')load()},12
 /* ===== 加到主畫面 ===== */
 let bip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});
 try{if('serviceWorker' in navigator&&/^https:/.test(location.protocol)&&!/claude|googleusercontent/.test(location.host))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
-const instLink=()=>location.origin+location.pathname.replace(/[^/]*$/,'')+'?openExternalBrowser=1';
+const instLink=()=>location.origin+location.pathname.replace(/[^/]*$/,'')+'hub.html?openExternalBrowser=1';
 function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua),ios=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),and=/Android/i.test(ua);
  const steps=inApp?`<p><b>你現在是在 LINE 裡面開啟的</b>，要先換到手機瀏覽器才能加到主畫面。</p><button class="ibtn p" data-iext>用 ${ios?'Safari':'Chrome'} 開啟</button><p class="inote">開啟後再按一次「📲 加到主畫面」。</p>`
   :ios?`<ol><li>點 Safari 下方（或上方）的<b>分享</b>按鈕 <span class="ik">⬆︎</span></li><li>往下滑，點<b>「加入主畫面」</b> <span class="ik">＋</span></li><li>右上角按<b>「新增」</b></li></ol><p class="inote">要用 Safari 開才有這個選項；Chrome 也可以從「分享」裡找到。</p>`
   :and?`<ol><li>點 Chrome 右上角 <span class="ik">⋮</span></li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li><li>按<b>「安裝」</b></li></ol>`
   :`<ol><li>Chrome／Edge：網址列右邊的 <span class="ik">⊕</span> 安裝圖示，或選單 →「安裝」</li><li>手機上用 Safari／Chrome 開這個網址，再按「📲 加到主畫面」</li></ol>`;
- const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="apple-touch-icon.png" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
+ const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="hub-apple-touch-icon.png" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
  <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟，再按「📲 加到主畫面」即可。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製安裝連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
- document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科刀房調度板（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
+ document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科 科務入口（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);
 }
 </script>
