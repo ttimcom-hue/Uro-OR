@@ -161,16 +161,21 @@ function handoff(){if(S.err==='nosync')return setupCard();const hu=(S.ho&&S.ho.u
 const MTG_DOW=2;
 const MT=[['notice','公告／規定','r'],['event','會議活動','a'],['people','人事',''],['mm','MM',''],['pre','預報',''],['share','心得分享',''],['teach','教學／影像',''],['vendor','廠商',''],['other','其他','']];
 const MTN=Object.fromEntries(MT.map(x=>[x[0],x[1]])),NOTICE=['notice','event','people'],RPT=['mm','pre','share','teach'];
-const mcls=t=>{t=String(t);return /自我介紹|新進|甄審|歡送|到職|離職/.test(t)?'people':/\bMM\b|Mortality|Morbidity|再入院|事件檢討/i.test(t)?'mm':/預報/.test(t)?'pre':/注意事項|須知|決議|規定|公告|排刀|人力|抽籤|值班|流程|政策|提醒/.test(t)?'notice':/心得|分享|參訪|觀摩|交流/.test(t)?'share':/會議|月會|年會|研討|Masterclass|課程|投稿|報名|Congress|Meeting/i.test(t)?'event':/廠商|產品|介紹/.test(t)?'vendor':/journal|book reading|chart run|口試|教學|review|論文|影像|\bCT\b|MRI|case/i.test(t)?'teach':'other'};
-const mwho=t=>{const m=String(t).match(/[-－–—]\s*([^-－–—]+)$/);if(!m)return'';return m[1].split(/[、,，\/／&]/).map(s=>s.replace(/醫師|主任|部長|教授|^\s*(CR|VS|R\d)\s*/g,'').trim()).filter(s=>/^[一-鿿]{2,4}$/.test(s)).join('、')};
+const mcls=t=>{t=String(t);return /自我介紹|新進|甄審|歡送|到職|離職/.test(t)?'people':/\bMM\b|Mortality|Morbidity|再入院|事件檢討/i.test(t)?'mm':/預報/.test(t)?'pre':/注意事項|須知|決議|規定|公告|排刀|人力|抽籤|值班|流程|政策|提醒|連假|業務調整|改善|機制|評核|CCC/.test(t)?'notice':/心得|分享|參訪|觀摩|交流|visiting/i.test(t)?'share':/會議|月會|年會|研討|討論會|Masterclass|課程|投稿|報名|Congress|Meeting/i.test(t)?'event':/廠商|產品|介紹/.test(t)?'vendor':/journal|book reading|chart run|口試|教學|review|論文|影像|\bCT\b|MRI|case/i.test(t)?'teach':'other'};
+/* 報告人：題目最後「- 某某醫師」「：某某醫師」，或結尾括號裡的名字「預報(甲、乙)」 */
+const mwho=t=>{t=String(t);const m=t.match(/[-－–—：:]\s*([^-－–—：:]+)$/),pm=t.match(/[(（]([^)）]+)[)）]\s*$/);
+ const pick=s=>s.replace(/[(（][^)）]*[)）]/g,'').split(/[、,，\/／&]/).map(x=>x.replace(/醫師|主任|部長|教授|^\s*(CR|VS|R\d)\s*/g,'').trim()).filter(x=>/^[一-鿿]{2,4}$/.test(x));
+ let r=m?pick(m[1]):[];if(!r.length&&pm)r=pick(pm[1]);return r.join('、')};
 const mcanon=n=>{n=String(n||'').trim();if(!n)return'';const p=P().find(x=>x.n===n||x.full===n)||P().find(x=>x.full&&x.full.length>n.length&&x.full.endsWith(n));return p?(p.full||p.n):n};
 const mpers=n=>P().find(x=>(x.full||x.n)===n);
+/* 自動抓到的名字：在名冊裡，或像三個字的全名才算（避免「小兒、婦女泌尿」被當成人） */
+const mname=n=>{const c=mcanon(n);return mpers(c)||/^[一-鿿]{3}$/.test(c)?c:''};
 const MP=()=>{const m=S.mp||{};m.items=m.items||[];m.ov=m.ov||{};m.pins=m.pins||{};return m};
 const mtgDates=n=>{const out=[];let d=today;for(let i=0;out.length<n&&i<400;i++){if(new Date(d+'T00:00:00').getDay()===MTG_DOW)out.push(d);d=addD(d,1)}return out};
 let mv=LS.get('mtgView')||'plan',mq='',mtf='',mfix=false,mrange='6m';
 /* 全部項目：Drive 議程＋入口填的（同一天同類型同報告人的入口項目視為已在 Drive 出現，不重複計） */
 function mItems(){const M=MP(),out=[];
- ((S.md&&S.md.weeks)||[]).forEach(w=>(w.outline||[]).forEach(t=>{const k=w.d+'|'+t,o=M.ov[k]||{};out.push({k,d:w.d,title:t,t:o.t||mcls(t),who:(o.who!=null?o.who:mwho(t)).split(/[、,，]/).map(mcanon).filter(Boolean).join('、'),src:'drive',hide:!!o.hide})}));
+ ((S.md&&S.md.weeks)||[]).forEach(w=>(w.outline||[]).forEach(t=>{const k=w.d+'|'+t,o=M.ov[k]||{};out.push({k,d:w.d,title:t,t:o.t||mcls(t),who:(o.who!=null?String(o.who).split(/[、,，]/).map(mcanon):mwho(t).split('、').map(mname)).filter(Boolean).join('、'),src:'drive',hide:!!o.hide})}));
  M.items.filter(x=>!x.del).forEach(x=>{const who=String(x.who||'').split(/[、,，]/).map(mcanon).filter(Boolean).join('、');
   const dup=x.d&&out.some(y=>y.src==='drive'&&y.d===x.d&&y.t===x.t&&(!who||y.who.split('、').some(n=>n&&who.includes(n))));out.push({...x,k:'p:'+x.id,who,src:'plan',dup})});
  return out}
