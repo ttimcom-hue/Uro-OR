@@ -9,11 +9,11 @@
 //       appsscript.json 列出 oauthScopes（見開發說明）。
 
 const GH_RAW = 'https://raw.githubusercontent.com/ttimcom-hue/Uro-OR/main/';
-// [repo 路徑, 專案內檔名, 類型, 用來找舊檔的特徵字串]
+// [repo 路徑, 專案內檔名, 類型, 用來找舊檔的特徵（行首的函式宣告；用 ^ 避免比對到本檔這幾行字）]
 const GH_FILES = [
-  ['Code.gs', 'Code', 'SERVER_JS', 'function doGet'],
-  ['cancer/CancerSheet.gs', 'CancerSheet', 'SERVER_JS', 'function setupCancerSheet'],
-  ['Updater.gs', 'Updater', 'SERVER_JS', 'function updateFromGitHub'],
+  ['Code.gs', 'Code', 'SERVER_JS', /^function doGet\b/m],
+  ['cancer/CancerSheet.gs', 'CancerSheet', 'SERVER_JS', /^function setupCancerSheet\b/m],
+  ['Updater.gs', 'Updater', 'SERVER_JS', /^function updateFromGitHub\b/m],
   ['index.html', 'index', 'HTML', null],
 ];
 const GH_API = 'https://script.googleapis.com/v1/projects/';
@@ -58,7 +58,7 @@ function updateFromGitHub() {
     const r = UrlFetchApp.fetch(GH_RAW + path, { muteHttpExceptions: true });
     if (r.getResponseCode() !== 200) throw new Error('抓不到 GitHub 的 ' + path + '（' + r.getResponseCode() + '），請確認已合併到 main');
     const src = r.getContentText();
-    if (sig && src.indexOf(sig) < 0) throw new Error(path + ' 內容不對，已停止更新');
+    if (sig && !sig.test(src)) throw new Error(path + ' 內容不對，已停止更新');
     return { path, name, type, sig, src };
   });
 
@@ -70,7 +70,7 @@ function updateFromGitHub() {
     const same = f => ghName_(f.name) === ghName_(n.name);
     // 順序：同名同類型 → 內容有特徵字串 → 同名但類型不同（多半是建錯成 HTML，直接接管）→ 新增
     let i = files.findIndex((f, k) => !used.has(k) && f.type === n.type && same(f));
-    if (i < 0 && n.sig) i = files.findIndex((f, k) => !used.has(k) && f.type === n.type && f.source.indexOf(n.sig) >= 0);
+    if (i < 0 && n.sig) i = files.findIndex((f, k) => !used.has(k) && f.type === n.type && n.sig.test(f.source));
     if (i < 0) i = files.findIndex((f, k) => !used.has(k) && same(f));
     if (i < 0) {
       if (files.some(same)) throw new Error('專案裡已有同名檔「' + n.name + '」無法對應，現有檔案：' + ghList_(files));
