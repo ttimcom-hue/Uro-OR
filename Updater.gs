@@ -40,7 +40,11 @@ function updateNow() {
   return msg;
 }
 
-function ghAutoUpdate() { updateFromGitHub(); }
+function ghAutoUpdate() {
+  try { updateFromGitHub(); } catch (e) { console.log(e); }
+  // 每小時順便做癌症討論會表的自動加入與交班單同步（編輯時沒觸發到的也會補上）
+  try { if (typeof cancerSync === 'function') cancerSync(); } catch (e) { console.log(e); }
+}
 
 function ghRunCancerSetup() {
   ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'ghRunCancerSetup')
