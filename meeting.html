@@ -324,7 +324,7 @@ function render(){const pg=page();
  const t=S.md&&S.md.ts?new Date(S.md.ts):null;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步':t?`議程更新 ${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}${S.md.left?`（還有 ${S.md.left} 週讀取中）`:''}`:'已同步';
  $('#tabs').innerHTML=TABS.map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a><a class="ext" href="hub.html?from=meeting#fb">💬 意見回饋</a>';
- $('#tools').innerHTML=`${edit?'<button class="hbtn" data-act="scan">🔄 從 Drive 更新</button>':''}<button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
+ $('#tools').innerHTML=`${edit?'<button class="hbtn" data-act="scan">🔄 從 Drive 更新</button>':''}<button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button><a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
  if(!on()){$('#app').innerHTML=setupCard();return}
  if(S.loading&&!S.mp&&!S.md){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  const y=scrollY;$('#app').innerHTML=pplList()+(pg==='plan'?planPage():pg==='next'?nextPage():pg==='log'?logPage():pg==='stat'?statPage():home())+`<p class="note foot">議程由每週主簡報的 OUTLINE 頁自動讀取，只有標題，不含簡報內容。請勿在這裡填病人姓名、病歷號。</p>`;scrollTo(0,y)}
@@ -387,6 +387,17 @@ function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Inst
  <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟，再按「📲 加到主畫面」即可。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製安裝連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
  document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科 晨會（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);
+/* ===== 一鍵分享／複製連結（[data-share]）=====
+   手機：叫出系統分享選單（LINE、訊息、複製…）；電腦或不支援時：直接複製連結並顯示提示。
+   連結＝目前這一頁（含分頁 #），加 openExternalBrowser=1 讓 LINE 用手機瀏覽器開啟。 */
+const SHARE_T='泌尿科 晨會';
+function shareLink(){const h=location.hash&&!/^#(home)?$/.test(location.hash)?location.hash:'';const base=location.origin+location.pathname.replace(/[^/]*$/,'')+'meeting.html';return base+'?openExternalBrowser=1'+h}
+function toast(t){const d=document.createElement('div');d.textContent=t;d.setAttribute('role','status');d.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0f262b;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;z-index:10000;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:90vw;text-align:center';document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+async function copyText(t){try{await navigator.clipboard.writeText(t);return true}catch(e){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}a.remove();return ok}}
+document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-share]');if(!a)return;e.preventDefault();e.stopPropagation();
+ const url=shareLink(),text=SHARE_T+'（點開後可按「📲 加到主畫面」）';
+ if(navigator.share&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){try{await navigator.share({title:SHARE_T,text,url});return}catch(x){if(x&&x.name==='AbortError')return}}
+ if(await copyText(text+'\n'+url))toast('✓ 已複製連結，貼到 LINE 或訊息就能分享');else prompt('複製這個連結分享給大家：',url)},true);
 }
 </script>
 </body>
