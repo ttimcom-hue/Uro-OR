@@ -86,6 +86,51 @@ function doGet(e){const p=(e&&e.parameter)||{};
   if(p.action==='cancerScan'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:cancerDriveScan()})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.action==='meetingScan'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:meetingScan()})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.action==='cancerStatus'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:cancerStatus()})}catch(x){return out({ok:false,err:String(x)})}}
+  if(p.action==='handoff'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:handoffFor(p.dates)})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.key){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});const v=apiGet(p.key);return out({ok:true,value:v?JSON.parse(v):null})}
   return HtmlService.createHtmlOutputFromFile('index').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
 function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==TOKEN)return out({ok:false,err:'token'});if(b.action==='cancerImport'){try{return out({ok:true,value:cancerImport(b.text)})}catch(x){return out({ok:false,err:String(x)})}}apiSet(b.key,JSON.stringify(b.value));return out({ok:true})}
+// ===== 黃部長交班單 → 調度板術前資料（即時讀取，只回傳數值，不回傳姓名、病歷號、床號，也不存進同步資料） =====
+const HO_DOC_ID='1MUwbZVat96vpyil2ahjP6lIv-NzW_MHbOC99EXTx7Yk';
+function hoDocId(){try{const v=JSON.parse(apiGet('common/handoff')||'null');const m=v&&String(v.u||'').match(/document\/d\/([\w-]{20,})/);if(m)return m[1]}catch(e){}return HO_DOC_ID}
+// 讀交班單所有分頁裡 7 欄的表格 → [[床號姓名病歷號, PH, PI, Drain, Treatment, Exam/lab, Plan], …]
+function hoRows(){const doc=DocumentApp.openById(hoDocId());const bodies=[];
+  const walk=tabs=>(tabs||[]).forEach(t=>{try{bodies.push(t.asDocumentTab().getBody())}catch(e){}walk(t.getChildTabs&&t.getChildTabs())});
+  if(doc.getTabs)walk(doc.getTabs());if(!bodies.length)bodies.push(doc.getBody());const rows=[];
+  bodies.forEach(b=>b.getTables().forEach(tb=>{for(let i=0;i<tb.getNumRows();i++){const r=tb.getRow(i);if(r.getNumCells()<7)continue;const c=[];for(let j=0;j<7;j++)c.push(r.getCell(j).getText());rows.push(c)}}));return rows}
+// 純文字解析（node 可測）：rows 同上；dates＝['YYYY-MM-DD',…]
+function hoParse(rows,dates){const want={};(dates||[]).forEach(d=>{want[+d.slice(5,7)+'/'+(+d.slice(8))]=d});const out=[];
+  const L=s=>String(s||'').replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const last=(re,txt)=>{let m,r=null;const g=new RegExp(re.source,re.flags.includes('g')?re.flags:re.flags+'g');while((m=g.exec(txt)))r=m;return r};
+  const dated=(lines,re)=>{let r=null,cd='';lines.forEach(l=>{const d=l.match(/^(\d{1,2}\/\d{1,2})\b/);if(d)cd=d[1];const m=l.match(re);if(m)r={m,d:cd}});return r};  // 沒寫日期的續行沿用上一行日期
+  rows.forEach(c=>{if(/past history/i.test(c[1]||''))return;
+    const tr=L(c[4]),ops=[];tr.forEach(l=>{const m=l.match(/^(\d{1,2})\/(\d{1,2})\s*(.*)$/);const sl=l.match(/\bTF\s*:?\s*(\d+)/i),tm=l.match(/\b(\d{1,2}:\d{2})\b/);
+      if(m){ops.push({md:+m[1]+'/'+(+m[2]),op:m[3].replace(/\bTF\s*:?\s*\d+/i,'').replace(/\b\d{1,2}:\d{2}\b/,'').trim(),slot:sl?+sl[1]:tm?(tm[1].replace(/^0/,'')==='8:30'?0:null):null,time:tm?tm[1]:''})}
+      else if(ops.length){const o=ops[ops.length-1];if(sl&&o.slot==null)o.slot=+sl[1];else if(tm&&!o.time){o.time=tm[1];if(o.slot==null&&tm[1].replace(/^0/,'')==='8:30')o.slot=0}else if(!sl&&!tm)o.note=(o.note?o.note+'；':'')+l}});
+    const hit=ops.filter(o=>want[o.md]);if(!hit.length)return;
+    const pi=L(c[2]),ex=L(c[5]),all=[...pi,...ex],txt=all.join('\n'),ph=String(c[1]||''),plan=String(c[6]||''),f={};
+    const v=(re,k,fmt)=>{const r=dated(all,re);if(r)f[k]=fmt(r.m)+(r.d?' ('+r.d+')':'')};
+    v(/PSA\s*:?\s*(\d+(?:\.\d+)?)/i,'psa',m=>m[1]);
+    v(/TPV\s*[=:]?\s*(\d+(?:\.\d+)?)/i,'tpv',m=>m[1]+'cc');
+    v(/(?:PC|GS)\s*(?:GS)?\s*(\d\s*\+\s*\d)/i,'gs',m=>m[1].replace(/\s/g,''));
+    v(/\bPR-?\s*(\d)\b|PI-?RADS\s*(\d)/i,'pirads',m=>m[1]||m[2]);
+    v(/\bcT\d[a-c]?(?:N\d)?(?:M\d)?/,'ct',m=>m[0]);
+    const lab=dated(ex.length?ex:all,/\bW\s*(\d+(?:\.\d+)?)\s+H\s*(\d+(?:\.\d+)?)\s+C\s*(\d+(?:\.\d+)?)/);
+    if(lab){f.wbc=lab.m[1];f.hb=lab.m[2];f.cr=lab.m[3];if(lab.d)f.lab=lab.d}else v(/\bC\s?(\d\.\d+)\b/,'cr',m=>m[1]);
+    v(/\bUA\s+(R\S*\s+W\S*\s+B\S*)/,'ua',m=>m[1]);
+    v(/\bU\/C\s*:?\s*(.+)/i,'uc',m=>m[1]);
+    v(/(?:心超|echo\s*cardio|\bEF\b)\s*:?\s*(.+)/i,'echo',m=>m[1].replace(/^EF\s*/i,'EF '));
+    v(/肺功\s*:?\s*(.+)/,'pft',m=>m[1]);
+    const iief=last(/IIEF\s*:?\s*(\d+)/i,plan+'\n'+txt);if(iief)f.iief=iief[1];
+    const AC=/aspirin|plavix|clopidogrel|warfarin|coumadin|eliquis|apixaban|xarelto|rivaroxaban|lixiana|edoxaban|pradaxa|dabigatran|brilinta|ticagrelor|NOAC|efient|pletaal|cilostazol/gi;
+    const ac=[...new Set(((ph+'\n'+plan+'\n'+txt).match(AC)||[]).map(x=>x[0].toUpperCase()+x.slice(1).toLowerCase()))];if(ac.length)f.ac=ac.join('、');
+    const hold=last(/hold\s+[A-Za-z]+/i,plan);if(hold)f.hold=hold[0].replace(/^hold/i,'Hold');
+    if(String(c[3]||'').trim())f.drain=L(c[3]).join('；');
+    hit.forEach(o=>out.push({date:want[o.md],slot:o.slot,time:o.time||'',op:o.op,note:o.note||'',f}))});
+  return out}
+function handoffFor(dates){dates=String(dates||'').split(',').filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0,7);
+  const C=CacheService.getScriptCache(),k='ho:'+dates.join(',');const h=C.get(k);if(h)return JSON.parse(h);
+  const r={at:Date.now(),list:hoParse(hoRows(),dates)};try{C.put(k,JSON.stringify(r),300)}catch(e){}return r}
+function apiHandoff(dates){return JSON.stringify(handoffFor(dates))}
+// 在編輯器手動執行一次：授權讀 Google 文件並確認讀得到（只記錄筆數）
+function hoTest(){const rows=hoRows();const d=new Date(),iso=x=>Utilities.formatDate(x,Session.getScriptTimeZone(),'yyyy-MM-dd');const ds=[0,1,2,3].map(i=>iso(new Date(d.getTime()+i*864e5)));Logger.log('交班單表格列數 '+rows.length+'；今天起 4 天對到 '+hoParse(rows,ds).length+' 筆手術')}
