@@ -16,7 +16,54 @@ function cancerStatus(){const ss=SpreadsheetApp.openById(CANCER_ID);
 function cancerImport(text){const ss=SpreadsheetApp.openById(CANCER_ID);const sh=ss.getSheetByName('刀表匯入');const last=sh.getLastRow();if(last>1)sh.getRange(2,1,last-1,2).clearContent();
   const lines=String(text||'').replace(/\r/g,'').split('\n').slice(0,5990);if(lines.length)sh.getRange(2,1,lines.length,1).setValues(lines.map(x=>[x]));SpreadsheetApp.flush();try{cancerSync()}catch(x){console.log(x)}return cancerStatus()}
 function apiCancer(action,text){return JSON.stringify(action==='import'?cancerImport(text):cancerStatus())}
+// ===== 晨會（Google Drive「W2 科部晨會」資料夾）=====
+// 每週一個子資料夾（名稱 MMDD），主簡報 YYYYMMDD.pptx 的 OUTLINE 頁＝當週議程。
+// 只存議程標題與檔名（不讀各頁內文，避免存到病人姓名），寫進同步鍵 meeting/drive 給科務入口「晨會」分頁用。
+// 需要 drive.readonly 權限（Updater.gs 的 GH_SCOPES）。每小時（ghAutoUpdate）與入口按「從 Drive 更新」時執行。
+const MTG_FOLDER='1NsEvZfchGMt49LbPkJztHz2t1Ewhg6mL';
+const MTG_SKIP=/履歷|甄審|申請|成績|病歷/;  // 這些檔名不列出
+function meetingScan(){
+  let old=null;try{old=JSON.parse(apiGet('meeting/drive')||'null')}catch(e){}
+  const cache={};((old&&old.weeks)||[]).forEach(w=>{if(w.mid)cache[w.mid+'|'+w.mt]=w});
+  const weeks=[];
+  const walk=(f,depth)=>{const it=f.getFolders();while(it.hasNext()){const c=it.next();
+    if(/^\d{4}$/.test(c.getName())){try{weeks.push(mtgWeek_(c,cache))}catch(e){console.log(c.getName(),e)}}
+    else if(depth<3)walk(c,depth+1)}};
+  walk(DriveApp.getFolderById(MTG_FOLDER),0);
+  weeks.sort((a,b)=>a.d<b.d?1:-1);
+  const out={ts:Date.now(),weeks};apiSet('meeting/drive',JSON.stringify(out));return out}
+function mtgWeek_(f,cache){const mmdd=f.getName();const files=[];let main=null;
+  const re=new RegExp('^(20\\d\\d)'+mmdd+'(\\.pptx?)?$','i');
+  const it=f.getFiles();while(it.hasNext()){const x=it.next(),n=x.getName();
+    if(re.test(n)&&(!main||/\.pptx$/i.test(n)))main=x;
+    if(!MTG_SKIP.test(n))files.push({n,u:x.getUrl(),m:String(x.getMimeType()).split(/[./]/).pop()})}
+  let y;if(main)y=+main.getName().match(re)[1];else{const c=f.getDateCreated();y=c.getFullYear();
+    const d=new Date(y,+mmdd.slice(0,2)-1,+mmdd.slice(2));if(d<new Date(c.getTime()-60*864e5))y++}
+  const w={d:y+'-'+mmdd.slice(0,2)+'-'+mmdd.slice(2),fu:f.getUrl(),files,outline:[]};
+  if(main){w.mid=main.getId();w.mt=main.getLastUpdated().getTime();w.mn=main.getName();w.mu=main.getUrl();
+    const c=cache[w.mid+'|'+w.mt];
+    if(c&&c.outline&&c.outline.length){w.outline=c.outline;w.how=c.how}
+    else{try{const r=mtgOutline_(mtgBlob_(main));w.outline=r.items;w.how=r.how}catch(e){w.err=String(e).slice(0,120)}}}
+  return w}
+function mtgBlob_(file){
+  if(file.getMimeType()==='application/vnd.google-apps.presentation'){
+    return UrlFetchApp.fetch('https://docs.google.com/presentation/d/'+file.getId()+'/export/pptx',{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()}}).getBlob()}
+  if(file.getSize()>40*1024*1024)throw new Error('檔案太大，略過');
+  return file.getBlob()}
+// 從 pptx 取議程：有「OUTLINE／大綱／議程」那頁就用那頁的各行；沒有就用每頁第一行（標題）
+function mtgOutline_(blob){
+  const dec=s=>s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(m,n)=>String.fromCharCode(+n)).replace(/&amp;/g,'&');
+  const num=b=>+(b.getName().match(/(\d+)\.xml$/)||[0,0])[1];
+  const slides=Utilities.unzip(blob.setContentType('application/zip')).filter(b=>/^ppt\/slides\/slide\d+\.xml$/.test(b.getName())).sort((a,b)=>num(a)-num(b));
+  const paras=b=>{const s=b.getDataAsString('UTF-8');const out=[];const re=/<a:p(?:\s[^>]*)?>([\s\S]*?)<\/a:p>/g;let m;
+    while((m=re.exec(s))){const t=dec((m[1].match(/<a:t(?:\s[^>]*)?>[^<]*<\/a:t>/g)||[]).map(x=>x.replace(/<[^>]+>/g,'')).join('')).replace(/\s+/g,' ').trim();
+      if(t&&!/^\d+$/.test(t)&&!/^20\d\d[.\/-]\d/.test(t))out.push(t)}return out};
+  const all=slides.map(paras);
+  const oi=all.findIndex(p=>p.some(t=>/^(outline|agenda|大綱|議程)$/i.test(t)));
+  if(oi>=0)return{how:'outline',items:all[oi].filter(t=>!/^(outline|agenda|大綱|議程)$/i.test(t)).slice(0,20)};
+  const seen=new Set();return{how:'titles',items:all.slice(1).map(p=>p[0]).filter(t=>t&&!seen.has(t)&&seen.add(t)).slice(0,15)}}
 function doGet(e){const p=(e&&e.parameter)||{};
+  if(p.action==='meetingScan'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:meetingScan()})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.action==='cancerStatus'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:cancerStatus()})}catch(x){return out({ok:false,err:String(x)})}}
   if(p.key){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});const v=apiGet(p.key);return out({ok:true,value:v?JSON.parse(v):null})}
   return HtmlService.createHtmlOutputFromFile('index').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
