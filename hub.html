@@ -75,8 +75,8 @@ const DOW='日一二三四五六';const md=s=>`${+s.slice(5,7)}/${+s.slice(8)}�
 const today=iso(new Date()),tmr=addD(today,1);
 const ROLE={VS:'主治醫師',R:'住院醫師',F:'Fellow'};
 const TOOLS=[
- {n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',ok:1,sub:[['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與值班']]},
- {n:'癌症討論會',d:'每週名單整理與統計'},
+ {n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',ok:1,sub:[['import','📥 匯入刀表'],['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與值班']]},
+ {n:'癌症討論會',u:'https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI/edit',d:'每週名單整理與統計（Google 試算表）',ok:1,ext:1},
  {n:'科會事項追蹤',d:'決議、負責人、期限、進度'},
  {n:'住院醫師排班',d:'值班、門診、輪訓；排好直接帶入調度板'},
  {n:'晨會課程',d:'講者、題目、日期與提醒'}];
@@ -88,7 +88,7 @@ async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='n
  const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list'];
  const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
  if(r.every(x=>x.status==='rejected'))S.err='conn';else S.err='';
- S.people=v(0);S.links=v(1);S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);
+ S.people=v(0);S.links=v(1);{const DEF=[{n:'泌尿科指引更新',u:'https://urotrial-weekly-tw.shady-knoll-9572.chatgpt.site',d:'每週泌尿科指引與試驗更新'},{n:'癌症討論會試算表',u:'https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI/edit',d:'每週名單整理與統計'}];const L0=S.links||{items:[]};L0.items=L0.items||[];const seen=new Set(L0.done||[]);let add=0;for(const x of DEF)if(!seen.has(x.u)){if(!L0.items.some(y=>y.u===x.u)){L0.items.push(x);add++}seen.add(x.u)}L0.done=[...seen];S.links=L0;if(add||!(v(1)||{}).done){set('common/links',L0).catch(()=>{})}}S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);
  if(!S.people&&S.cfg)S.people=seed(S.cfg);S.loading=false;render()}
 function seed(c){const now=Date.now();return{ts:now,seeded:true,people:[...(c.res||[]).map(r=>({id:r.id,n:r.n,full:(String(r.alias||'').split(/[,，]/)[0]||'').trim(),role:r.lv==='Fellow'?'F':'R',lv:r.lv,on:!!r.on,ts:now})),...(c.sur||[]).map(x=>({id:'vs_'+x.n,n:x.n,full:x.n,role:'VS',lv:x.t||'主治醫師',on:true,ts:now}))]}}
 const P=()=>(S.people&&S.people.people)||[];
@@ -106,7 +106,7 @@ function home(){if(S.err==='nosync')return setupCard();
    <dt>今晚值班</dt><dd>${L.length?[g('sec').length?'二線 '+g('sec').join('、'):'',g('icu').length?'ICU '+g('icu').join('、'):'',g('w1').length?'一線 '+g('w1').join('、'):'',g('tot').length?'總值 '+g('tot').join('、'):'',g('').length?g('').join('、'):''].filter(Boolean).map(esc).join('　'):'<span class="note">值班表未匯入（在調度板「人力設定」匯入）</span>'}</dd>
    <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
    <dt>主治休假</dt><dd>${vl.length?vl.join('、'):'<span class="note">無</span>'}</dd></dl></div></section>
- <section><h2>工具</h2><div class="grid">${TOOLS.map(t=>t.ok?`<div class="tool"><a href="${t.u}" style="color:inherit;text-decoration:none"><b>${t.n}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`:`<div class="tool soon"><b>${t.n}</b> <span class="chip">建置中</span><p>${t.d}</p></div>`).join('')}</div></section>
+ <section><h2>工具</h2><div class="grid">${TOOLS.map(t=>t.ok?`<div class="tool"><a href="${t.u}" ${t.ext?'target="_blank" rel="noopener"':''} style="color:inherit;text-decoration:none"><b>${t.n}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`:`<div class="tool soon"><b>${t.n}</b> <span class="chip">建置中</span><p>${t.d}</p></div>`).join('')}</div></section>
  <section><h2>常用連結 <small><a href="#links">編輯</a></small></h2>${((S.links&&S.links.items)||[]).length?`<div class="grid">${S.links.items.map(l=>`<a class="tool" href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.n)}</b><p>${esc(l.d||l.u)}</p></a>`).join('')}</div>`:'<p class="note">還沒有連結。可以加入科內 Notion 筆記、醫院系統入口等。</p>'}</section>`}
 
 function people(){if(S.err==='nosync')return setupCard();const all=P();
@@ -132,7 +132,7 @@ function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
+ $('#tabs').innerHTML=[['home','首頁'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<a href="./#import">📥 匯入刀表</a>'+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  $('#app').innerHTML=pg==='people'?people():pg==='links'?links():home()}
 
