@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="favicon.png"><meta name="theme-color" content="#0b5563">
 <title>泌尿科 科務入口</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -46,6 +46,7 @@ tr.off td{opacity:.5}
 @media (max-width:700px){
  table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}table.stack td{border:0;padding:0}table.stack td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--mut)}table.stack input,table.stack select{width:100%}
 }
+.imodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9999;padding:12px}.ibox{background:var(--card,#fff);color:var(--ink,#0f262b);border-radius:16px;max-width:420px;width:100%;padding:16px 18px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)}.ihead{display:flex;gap:12px;align-items:center;margin-bottom:8px}.ihead img{border-radius:11px}.ibox ol{padding-left:22px;margin:8px 0}.ibox li{margin:4px 0}.ik{display:inline-block;border:1px solid var(--line,#ccc);border-radius:6px;padding:0 6px;font-weight:700}.inote{color:var(--mut,#587076);font-size:13px;margin:4px 0}.ishare{border-top:1px solid var(--line,#ddd);margin-top:10px;padding-top:10px}.ishare input{width:100%;font-size:13px;margin:4px 0}.ibtn{border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;margin:4px 6px 0 0;cursor:pointer}.ibtn.p{background:#0b5563;color:#fff;border-color:#0b5563}@media(min-width:700px){.imodal{align-items:center}}
 </style>
 </head>
 <body>
@@ -80,6 +81,7 @@ const TOOLS=[
  {n:'住院醫師排班',d:'值班、門診、輪訓；排好直接帶入調度板'},
  {n:'晨會課程',d:'講者、題目、日期與提醒'}];
 let S={people:null,links:null,cfg:null,dT:null,dM:null,er:null,err:'',loading:true},filt='cur',saving=0;
+const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
 const page=()=>(location.hash||'#home').slice(1);
 
 async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}
@@ -130,7 +132,7 @@ function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('');
+ $('#tabs').innerHTML=[['home','首頁'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('')+(isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>');
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  $('#app').innerHTML=pg==='people'?people():pg==='links'?links():home()}
 
@@ -149,6 +151,19 @@ document.addEventListener('change',e=>{const el=e.target;const v=el.type==='chec
  if(el.dataset.ch==='lf'){S.links.items[+el.dataset.i][el.dataset.f]=v;saveLinks()}});
 addEventListener('hashchange',render);
 load();setInterval(()=>{if(!document.hidden&&!saving&&page()==='home')load()},120000);
+/* ===== 加到主畫面 ===== */
+let bip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});
+try{if('serviceWorker' in navigator&&/^https:/.test(location.protocol)&&!/claude|googleusercontent/.test(location.host))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+const instLink=()=>location.origin+location.pathname.replace(/[^/]*$/,'')+'?openExternalBrowser=1';
+function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua),ios=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),and=/Android/i.test(ua);
+ const steps=inApp?`<p><b>你現在是在 LINE 裡面開啟的</b>，要先換到手機瀏覽器才能加到主畫面。</p><button class="ibtn p" data-iext>用 ${ios?'Safari':'Chrome'} 開啟</button><p class="inote">開啟後再按一次「📲 加到主畫面」。</p>`
+  :ios?`<ol><li>點 Safari 下方（或上方）的<b>分享</b>按鈕 <span class="ik">⬆︎</span></li><li>往下滑，點<b>「加入主畫面」</b> <span class="ik">＋</span></li><li>右上角按<b>「新增」</b></li></ol><p class="inote">要用 Safari 開才有這個選項；Chrome 也可以從「分享」裡找到。</p>`
+  :and?`<ol><li>點 Chrome 右上角 <span class="ik">⋮</span></li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li><li>按<b>「安裝」</b></li></ol>`
+  :`<ol><li>Chrome／Edge：網址列右邊的 <span class="ik">⊕</span> 安裝圖示，或選單 →「安裝」</li><li>手機上用 Safari／Chrome 開這個網址，再按「📲 加到主畫面」</li></ol>`;
+ const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="apple-touch-icon.png" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
+ <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟，再按「📲 加到主畫面」即可。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製安裝連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
+ document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科刀房調度板（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
+document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);
 }
 </script>
 </body>
