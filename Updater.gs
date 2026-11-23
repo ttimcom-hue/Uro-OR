@@ -17,6 +17,17 @@ const GH_FILES = [
   ['index.html', 'index', 'HTML', null],
 ];
 const GH_API = 'https://script.googleapis.com/v1/projects/';
+// appsscript.json 需要的權限。只在手動執行（updateNow／setupAutoUpdate）時補上，
+// 因為加了權限之後要有人當場重新授權，否則網頁應用程式與排程會停擺。
+const GH_SCOPES = [
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/script.external_request',
+  'https://www.googleapis.com/auth/script.projects',
+  'https://www.googleapis.com/auth/script.deployments',
+  'https://www.googleapis.com/auth/script.scriptapp',
+  'https://www.googleapis.com/auth/script.container.ui',
+  'https://www.googleapis.com/auth/documents',
+];
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('🔄 程式更新')
@@ -35,13 +46,13 @@ function setupAutoUpdate() {
 }
 
 function updateNow() {
-  const msg = updateFromGitHub();
+  const msg = updateFromGitHub(true);
   ghToast_(msg);
   return msg;
 }
 
 function ghAutoUpdate() {
-  try { updateFromGitHub(); } catch (e) { console.log(e); }
+  try { updateFromGitHub(false); } catch (e) { console.log(e); }
   // 每小時順便做癌症討論會表的自動加入與交班單同步（編輯時沒觸發到的也會補上）
   try { if (typeof cancerSync === 'function') cancerSync(); } catch (e) { console.log(e); }
 }
@@ -53,7 +64,7 @@ function ghRunCancerSetup() {
   ghLog_('已套用癌症討論會表格式');
 }
 
-function updateFromGitHub() {
+function updateFromGitHub(withScopes) {
   const id = ScriptApp.getScriptId();
   const cur = ghApi_('get', id + '/content').files;
 
@@ -88,6 +99,21 @@ function updateFromGitHub() {
       if (n.name === 'CancerSheet') cancerChanged = true;
     }
   });
+  let needAuth = false;
+  if (withScopes) {
+    const m = files.find(f => f.type === 'JSON' && f.name === 'appsscript');
+    if (m) {
+      const j = JSON.parse(m.source);
+      const have = j.oauthScopes || [];
+      const add = GH_SCOPES.filter(x => have.indexOf(x) < 0);
+      if (add.length) {
+        j.oauthScopes = have.concat(add);
+        m.source = JSON.stringify(j, null, 2);
+        changed.push('appsscript.json（新增權限）');
+        needAuth = true;
+      }
+    }
+  }
   if (!changed.length) { ghLog_('已是最新'); return '已是最新，不用更新'; }
 
   // 3) 寫回專案、建新版本、更新網頁應用程式部署
@@ -106,7 +132,8 @@ function updateFromGitHub() {
   if (cancerChanged) ScriptApp.newTrigger('ghRunCancerSetup').timeBased().after(60 * 1000).create();
 
   const msg = '已更新：' + changed.join('、') + '（版本 ' + ver + '，部署 ' + deps.length + ' 個）' +
-    (cancerChanged ? '；1 分鐘後自動套用癌症討論會表格式' : '');
+    (cancerChanged ? '；1 分鐘後自動套用癌症討論會表格式' : '') +
+    (needAuth ? '；⚠ 權限有變，請馬上在編輯器執行 cancerSync 並允許授權' : '');
   ghLog_(msg);
   return msg;
 }
