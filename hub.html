@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow">
+<title>泌尿科 科務入口</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f4f7f7,#0b1315);--card:light-dark(#fff,#121e21);--ink:light-dark(#0f262b,#e2edee);--mut:light-dark(#587076,#8ea6aa);--line:light-dark(#d8e2e3,#24363a);--scrub:light-dark(#0b5563,#0e6474);--soft:light-dark(#e4f0f1,#15313a);--red:#e5484d;--redbg:light-dark(#fdecec,#3a1a1c);--amb:#c77d00;--ambbg:light-dark(#fff4dc,#3a2c10);--ok:#1f8a5b}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC",system-ui,sans-serif}
+.t{font-family:Figtree,"Noto Sans TC",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+header{background:var(--scrub);color:#fff;padding:18px max(4vw,14px) 0}
+.hrow{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:flex-end;justify-content:space-between;max-width:1100px;margin:auto}
+h1{font:800 clamp(24px,3.4vw,34px)/1.1 Figtree,"Noto Sans TC",sans-serif;margin:0}
+.sub{opacity:.85;font-size:14px}
+.tabs{display:flex;gap:4px;max-width:1100px;margin:14px auto 0;overflow-x:auto}
+.tabs a{color:#fff;text-decoration:none;border-radius:10px 10px 0 0;padding:11px 18px;opacity:.8;flex:none;min-height:44px}
+.tabs a[aria-current=page]{background:var(--bg);color:var(--ink);opacity:1;font-weight:700}
+main{max-width:1100px;margin:auto;padding:18px max(4vw,14px) 60px}
+section{margin-bottom:22px}
+h2{font:700 19px/1.3 "Noto Sans TC",sans-serif;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.tool{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--scrub);border-radius:14px;padding:14px 16px;min-height:96px}
+.tool:hover{border-color:var(--scrub)}
+.tool b{font-size:17px}.tool p{margin:4px 0 0;color:var(--mut);font-size:13.5px}
+.tool.soon{border-left-color:var(--line);opacity:.75;cursor:default}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12.5px;background:var(--soft);white-space:nowrap}
+.chip.r{background:var(--redbg);color:var(--red)}.chip.a{background:var(--ambbg);color:var(--amb)}.chip.g{color:var(--ok)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi b{display:block;font:800 26px/1.1 Figtree,sans-serif}.kpi span{color:var(--mut);font-size:13px}
+.note{color:var(--mut);font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;cursor:pointer}
+.btn.p{background:var(--scrub);color:#fff;border-color:var(--scrub)}.btn.s{min-height:32px;padding:4px 10px;font-size:13.5px}
+input,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:38px}
+table{width:100%;border-collapse:collapse}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{font-size:13px;color:var(--mut);font-weight:500}
+tr.off td{opacity:.5}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}.dl dt{color:var(--mut)}.dl dd{margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border:0;background:var(--card);color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}.seg button.on{background:var(--scrub);color:#fff}
+@media (max-width:700px){
+ table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}table.stack td{border:0;padding:0}table.stack td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--mut)}table.stack input,table.stack select{width:100%}
+}
+</style>
+</head>
+<body>
+<header><div class="hrow"><div><h1>泌尿科 科務入口</h1><div class="sub" id="sub"></div></div><div class="sub" id="sync"></div></div>
+<nav class="tabs" id="tabs"></nav></header>
+<main id="app"><p class="note">載入中…</p></main>
+<script>
+{
+/* 同步：與刀房調度板共用同一個 Google Apps Script 儲存區
+   共用資料鍵（給之後的小工具用）：
+   common/people  人員名冊 {ts, people:[{id,n,full,role:'VS'|'R'|'F',lv,on,ts}]}
+   common/links   常用連結 {items:[{n,u,d}]}
+   config/main    調度板設定（含 duty 值班、leaves 休假、vsLeaves 主治休假）
+   days/YYYY-MM-DD 當日刀表與人力；er/list 急診刀清單 */
+const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec';
+const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){return null}},set(k,v){try{localStorage.setItem('or:'+k,JSON.stringify(v))}catch(e){}}};
+let gs=LS.get('gsync');if(!gs||!gs.url)gs=SYNC_URL?{url:SYNC_URL,token:'',on:true}:{url:'',token:'',on:false};
+const on=()=>gs.on&&gs.url;
+async function get(key){const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
+async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token||'',key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addD=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return iso(d)};
+const DOW='日一二三四五六';const md=s=>`${+s.slice(5,7)}/${+s.slice(8)}（${DOW[new Date(s+'T00:00:00').getDay()]}）`;
+const today=iso(new Date()),tmr=addD(today,1);
+const ROLE={VS:'主治醫師',R:'住院醫師',F:'Fellow'};
+const TOOLS=[
+ {n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',ok:1,sub:[['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與值班']]},
+ {n:'癌症討論會',d:'每週名單整理與統計'},
+ {n:'科會事項追蹤',d:'決議、負責人、期限、進度'},
+ {n:'住院醫師排班',d:'值班、門診、輪訓；排好直接帶入調度板'},
+ {n:'晨會課程',d:'講者、題目、日期與提醒'}];
+let S={people:null,links:null,cfg:null,dT:null,dM:null,er:null,err:'',loading:true},filt='cur',saving=0;
+const page=()=>(location.hash||'#home').slice(1);
+
+async function load(){S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}
+ const k=['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list'];
+ const r=await Promise.allSettled(k.map(get));const v=i=>r[i].status==='fulfilled'?r[i].value:null;
+ if(r.every(x=>x.status==='rejected'))S.err='conn';else S.err='';
+ S.people=v(0);S.links=v(1);S.cfg=v(2)&&v(2).cfg;S.dT=v(3);S.dM=v(4);S.er=v(5);
+ if(!S.people&&S.cfg)S.people=seed(S.cfg);S.loading=false;render()}
+function seed(c){const now=Date.now();return{ts:now,seeded:true,people:[...(c.res||[]).map(r=>({id:r.id,n:r.n,full:(String(r.alias||'').split(/[,，]/)[0]||'').trim(),role:r.lv==='Fellow'?'F':'R',lv:r.lv,on:!!r.on,ts:now})),...(c.sur||[]).map(x=>({id:'vs_'+x.n,n:x.n,full:x.n,role:'VS',lv:x.t||'主治醫師',on:true,ts:now}))]}}
+const P=()=>(S.people&&S.people.people)||[];
+const nm=id=>{const p=P().find(x=>x.id===id);if(p)return p.n;const r=((S.cfg||{}).res||[]).find(x=>x.id===id);return r?r.n:id};
+
+function home(){if(S.err==='nosync')return setupCard();
+ const c=S.cfg||{},L=(c.duty||{})[today]||[],g=r=>L.filter(x=>(String(x).split(':')[1]||'')===r).map(x=>nm(String(x).split(':')[0]));
+ const lv=(c.leaves||[]).filter(l=>l.from<=today&&(l.to||l.from)>=today).map(l=>`${nm(l.r)}${l.type?'（'+l.type+(l.half&&l.half!=='all'?(l.half==='am'?'・上午':'・下午'):'')+'）':''}`);
+ const vl=(c.vsLeaves||[]).filter(l=>l.from<=today&&(l.to||l.from)>=today).map(l=>esc(l.s));
+ const day=(d,lab,ds)=>{const cs=(d&&d.cases||[]).filter(x=>!x.eve);const rooms=new Set(cs.map(x=>x.room).filter(r=>r!=='ESWL'));return `<div class="kpi"><span>${lab} ${md(ds)}刀房</span><b>${cs.length?cs.length+' 台':'—'}</b><span>${cs.length?rooms.size+' 間房':'刀表未匯入'}</span></div>`};
+ const er=((S.er&&S.er.items)||[]).filter(e=>!e.del&&(e.st||'wait')!=='done');const ct=t=>er.filter(e=>e.t===t).length;
+ return `<section><h2>今天 ${md(today)}</h2><div class="kpis">${day(S.dT,'今天',today)}${day(S.dM,'明天',tmr)}
+  <div class="kpi"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></div></div>
+  <div class="card" style="margin-top:10px"><dl class="dl">
+   <dt>今晚值班</dt><dd>${L.length?[g('sec').length?'二線 '+g('sec').join('、'):'',g('icu').length?'ICU '+g('icu').join('、'):'',g('w1').length?'一線 '+g('w1').join('、'):'',g('tot').length?'總值 '+g('tot').join('、'):'',g('').length?g('').join('、'):''].filter(Boolean).map(esc).join('　'):'<span class="note">值班表未匯入（在調度板「人力設定」匯入）</span>'}</dd>
+   <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
+   <dt>主治休假</dt><dd>${vl.length?vl.join('、'):'<span class="note">無</span>'}</dd></dl></div></section>
+ <section><h2>工具</h2><div class="grid">${TOOLS.map(t=>t.ok?`<div class="tool"><a href="${t.u}" style="color:inherit;text-decoration:none"><b>${t.n}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`:`<div class="tool soon"><b>${t.n}</b> <span class="chip">建置中</span><p>${t.d}</p></div>`).join('')}</div></section>
+ <section><h2>常用連結 <small><a href="#links">編輯</a></small></h2>${((S.links&&S.links.items)||[]).length?`<div class="grid">${S.links.items.map(l=>`<a class="tool" href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.n)}</b><p>${esc(l.d||l.u)}</p></a>`).join('')}</div>`:'<p class="note">還沒有連結。可以加入科內 Notion 筆記、醫院系統入口等。</p>'}</section>`}
+
+function people(){if(S.err==='nosync')return setupCard();const all=P();
+ const L=all.filter(p=>filt==='cur'?p.on!==false:filt==='off'?p.on===false:true).sort((a,b)=>(a.on===false)-(b.on===false)||'VSFR'.indexOf(a.role)-'VSFR'.indexOf(b.role)||String(b.lv).localeCompare(String(a.lv))||String(a.n).localeCompare(String(b.n)));
+ const cnt=r=>all.filter(p=>p.on!==false&&p.role===r).length;
+ return `<section class="card"><h2>人員名冊 <small>主治 ${cnt('VS')}・Fellow ${cnt('F')}・住院醫師 ${cnt('R')}；所有工具共用這份名單。改姓名、級別、在職會同步到刀房調度板；手術能力在調度板設定。${S.people&&S.people.seeded?'<b>目前顯示的是從調度板帶入的名單，第一次修改後就會存成正式名冊。</b>':''}</small></h2>
+ <div class="row" style="margin-bottom:10px"><div class="seg">${[['cur','在職'],['off','已離開'],['all','全部']].map(([k,v])=>`<button class="${filt===k?'on':''}" data-act="filt" data-v="${k}">${v}</button>`).join('')}</div>
+  <button class="btn p" data-act="add" data-r="R">＋住院醫師</button><button class="btn" data-act="add" data-r="VS">＋主治醫師</button><button class="btn" data-act="add" data-r="F">＋Fellow</button><span class="note" id="pmsg">${saving?'儲存中…':''}</span></div>
+ <table class="stack"><thead><tr><th>簡稱（排班顯示）</th><th>全名</th><th>身分</th><th>級別／職稱</th><th>在職</th></tr></thead><tbody>
+ ${L.map(p=>`<tr class="${p.on===false?'off':''}"><td data-l="簡稱"><input data-ch="pf" data-id="${esc(p.id)}" data-f="n" value="${esc(p.n)}" style="width:100px"></td><td data-l="全名"><input data-ch="pf" data-id="${esc(p.id)}" data-f="full" value="${esc(p.full||'')}" style="width:110px"></td>
+  <td data-l="身分"><select data-ch="pf" data-id="${esc(p.id)}" data-f="role">${Object.entries(ROLE).map(([k,v])=>`<option value="${k}" ${p.role===k?'selected':''}>${v}</option>`).join('')}</select></td>
+  <td data-l="級別／職稱">${p.role==='R'?`<select data-ch="pf" data-id="${esc(p.id)}" data-f="lv">${['R1','R2','R3','R4','R5','CR'].map(l=>`<option ${p.lv===l?'selected':''}>${l}</option>`).join('')}</select>`:p.role==='F'?'Fellow':`<input data-ch="pf" data-id="${esc(p.id)}" data-f="lv" value="${esc(p.lv||'')}" placeholder="部長、主任…" style="width:110px">`}</td>
+  <td data-l="在職"><label class="row" style="gap:4px"><input type="checkbox" data-ch="pf" data-id="${esc(p.id)}" data-f="on" ${p.on!==false?'checked':''} style="min-height:0">${p.on!==false?'在職':'已離開'}</label></td></tr>`).join('')}</tbody></table>
+ <p class="note">離開的人請取消「在職」而不要刪除，舊的排班紀錄才對得起來。名冊只放姓名與職級，請勿填病人資料。</p></section>`}
+
+function links(){if(S.err==='nosync')return setupCard();const it=(S.links&&S.links.items)||[];
+ return `<section class="card"><h2>常用連結 <small>全科共用，顯示在首頁</small></h2><table class="stack"><thead><tr><th>名稱</th><th>網址</th><th>說明</th><th></th></tr></thead><tbody>${it.map((l,i)=>`<tr><td data-l="名稱"><input data-ch="lf" data-i="${i}" data-f="n" value="${esc(l.n)}"></td><td data-l="網址"><input data-ch="lf" data-i="${i}" data-f="u" value="${esc(l.u)}" placeholder="https://" style="width:100%"></td><td data-l="說明"><input data-ch="lf" data-i="${i}" data-f="d" value="${esc(l.d||'')}"></td><td><button class="btn s" data-act="ldel" data-i="${i}">刪除</button></td></tr>`).join('')}</tbody></table>
+ <div class="row" style="margin-top:8px"><button class="btn p" data-act="ladd">新增連結</button><span class="note" id="lmsg"></span></div></section>`}
+
+function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p>入口網頁和刀房調度板共用同一個 Google 同步網址。若調度板已經設定好，請先在同一支手機／電腦打開一次<a href="./">刀房調度板</a>，再回來重新整理。</p>
+ <div class="row"><input id="u" placeholder="https://script.google.com/macros/s/…/exec" style="flex:1;min-width:260px" value="${esc(gs.url)}"><input id="tk" placeholder="密碼（沒有就留空）" value="${esc(gs.token||'')}" style="width:150px"><button class="btn p" data-act="conn">連線</button></div></section>`}
+
+function render(){const pg=page();
+ $('#sub').textContent=`總醫師工具箱・${md(today)}`;
+ $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
+ $('#tabs').innerHTML=[['home','首頁'],['people','人員名冊'],['links','常用連結']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+[['plan','刀房排程'],['er','急診刀'],['prep','術前準備'],['res','人力']].map(([k,v])=>`<a href="./#${k}">${v} ↗</a>`).join('');
+ if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
+ $('#app').innerHTML=pg==='people'?people():pg==='links'?links():home()}
+
+async function savePeople(mut){saving++;render();try{const fresh=(await get('common/people'))||S.people||{people:[]};fresh.people=fresh.people||[];
+  if(S.people&&S.people.seeded&&!fresh.ts)fresh.people=S.people.people;delete fresh.seeded;mut(fresh);fresh.ts=Date.now();await set('common/people',fresh);S.people=fresh}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
+async function saveLinks(){try{await set('common/links',S.links);const m=$('#lmsg');if(m)m.textContent='已儲存'}catch(e){const m=$('#lmsg');if(m)m.textContent='儲存失敗'}}
+
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const k=b.dataset.act;
+ if(k==='filt'){filt=b.dataset.v;render()}
+ if(k==='add'){const r=b.dataset.r;const p={id:'p'+Date.now().toString(36),n:'新成員',full:'',role:r,lv:r==='R'?'R1':r==='F'?'Fellow':'主治醫師',on:true,ts:Date.now()};savePeople(f=>f.people.push(p))}
+ if(k==='ladd'){S.links=S.links||{items:[]};S.links.items.push({n:'新連結',u:'',d:''});render();saveLinks()}
+ if(k==='ldel'){S.links.items.splice(+b.dataset.i,1);render();saveLinks()}
+ if(k==='conn'){const u=$('#u').value.trim();if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(u)){alert('網址應以 https://script.google.com/ 開頭');return}gs={url:u,token:$('#tk').value.trim(),on:true};LS.set('gsync',gs);load()}});
+document.addEventListener('change',e=>{const el=e.target;const v=el.type==='checkbox'?el.checked:el.value.trim();
+ if(el.dataset.ch==='pf'){const id=el.dataset.id,f=el.dataset.f;savePeople(R=>{const p=R.people.find(x=>x.id===id);if(!p)return;p[f]=v;if(f==='role')p.lv=v==='R'?'R1':v==='F'?'Fellow':'主治醫師';p.ts=Date.now()})}
+ if(el.dataset.ch==='lf'){S.links.items[+el.dataset.i][el.dataset.f]=v;saveLinks()}});
+addEventListener('hashchange',render);
+load();setInterval(()=>{if(!document.hidden&&!saving&&page()==='home')load()},120000);
+}
+</script>
+</body>
+</html>
