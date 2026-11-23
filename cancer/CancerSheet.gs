@@ -26,6 +26,15 @@ const CS_KEYWORDS = '(?i)davinci|prostatectomy|nephr\\w*ectomy|nephrouret|\\bRNU
 const CS_PARSE_ROWS = 400;   // 一次刀表最多解析幾筆手術
 const CS_RAW_ROWS = 6000;    // 刀表匯入最多幾行
 const HDR_BG = '#EFEFEF', RED = '#C00000';
+// 分頁顏色：綠＝要人工填、灰藍＝自動產生、紅＝交班、黃＝貼刀表；刀表解析是後台，隱藏
+const CS_TAB_COLOR = {
+  [CS.TRK]: '#6AA84F', [CS.TODO]: '#E06666', [CS.DONE]: '#9FC5E8', [CS.WEEK]: '#9FC5E8',
+  [CS.PEND]: '#9FC5E8', [CS.CAND]: '#9FC5E8', [CS.RAW]: '#FFD966', [CS.PARSE]: '#CCCCCC', [CS.HELP]: '#CCCCCC',
+};
+const CS_HIDDEN = [CS.PARSE];
+// 個案追蹤：預設收合的欄 [起始欄, 欄數]（按欄上方的 ＋ 展開）。G 最晚討論日、L–N 術後病理／報告醫師／備註
+const CS_TRK_FOLD = [[7, 1], [12, 3]];
+const CS_FINISHED = ['已開刀', '不需手術'];
 
 function q_(name) { return "'" + name + "'"; }
 
@@ -76,6 +85,7 @@ function setupCancerSheet() {
     let sh = ss.getSheetByName(name);
     if (!sh) sh = ss.insertSheet(name, i);
     ss.setActiveSheet(sh); ss.moveActiveSheet(i + 1);
+    sh.setTabColor(CS_TAB_COLOR[name]);
   });
   csTracker_(ss.getSheetByName(CS.TRK));
   csTodo_(ss.getSheetByName(CS.TODO));
@@ -86,6 +96,11 @@ function setupCancerSheet() {
   csRaw_(ss.getSheetByName(CS.RAW));
   csParse_(ss.getSheetByName(CS.PARSE));
   csHelp_(ss.getSheetByName(CS.HELP));
+  ss.setActiveSheet(ss.getSheetByName(CS.TRK));
+  CS_ORDER.forEach(name => {
+    const sh = ss.getSheetByName(name);
+    if (CS_HIDDEN.includes(name)) sh.hideSheet(); else if (sh.isSheetHidden()) sh.showSheet();
+  });
   SpreadsheetApp.flush();
 }
 
@@ -104,12 +119,34 @@ function csStatusRules_(sh, a1) {
   return Object.entries(CS_STATUS_COLOR).map(([k, c]) =>
     SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo(k).setBackground(c).setRanges([rng]).build());
 }
+// 已結案（已開刀／不需手術）整列字變淡灰，眼睛只需要看還在進行的個案
+function csFinishedRule_(sh, a1, statusCol, firstRow) {
+  const f = '=OR(' + CS_FINISHED.map(s => `$${statusCol}${firstRow}="${s}"`).join(',') + ')';
+  return SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(f)
+    .setFontColor('#A0A0A0').setRanges([sh.getRange(a1)]).build();
+}
+// 欄群組：先清掉舊群組（重跑 setup 不會越疊越深），再建立並收合
+function csFold_(sh, groups) {
+  const max = sh.getMaxColumns();
+  for (let c = 1; c <= max; c++) {
+    const d = sh.getColumnGroupDepth(c);
+    if (d > 0) sh.getRange(1, c, 1, 1).shiftColumnGroupDepth(-d);
+  }
+  sh.setColumnGroupControlPosition(SpreadsheetApp.GroupControlTogglePosition.BEFORE);
+  groups.forEach(([c, n]) => {
+    sh.getRange(1, c, 1, n).shiftColumnGroupDepth(1);
+    sh.getColumnGroup(c, 1).collapse();
+  });
+}
 
 function csTracker_(sh) {
   const last = Math.max(sh.getLastRow(), 1);
   sh.getRange(1, 1, 1, CS_TRK_HEAD.length).setValues([CS_TRK_HEAD]);
-  csHeader_(sh.getRange(1, 1, 1, 14));
-  sh.getRange(1, 15, 1, 3).setFontWeight('bold').setBackground('#F4CCCC');
+  // 標題列分三段上色：個案資料（灰）／討論會（藍）／會後待辦（紅）
+  sh.getRange(1, 1, 1, 17).setFontWeight('bold').setWrap(true).setVerticalAlignment('middle');
+  sh.getRange(1, 1, 1, 8).setBackground(HDR_BG);
+  sh.getRange(1, 9, 1, 6).setBackground('#CFE2F3');
+  sh.getRange(1, 15, 1, 3).setBackground('#F4CCCC');
   // G、H 公式：寫到最後一列 + 50 列，之後新增的列也有公式
   const n = last - 1 + 50, rows = [];
   for (let r = 2; r < 2 + n; r++) rows.push([csTrackerG_(r), csTrackerH_(r)]);
@@ -122,9 +159,12 @@ function csTracker_(sh) {
   sh.getRange('J2:L').setWrap(true); sh.getRange('N2:O').setWrap(true);
   sh.getRange('A2:A500').setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(CS_STATUS, true).setAllowInvalid(true).build());
-  sh.setConditionalFormatRules(csStatusRules_(sh, 'A2:A500'));
+  sh.setConditionalFormatRules([csFinishedRule_(sh, 'B2:Q500', 'A', 2), ...csStatusRules_(sh, 'A2:A500')]);
   sh.setFrozenRows(1); sh.setFrozenColumns(2);
   csWidths_(sh, [110, 90, 90, 90, 230, 100, 100, 130, 70, 260, 360, 220, 70, 240, 340, 90, 90]);
+  csFold_(sh, CS_TRK_FOLD);
+  // 標題列加篩選（可只看某狀態、某VS）；已有篩選就保留使用者目前的條件
+  if (!sh.getFilter()) sh.getRange(1, 1, sh.getMaxRows(), CS_TRK_HEAD.length).createFilter();
 }
 
 function csTodo_(sh) {
@@ -173,7 +213,8 @@ function csDone_(sh) {
   sh.getRange('A8:A').setNumberFormat('yyyy/mm/dd');
   sh.getRange('F8:F').setNumberFormat('yyyy/mm/dd');
   sh.getRange('G8:J').setWrap(true).setVerticalAlignment('top');
-  sh.setConditionalFormatRules(csStatusRules_(sh, 'E8:E500'));
+  sh.setConditionalFormatRules([csFinishedRule_(sh, 'A8:D500', 'E', 8), csFinishedRule_(sh, 'F8:K500', 'E', 8),
+    ...csStatusRules_(sh, 'E8:E500')]);
   sh.setFrozenRows(7); sh.setFrozenColumns(2);
   csWidths_(sh, [130, 100, 100, 100, 100, 100, 200, 240, 340, 220, 100]);
 }
@@ -263,6 +304,7 @@ function csHelp_(sh) {
   csReset_(sh);
   const rows = [
     ['項目', '內容'],
+    ['怎麼看這份表', '分頁顏色：綠＝要人工填（個案追蹤）、紅＝會後待辦（交班）、灰藍＝自動產生（不用改）、黃＝貼刀表。「刀表解析」是後台計算，已隱藏（右鍵分頁列可取消隱藏）。\n個案追蹤：標題灰＝個案資料、藍＝討論會、紅＝會後待辦；已開刀／不需手術的列字會變淡灰。最晚討論日、術後病理、報告醫師、備註預設收合，按欄上方的「＋」展開。標題列有篩選鈕，可只看某個狀態或某位VS。'],
     ['選案原則', '黃冠華部長的主要癌症/腎上腺手術：Davinci RARP(含SP)、部分/根除性腎切、RNU、RARC、adrenalectomy、IVC thrombectomy；另加需影像討論的切片個案。Cystoscopy、URS、TURBT、HoLEP、結石、hernia不列入。'],
     ['狀態', '待討論 → 已排入(填討論會日期) → 已討論-待手術(填結論與會後待辦) → 已開刀(填術後結果/病理)。其他：待確認、暫緩/改期、不需手術。'],
     ['會後待辦（交班用）', '每位病人一列，自動列出已討論-待手術、暫緩/改期、待確認的病人，依手術日排序；改為已開刀就消失。待辦、負責人、期限填在「個案追蹤」O–Q欄。這頁的A3:K30是連結到交班文件的範圍。'],
