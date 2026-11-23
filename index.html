@@ -234,6 +234,12 @@ function interleave(fixed,rest,clocks,start,room){const turn=room!=null?roomTurn
   const T0=T(q[0].time);const i=r.findIndex(c=>!(c.sd&&sdS>t)&&!c.wait&&t+dur(c)<=T0+tol);if(i>=0)add(r.splice(i,1)[0]);else add(q.shift())}
  return out}
 let lastDel=0;
+function isEmgRow(r){return /急/.test(r.src||'')||/急|插|緊急/.test(r.kind||'')}
+function erAddRows(use,auto){const G=new Map();for(const r of use){const key=[r.pid||'',r.surgeon,r.room,r.time].join('|');let g=G.get(key);if(!g){g={s:r.surgeon,p:[],room:r.room,at:r.sent||'',ad:r.sentD||'',kind:r.kind||'',time:r.time,bed:r.bed||'',date:r.date||''};G.set(key,g)}g.p.push(r.name.replace(/\(廠\)|（廠）/g,'').trim());if(!g.at&&r.sent)g.at=r.sent}
+ let n=0;const td=localISO();for(const g of G.values()){const p=g.p.join('＋');const t=/插/.test(g.kind)?'insert':/緊急/.test(g.kind)?'urgent':'general';if(ERS.items.some(e=>!e.del&&e.s===g.s&&e.p===p&&(e.at||'')===(g.at||'')&&(e.ad||'')===(g.ad||'')))continue;
+  const hasRoom=g.room&&g.room!=='?';const st=auto?(g.date&&g.date<td?'done':hasRoom?'room':'wait'):'wait';
+  ERS.items.push({t,s:g.s,p,bed:g.bed,ad:g.ad,at:g.at,npo:'',st,ts:Date.now(),n:[hasRoom?'R'+g.room:'',/TF/i.test(g.time)?g.time:'',auto&&g.date?`刀表 ${+g.date.slice(5,7)}/${+g.date.slice(8)}`:''].filter(Boolean).join(' ')});n++}
+ return n}
 function rowsToCases(rows){const st=T(cfg.set.start),G=new Map();lastDel=0;rows.forEach((r,i)=>{const t=String(r.time||'').trim();{const mm=t.match(/^\d{1,2}:(\d{2})$/);if(mm&&+mm[1]%10!==0)r.del=true}if(r.del){lastDel++;return}let slot,kind='';
  if(/夜/.test(t)){slot=999;kind='eve'}else if(/TF/i.test(t)){slot=+((t.match(/\d+/)||[1])[0])}else if(/\d{1,2}:\d{2}/.test(t)){if(T(t)<=st)slot=0;else{slot=T(t)/10000;kind='clock'}}else slot=60;
  const key=[r.date,r.room,r.surgeon,slot,kind==='clock'?t:'',r.pid||''].join('|');let g=G.get(key);if(!g){g={id:nid(),date:r.date,room:r.room,surgeon:r.surgeon,slot,seq:i,procs:[],spec:[],time:kind==='clock'?t:'',eve:kind==='eve',clock:kind==='clock',opd:kind==='clock',fixed:slot===0&&!kind,sq:r.sq||undefined,raw:r.raw||undefined,md:null};G.set(key,g)}
@@ -864,9 +870,7 @@ function act(k,b){const id=b.dataset.id,i=+b.dataset.i;
  if(k==='addEr'){const n=new Date();(ERS.items).push({t:'general',s:'',p:'',bed:'',ad:localISO(),at:`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`,npo:'',st:'wait',n:''});saveER();render();return}
  if(k==='delEr'){ERS.items[i].del=true;saveER();render();return}
  if(k==='erImport'){const txt=$('#erPaste').value;const rows=parseText(txt,day.date);let del=0;const ok=rows.filter(r=>{const mm=String(r.time||'').match(/^\d{1,2}:(\d{2})$/);if(r.del||(mm&&+mm[1]%10)){del++;return false}return r.surgeon&&r.name});const emg=ok.filter(r=>/急/.test(r.src||'')||/急|插|緊急/.test(r.kind||''));const use=emg.length?emg:ok;
-  const G=new Map();for(const r of use){const key=[r.pid||'',r.surgeon,r.room,r.time].join('|');let g=G.get(key);if(!g){g={s:r.surgeon,p:[],room:r.room,at:r.sent||'',ad:r.sentD||'',kind:r.kind||'',time:r.time,bed:r.bed||''};G.set(key,g)}g.p.push(r.name.replace(/\(廠\)|（廠）/g,'').trim());if(!g.at&&r.sent)g.at=r.sent}
-  if($('#erRep').checked)ERS.items.forEach(e=>{if(e.st!=='done')e.del=true});let n=0;
-  for(const g of G.values()){const p=g.p.join('＋');const t=/插/.test(g.kind)?'insert':/緊急/.test(g.kind)?'urgent':'general';if(ERS.items.some(e=>!e.del&&e.s===g.s&&e.p===p&&(e.at||'')===(g.at||'')&&(e.ad||'')===(g.ad||'')))continue;ERS.items.push({t,s:g.s,p,bed:g.bed,ad:g.ad,at:g.at,npo:'',st:'wait',n:[g.room&&g.room!=='?'?'R'+g.room:'',/TF/i.test(g.time)?g.time:''].filter(Boolean).join(' ')});n++}
+  if($('#erRep').checked)ERS.items.forEach(e=>{if(e.st!=='done')e.del=true});const n=erAddRows(use);
   saveER();render();const m=$('#ermsg');if(m)m.textContent=n?`已加入 ${n} 台${del?`（略過 ${del} 筆已刪除）`:''}，請補上類別與 NPO 時間。`:'沒有新的急診刀可加入（格式不符或都已存在）。';return}
  if(k==='volDel'){const L=b.dataset.kind==='e'?ERS.items[+b.dataset.id]:byId(b.dataset.id);if(L){L.vol=(L.vol||[]).filter(x=>x!==b.dataset.r);b.dataset.kind==='e'?saveER():saveDay();render()}return}
  if(k==='erFind'){erMigrateAll(true).then(n=>{render();const m=$('#ermsg');if(m)m.textContent=n?`已找回 ${n} 台`:'沒有找到其他日期的急診刀'});return}
@@ -906,7 +910,7 @@ function act(k,b){const id=b.dataset.id,i=+b.dataset.i;
  else if(k==='applyAll'){const tl=timeline(day);planMoves(day,tl).moves.forEach(m=>moveTo(m.c,m.to))}
  else if(k==='sortRoom'){sortRoom(b.dataset.room)}
  else if(k==='optimize'){timeline(day).rooms.forEach(r=>sortRoom(r.id))}
- else if(k==='pasteGo'){pasteText=$('#paste').value;const by=rowsToCases(parseText(pasteText,day.date));if(Object.keys(by).length)pasteText='';const n=addCases(by);busy=n?`已加入 ${n} 台${lastDel?`（略過 ${lastDel} 筆已刪除）`:''}`:'無法解析，請確認格式（每列：日期 時 主治 位置 術式）';if(n&&!by[day.date]){loadDay(Object.keys(by)[0]).then(render);return}}
+ else if(k==='pasteGo'){pasteText=$('#paste').value;const rows0=parseText(pasteText,day.date);const okT=r=>{const mm=String(r.time||'').match(/^\d{1,2}:(\d{2})$/);return !r.del&&!(mm&&+mm[1]%10)};const emg=rows0.filter(r=>okT(r)&&r.surgeon&&r.name&&isEmgRow(r));const ne=emg.length?erAddRows(emg,true):0;if(emg.length){saveER()}const by=rowsToCases(rows0.filter(r=>!isEmgRow(r)));if(Object.keys(by).length||emg.length)pasteText='';const n=addCases(by);busy=n||ne?`${n?`已加入 ${n} 台`:''}${lastDel?`（略過 ${lastDel} 筆已刪除）`:''}${emg.length?`${n?'；':''}急診刀 ${emg.length} 筆已自動移到「急診刀」分頁${ne?`（新增 ${ne} 台）`:'（都已存在）'}`:''}`:'無法解析，請確認格式（每列：日期 時 主治 位置 術式）';if(n&&!by[day.date]){loadDay(Object.keys(by)[0]).then(render);return}}
  else if(k==='addCase'){const proc=$('#mProc').value.trim();if(!proc)return;const room=$('#mRoom').value;const c={id:nid(),date:day.date,room,surgeon:$('#mSur').value.trim()||'未定',procs:[proc],spec:[],md:$('#mMin').value?+$('#mMin').value:null,order:Math.max(0,...day.cases.filter(x=>x.room===room).map(x=>x.order))+1};day.cases.push(c)}
  else{ // config actions
   if(k==='addRes'||k==='delRes')rosterPushSoon(k==='delRes'?cfg.res[i]?.id:null);if(k==='addRes')cfg.res.push({id:'r'+Date.now().toString(36),n:'新成員',lv:'R1',on:true,ab:mkAb([1,1,1,0,0,0,0,1,1,1,0])});
