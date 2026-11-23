@@ -117,7 +117,7 @@ function home(){if(S.err==='nosync')return setupCard();
  const tu=new Set(TOOLS.map(t=>t.u)),lk=((S.links&&S.links.items)||[]).filter(l=>l.u&&!tu.has(l.u));
  const tool=t=>{const tg=t.ext?'target="_blank" rel="noopener"':'';return `<div class="tool"><a class="go" href="${t.u}" ${tg}><b><span class="ic">${t.i}</span>${t.n}${t.ext?' <small class="note">↗</small>':''}</b><p>${t.d}</p></a>${t.sub?`<div class="row" style="gap:6px;margin-top:8px">${t.sub.map(([k,v])=>`<a class="btn s" style="text-decoration:none" href="${t.u}#${k}">${v}</a>`).join('')}</div>`:''}</div>`};
  return `<section><h2>① 今日總覽 <small>${md(today)}</small></h2><div class="kpis">${day(S.dT,'今天',today)}${day(S.dM,'明天',tmr)}
-  ${(()=>{if(typeof mtgDates!=='function')return'';const d=mtgDates(1)[0],w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),n=mItems().filter(x=>x.d===d&&!x.dup&&!x.hide).length;return `<a class="kpi" href="#mtg"><span>下次晨會 ${md(d)}</span><b>${n?n+' 項':'—'}</b><span>${w?'Drive 已有簡報':'還沒有簡報'}</span></a>`})()}<a class="kpi" href="./#er"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></a></div>
+  ${(()=>{if(typeof mtgDates!=='function')return'';const d=mtgDates(1)[0],w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),n=mItems().filter(x=>x.d===d&&!x.dup&&!x.hide).length;return `<a class="kpi" href="#mtg"><span>下次晨會 ${md(d)}</span><b>${n?n+' 項':'—'}</b><span>${w?'簡報已上傳':'還沒有簡報'}</span></a>`})()}<a class="kpi" href="./#er"><span>急診刀待處理</span><b>${er.length} 台</b><span>${er.length?`插刀 ${ct('insert')}・緊急 ${ct('urgent')}・一般急 ${ct('general')}`:'目前沒有'}</span></a></div>
   <div class="card" style="margin-top:10px"><dl class="dl">
    <dt>今晚值班</dt><dd>${duty||'<span class="note">值班表未匯入（在調度板「人力與能力」匯入）</span>'}</dd>
    <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
@@ -192,12 +192,12 @@ function mrow(x,dates){return `<tr${x.dup?' title="簡報議程已有同類型�
 function meeting(){if(S.err==='nosync')return setupCard();
  const md0=S.md&&S.md.ts?new Date(S.md.ts):null;
  const head=`<section><div class="row" style="justify-content:space-between"><div class="seg">${[['plan','📅 規劃'],['log','📚 紀錄'],['notice','📢 科內公告'],['stat','📊 統計']].map(([k,v])=>`<button class="${mv===k?'on':''}" data-act="mv" data-v="${k}">${v}</button>`).join('')}</div>
-  <div class="row"><span class="note" id="mscanmsg">${md0?`Drive 議程更新於 ${md0.getMonth()+1}/${md0.getDate()} ${String(md0.getHours()).padStart(2,'0')}:${String(md0.getMinutes()).padStart(2,'0')}（${S.md.weeks.length} 週${S.md.left?`，還有 ${S.md.left} 週讀取中，稍後重新整理`:''}${S.md.weeks.some(w=>w.err)?`，${S.md.weeks.filter(w=>w.err).length} 週簡報讀不到`:''}）`:'尚未讀取 Drive 議程，請按「🔄 從 Drive 更新」'}</span><button class="btn s" data-act="mscan">🔄 從 Drive 更新</button><a class="btn s" style="text-decoration:none" href="https://drive.google.com/drive/folders/1NsEvZfchGMt49LbPkJztHz2t1Ewhg6mL" target="_blank" rel="noopener">📁 Drive 資料夾 ↗</a></div></div></section>`;
+  <div class="row"><span class="note" id="mscanmsg">${md0?`Drive 議程更新於 ${md0.getMonth()+1}/${md0.getDate()} ${String(md0.getHours()).padStart(2,'0')}:${String(md0.getMinutes()).padStart(2,'0')}（${S.md.weeks.length} 週${S.md.left?`，還有 ${S.md.left} 週讀取中，稍後重新整理`:''}${S.md.weeks.some(w=>w.err)?`，${S.md.weeks.filter(w=>w.err).length} 週簡報讀不到`:''}）`:'尚未讀取 Drive 議程，請按「🔄 從 Drive 更新」'}</span><button class="btn s" data-act="mscan">🔄 從 Drive 更新</button></div></div></section>`;
  return head+mdl()+(mv==='log'?mLog():mv==='notice'?mNotice():mv==='stat'?mStat():mPlan())+`<p class="note">議程從每週主簡報（YYYYMMDD.pptx）的 OUTLINE 頁自動讀取，只存標題與檔名。請勿在這裡填病人姓名、病歷號。</p>`}
 
 function mPlan(){const M=MP(),W=mWeeks(),dates=mtgDates(8),all=mItems();
  const card=d=>{const w=W[d],dr=w?(w.outline||[]):[],its=all.filter(x=>x.src==='plan'&&x.d===d);
-  return `<div class="card" style="margin-bottom:10px"><h2 style="font-size:17px">${md(d)}${d===today?' <span class="chip r">今天</span>':''}<small>${w?`<a href="${esc(w.fu)}" target="_blank" rel="noopener">Drive 已有 ${w.files.length} 個檔案 ↗</a>`:'Drive 還沒有這週的資料夾'}</small></h2>
+  return `<div class="card" style="margin-bottom:10px"><h2 style="font-size:17px">${md(d)}${d===today?' <span class="chip r">今天</span>':''}<small>${w?`簡報已上傳（${w.files.length} 個檔案）`:'還沒有這週的簡報'}</small></h2>
   ${dr.length?`<p class="note" style="margin:0 0 4px">簡報議程（${esc(w.mn||'')}）</p><ul style="margin:0 0 8px;padding-left:20px">${dr.map(t=>`<li>${mchip(mcls(t))} ${esc(t)}</li>`).join('')}</ul>`:''}
   ${its.length?`<table class="stack"><tbody>${its.map(x=>mrow(x)).join('')}</tbody></table>`:''}
   <div class="row" style="margin-top:6px"><button class="btn s" data-act="madd" data-d="${d}">＋ 加項目</button></div></div>`};
@@ -220,10 +220,10 @@ function mLog(){const W=mWeeks(),all=mItems(),q=mq.toLowerCase();
  const ds=[...new Set(all.filter(x=>x.d&&x.d<=today).map(x=>x.d).concat(Object.keys(W).filter(d=>d<=today)))].sort().reverse();
  const hit=x=>(!mtf||x.t===mtf)&&(!q||(x.title+' '+x.who+' '+(x.note||'')).toLowerCase().includes(q));
  const body=ds.map(d=>{const w=W[d],its=all.filter(x=>x.d===d&&!x.dup&&(mfix||!x.hide)&&hit(x));if((q||mtf)&&!its.length)return'';
-  return `<div class="card" style="margin-bottom:10px"><h2 style="font-size:17px">${md(d)} <small>${d.slice(0,4)}</small>${w?`<small><a href="${esc(w.mu||w.fu)}" target="_blank" rel="noopener">簡報 ↗</a>　<a href="${esc(w.fu)}" target="_blank" rel="noopener">資料夾 ↗</a></small>`:''}</h2>
+  return `<div class="card" style="margin-bottom:10px"><h2 style="font-size:17px">${md(d)} <small>${d.slice(0,4)}</small></h2>
   ${its.length?`<table><tbody>${its.map(x=>`<tr class="${x.hide?'off':''}"><td style="width:1%">${mfix&&x.src==='drive'?mtypeSel(x.t,`data-ch="mo" data-k="${esc(x.k)}" data-f="t"`):mchip(x.t)}</td><td>${esc(x.title)}${x.note?` <span class="note">${esc(x.note)}</span>`:''}${x.src==='plan'?' <span class="note">（入口填寫）</span>':''}</td>
    <td style="white-space:nowrap">${mfix&&x.src==='drive'?`<input data-ch="mo" data-k="${esc(x.k)}" data-f="who" value="${esc(x.who)}" list="mppl" style="width:110px"> <label class="note"><input type="checkbox" data-ch="mo" data-k="${esc(x.k)}" data-f="hide" ${x.hide?'checked':''} style="min-height:0">不列入</label>`:esc(x.who)}</td></tr>`).join('')}</tbody></table>`:`<p class="note">${w&&w.err?'讀不到簡報：'+esc(w.err):'沒有議程'}</p>`}
-  ${w&&w.files.length?`<details style="margin-top:6px"><summary class="note">檔案 ${w.files.length} 個</summary><ul style="margin:4px 0;padding-left:20px">${w.files.map(f=>`<li><a href="${esc(f.u)}" target="_blank" rel="noopener">${esc(f.n)}</a></li>`).join('')}</ul></details>`:''}</div>`}).join('');
+  ${w&&w.files.length?`<details style="margin-top:6px"><summary class="note">檔案 ${w.files.length} 個</summary><ul style="margin:4px 0;padding-left:20px">${w.files.map(f=>`<li>${esc(f.n)}</li>`).join('')}</ul></details>`:''}</div>`}).join('');
  return `<section class="card" style="margin-bottom:12px"><div class="row"><input id="mq" data-ch="mq" value="${esc(mq)}" placeholder="搜尋題目或報告人" style="flex:1;min-width:200px">
   <select data-ch="mtf"><option value="">全部類型</option>${MT.map(([k,n])=>`<option value="${k}" ${mtf===k?'selected':''}>${n}</option>`).join('')}</select>
   <button class="btn s ${mfix?'p':''}" data-act="mfix">${mfix?'✓ 完成修正':'✏️ 修正分類／報告人'}</button></div>

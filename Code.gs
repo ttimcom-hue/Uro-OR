@@ -18,7 +18,7 @@ function cancerImport(text){const ss=SpreadsheetApp.openById(CANCER_ID);const sh
 function apiCancer(action,text){return JSON.stringify(action==='import'?cancerImport(text):cancerStatus())}
 // ===== 晨會（Google Drive「W2 科部晨會」資料夾）=====
 // 每週一個子資料夾（名稱 MMDD），主簡報 YYYYMMDD.pptx 的 OUTLINE 頁＝當週議程。
-// 只存議程標題與檔名（不讀各頁內文，避免存到病人姓名），存在「meeting」工作表，用同步鍵 meeting/drive 讀出給科務入口「晨會」分頁用。
+// 只存議程標題與檔名（不讀各頁內文，避免存到病人姓名；不存 Drive 連結，入口不提供進入 Drive 的連結），存在「meeting」工作表，用同步鍵 meeting/drive 讀出給科務入口「晨會」分頁用。
 // 需要 drive.readonly 權限（Updater.gs 的 GH_SCOPES）。每小時（ghAutoUpdate）與入口按「從 Drive 更新」時執行。
 const MTG_FOLDER='1NsEvZfchGMt49LbPkJztHz2t1Ewhg6mL';
 const MTG_SKIP=/履歷|甄審|申請|成績|病歷/;  // 這些檔名不列出
@@ -33,7 +33,7 @@ function meetingWrite_(o){const sh=mtgSheet_();sh.clearContents();
 // 一次最多跑 4.5 分鐘（Apps Script 上限 6 分鐘）；沒讀完的 1 分鐘後自動接著讀，讀過且沒改的簡報不會重讀
 function meetingScan(){const t0=Date.now();
   const old=meetingRead(),cache={},byFolder={};
-  old.weeks.forEach(w=>{if(w.mid)cache[w.mid+'|'+w.mt]=w;if(w.fu)byFolder[w.fu]=w});
+  old.weeks.forEach(w=>{if(w.mid)cache[w.mid+'|'+w.mt]=w;if(w.fk)byFolder[w.fk]=w});
   const folders=[];
   // 週資料夾＝MMDD（月 01–12）；年份資料夾（例如「2026」）往下找，並記下年份
   const walk=(f,depth,yr)=>{const it=f.getFolders();while(it.hasNext()){const c=it.next(),n=c.getName();
@@ -42,7 +42,7 @@ function meetingScan(){const t0=Date.now();
   walk(DriveApp.getFolderById(MTG_FOLDER),0,'');
   const weeks=[];let left=0,errs=0;
   folders.forEach(({c,yr})=>{
-    if(Date.now()-t0>270000){const o=byFolder[c.getUrl()];if(o)weeks.push(o);left++;return}
+    if(Date.now()-t0>270000){const o=byFolder[(yr||'')+'/'+c.getName()];if(o)weeks.push(o);left++;return}
     try{const w=mtgWeek_(c,cache,yr);if(w.err)errs++;weeks.push(w)}catch(e){errs++;console.log(c.getName(),e)}});
   weeks.sort((a,b)=>a.d<b.d?1:-1);
   const res={ts:Date.now(),left,weeks};meetingWrite_(res);
@@ -54,11 +54,11 @@ function mtgWeek_(f,cache,yr){const mmdd=f.getName();const files=[];let main=nul
   const re=new RegExp('^(20\\d\\d)'+mmdd+'(\\.pptx?)?$','i');
   const it=f.getFiles();while(it.hasNext()){const x=it.next(),n=x.getName();
     if(re.test(n)&&(!main||/\.pptx$/i.test(n)))main=x;
-    if(!MTG_SKIP.test(n))files.push({n,u:x.getUrl(),m:String(x.getMimeType()).split(/[./]/).pop()})}
+    if(!MTG_SKIP.test(n))files.push({n,m:String(x.getMimeType()).split(/[./]/).pop()})}
   let y;if(main)y=+main.getName().match(re)[1];else if(yr)y=+yr;else{const c=f.getDateCreated();y=c.getFullYear();
     const d=new Date(y,+mmdd.slice(0,2)-1,+mmdd.slice(2));if(d<new Date(c.getTime()-60*864e5))y++}
-  const w={d:y+'-'+mmdd.slice(0,2)+'-'+mmdd.slice(2),fu:f.getUrl(),files,outline:[]};
-  if(main){w.mid=main.getId();w.mt=main.getLastUpdated().getTime();w.mn=main.getName();w.mu=main.getUrl();
+  const w={d:y+'-'+mmdd.slice(0,2)+'-'+mmdd.slice(2),fk:(yr||'')+'/'+mmdd,files,outline:[]};
+  if(main){w.mid=main.getId();w.mt=main.getLastUpdated().getTime();w.mn=main.getName();
     const c=cache[w.mid+'|'+w.mt];
     if(c&&c.outline&&c.outline.length){w.outline=c.outline;w.how=c.how}
     else{try{const r=mtgOutline_(mtgBlob_(main));w.outline=r.items;w.how=r.how}catch(e){w.err=String(e).slice(0,120)}}}
