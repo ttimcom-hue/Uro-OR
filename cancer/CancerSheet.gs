@@ -546,8 +546,10 @@ function csParse_(sh) {
 
 function csSettings_(ss) {
   const sh = ss.getSheetByName(CS.HELP);
-  const v = sh ? sh.getRange('B1:B3').getValues().map(r => r[0]) : [];
+  const v = sh ? sh.getRange('B1:B4').getValues().map(r => r[0]) : [];
+  const dv = String(v[3] || '').trim();
   return {
+    driveId: (dv.match(/folders\/([\w-]{20,})/) || dv.match(/^([\w-]{25,})$/) || [])[1] || '',
     docUrl: /docs\.google\.com\/document/.test(String(v[0] || '')) ? String(v[0]) : '',
     docTab: v[0] !== undefined && /docs\.google/.test(String(v[0] || '')) && v[1] ? String(v[1]) : CS_DOC_TAB,
     autoAdd: v[2] === false ? false : true,
@@ -556,20 +558,23 @@ function csSettings_(ss) {
 
 function csHelp_(sh, st) {
   csReset_(sh);
-  st = st || { docUrl: '', docTab: CS_DOC_TAB, autoAdd: true };
-  sh.getRange('A1:B3').setValues([
+  st = st || { docUrl: '', docTab: CS_DOC_TAB, autoAdd: true, driveId: '' };
+  sh.getRange('A1:B4').setValues([
     ['交班單 Google 文件網址', st.docUrl],
     ['交班單裡的分頁名稱', st.docTab],
     ['刀表新個案自動加入追蹤', st.autoAdd],
+    ['討論會 Drive 資料夾', st.driveId ? 'https://drive.google.com/drive/folders/' + st.driveId : ''],
   ]);
   sh.getRange('B3').insertCheckboxes().setValue(st.autoAdd);
-  sh.getRange('A1:A3').setFontWeight('bold');
-  sh.getRange('B1:B3').setBackground('#FFF2CC');
+  sh.getRange('A1:A4').setFontWeight('bold');
+  sh.getRange('B1:B4').setBackground('#FFF2CC');
+  sh.getRange('C4').setValue('每小時讀這個資料夾裡新的「給放射科」名單與「癌症討論會」紀錄單，更新個案追蹤與達文西術前（只補空白欄位）').setFontColor('#888888');
   sh.getRange('C1').setValue('「注意事項」會自動寫進這份文件的這個分頁（整個分頁會被覆蓋，請用專用分頁）').setFontColor('#888888');
   const rows = [
     ['項目', '內容'],
     ['平常只看三頁', '① 下次討論會：上面是已排入這次的人，下面是還沒討論、可以挑的個案（⚠ 是最晚這次就要討論）。\n② 注意事項：已討論、還沒開刀的人，討論結論與會後待辦，會自動同步到交班單。\n③ 個案追蹤：唯一要手動填的地方。其他分頁都是自動產生，已隱藏（左下「所有工作表」可打開）。'],
     ['達文西術前', '個案追蹤裡預定達文西／機器手臂手術、還沒開的病人會自動列進來（依手術日排序，開完的移到下面並變灰）。灰底 A–H 欄自動更新；白底欄位（PSA、切片、MRI、體積、ADT、過去手術、IIEF-5、備註）請手動補，第一次列入時會從診斷欄自動帶入能讀到的值。完成度只算 RARP。切片到手術不足 6 週會標紅。'],
+    ['從 Drive 自動更新', '每小時（或入口按「從 Drive 更新」）讀 B4 資料夾裡新增或修改過的 docx：「給放射科」名單（姓名、病歷號、計畫手術與日期、主治、報告醫師、Discussion）與「癌症討論會紀錄單」（PSA、切片、MRI、體積、bone scan、risk、預定手術）。新病人加入個案追蹤；已在表上的只補空白欄位、更新討論會日期與狀態（待討論→已排入／已討論-待手術），不覆蓋已填的內容。'],
     ['統計', '依「個案追蹤」自動計算：已討論人數、場數、每月依癌別、依主治／報告醫師、討論後結果、手術前沒上討論會的個案。B2、D2 可設定期間。癌別依預定手術／診斷的關鍵字自動判斷。'],
     ['一個個案的流程', '刀表匯入後自動加入（狀態＝待討論）→ 排進討論會：填 F 討論會日期，狀態改「已排入」→ 討論完：填 K 討論結論、O 會後待辦（P 負責人、Q 期限），狀態改「已討論-待手術」→ 開完刀：狀態改「已開刀」、填 L 病理。不用討論的改「不需手術」。'],
     ['最晚討論日', '手術日前一個週四（自動計算）。'],
@@ -577,11 +582,11 @@ function csHelp_(sh, st) {
     ['同步到交班單', '編輯「個案追蹤」後幾秒內、以及每小時，會把「注意事項」寫進上面設定的交班單分頁。交班單那一頁不要手動改，會被覆蓋。'],
     ['公式從哪裡來', '所有公式與格式由 GitHub repo ttimcom-hue/Uro-OR 的 cancer/CancerSheet.gs 產生，會自動更新。'],
   ];
-  sh.getRange(5, 1, rows.length, 2).setValues(rows);
-  csHeader_(sh.getRange(5, 1, 1, 2));
-  sh.getRange(6, 1, rows.length - 1, 1).setFontWeight('bold');
-  sh.getRange(6, 2, rows.length - 1, 1).setWrap(true).setVerticalAlignment('top');
-  sh.getRange(6, 1, rows.length - 1, 1).setVerticalAlignment('top');
+  sh.getRange(6, 1, rows.length, 2).setValues(rows);
+  csHeader_(sh.getRange(6, 1, 1, 2));
+  sh.getRange(7, 1, rows.length - 1, 1).setFontWeight('bold');
+  sh.getRange(7, 2, rows.length - 1, 1).setWrap(true).setVerticalAlignment('top');
+  sh.getRange(7, 1, rows.length - 1, 1).setVerticalAlignment('top');
   csWidths_(sh, [180, 640]);
 }
 
@@ -700,4 +705,238 @@ function csSyncDoc_(ss, st) {
   try { const p0 = body.getChild(0); if (p0.getType() === DocumentApp.ElementType.PARAGRAPH && !p0.asParagraph().getText()) p0.removeFromParent(); } catch (e) { /* 只剩一段時不能刪 */ }
   props.setProperty('csDocSig', sig);
   return '已同步 ' + rows.length + ' 位到交班單';
+}
+
+// ---------- 從 Drive 讀討論會檔案 ----------
+// 讀 說明!B4 資料夾（含子資料夾）裡近 CS_DRIVE_DAYS 天新增／修改的 docx：
+//   「…給放射科.docx」：Combined Conference 名單表格（姓名病歷號年齡｜病史｜影像＋Plan｜主治＋報告醫師；下一列 Discussion）
+//   「…癌症討論會….docx」：泌尿生殖癌團隊會議個案討論紀錄單（開會日期、主治、姓名、病歷號、Investigation 表、@Surgery）
+// 已讀過且沒改過的檔案記在指令碼屬性 ccDriveSeen。寫入規則：新病人加一列；舊病人只補空白欄位。
+const CS_DRIVE_DAYS = 45;
+const CS_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+function cancerDriveScan() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return '忙碌中，稍後再試';
+  try {
+    const ss = SpreadsheetApp.openById(CANCER_ID);
+    const st = csSettings_(ss);
+    if (!st.driveId) return '未設定討論會 Drive 資料夾（說明!B4）';
+    const props = PropertiesService.getScriptProperties();
+    const seen = JSON.parse(props.getProperty('ccDriveSeen') || '{}');
+    const since = Utilities.formatDate(new Date(Date.now() - CS_DRIVE_DAYS * 864e5), 'UTC', "yyyy-MM-dd'T'HH:mm:ss");
+    const it = DriveApp.searchFiles(`modifiedDate > '${since}' and mimeType = '${CS_DOCX}' and (title contains '放射科' or title contains '癌症討論會' or title contains '紀錄')`);
+    const files = [];
+    while (it.hasNext()) {
+      const f = it.next(), m = f.getLastUpdated().getTime();
+      if (seen[f.getId()] === m || !csInFolder_(f, st.driveId)) continue;
+      files.push(f);
+    }
+    const pts = [];
+    files.forEach(f => {
+      try { pts.push(...csParseMeeting_(csDocx_(f.getBlob()), f)); } catch (e) { console.log('讀不到 ' + f.getName(), e); }
+      seen[f.getId()] = f.getLastUpdated().getTime();
+    });
+    let msg = '讀了 ' + files.length + ' 個新檔案';
+    if (pts.length) {
+      const r = csApplyMeeting_(ss, pts);
+      SpreadsheetApp.flush();
+      csSyncDv_(ss);
+      const dv = csDvFill_(ss, pts);
+      msg += `：新增 ${r.add} 位、更新 ${r.upd} 位` + (dv ? `、達文西術前補 ${dv} 格` : '');
+    }
+    const keep = Object.entries(seen).sort((a, b) => b[1] - a[1]).slice(0, 300);
+    props.setProperty('ccDriveSeen', JSON.stringify(Object.fromEntries(keep)));
+    console.log(msg);
+    return msg;
+  } finally { lock.releaseLock(); }
+}
+
+function csInFolder_(f, root) {
+  let lvl = [f];
+  for (let d = 0; d < 6 && lvl.length; d++) {
+    const nx = [];
+    for (const x of lvl) {
+      const it = x.getParents();
+      while (it.hasNext()) { const p = it.next(); if (p.getId() === root) return true; nx.push(p); }
+    }
+    lvl = nx;
+  }
+  return false;
+}
+
+// docx → [{p:段落}|{row:[儲存格文字]}]
+function csDocx_(blob) {
+  const part = Utilities.unzip(blob.setContentType('application/zip')).find(b => b.getName() === 'word/document.xml');
+  if (!part) return [];
+  const x = part.getDataAsString('UTF-8')
+    .replace(/<w:tbl(?:\s[^>]*)?>/g, '\n').replace(/<\/w:tbl>/g, '\n')
+    .replace(/<w:(?:tab|br|cr)\/>/g, ' ').replace(/<\/w:p>/g, '¶').replace(/<\/w:tc>/g, '\t').replace(/<\/w:tr>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+  const items = [];
+  x.split('\n').forEach(line => {
+    if (line.includes('\t')) {
+      const cells = line.split('\t'); cells.pop();
+      items.push({ row: cells.map(c => c.replace(/¶/g, ' ').replace(/\s+/g, ' ').trim()) });
+    } else line.split('¶').forEach(t => { t = t.replace(/\s+/g, ' ').trim(); if (t) items.push({ p: t }); });
+  });
+  return items;
+}
+
+function csYmd_(y, m, d) { y = +y; return y > 2000 ? new Date(y, +m - 1, +d) : null; }
+function csMeetDate_(text, f) {
+  let m = text.match(/(20\d\d)[-\/](\d{1,2})[-\/](\d{1,2})\s*0?7[:：]\d\d/) || text.match(/開會日期[:：]\s*(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if (m) return csYmd_(m[1], m[2], m[3]);
+  m = f.getName().match(/(20\d\d)(\d\d)(\d\d)/);
+  if (m) return csYmd_(m[1], m[2], m[3]);
+  const ps = f.getParents();
+  if (ps.hasNext()) {
+    const n = ps.next().getName().match(/^(\d\d)(\d\d)$/);
+    if (n) { const y = new Date().getFullYear(); let d = new Date(y, +n[1] - 1, +n[2]); if (d - new Date() > 200 * 864e5) d = new Date(y - 1, +n[1] - 1, +n[2]); return d; }
+  }
+  return null;
+}
+function csPlanOp_(plan) {
+  const m = plan.match(/(20\d\d)\/(\d{1,2})\/(\d{1,2})/);
+  return {
+    date: m ? csYmd_(m[1], m[2], m[3]) : '',
+    op: plan.replace(/(20\d\d)\/\d{1,2}\/\d{1,2}/, '').replace(/\b0?8:?30\b/, '08:30').replace(/\b12:?00\b/, '12:00').replace(/\s+/g, ' ').trim(),
+  };
+}
+const csFirst_ = (s, re) => ((String(s || '').match(re) || [])[1] || '').trim();
+
+function csParseMeeting_(items, f) {
+  const text = items.map(i => i.p || i.row.join(' | ')).join('\n');
+  const date = csMeetDate_(text, f), src = f.getName().replace(/\.docx$/i, '');
+  const out = [];
+  if (/討論紀錄單/.test(text)) {
+    text.split(/泌尿生殖癌團隊會議個案討論紀錄單/).slice(1).forEach(b => {
+      const mrn = csFirst_(b, /病歷號碼[:：]\s*(\d{8})/);
+      if (!mrn) return;
+      const bd = b.match(/開會日期[:：]\s*(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+      const p = { date: (bd && csYmd_(bd[1], bd[2], bd[3])) || date, mrn, src,
+        name: csFirst_(b, /姓名[:：]\s*([^\s|]+)/), vs: csFirst_(b, /主治醫師[:：]\s*([^|\n]+)/).replace(/(醫師|主任|部長)/g, '').replace(/\s+/g, ''),
+        rep: '', disc: '', opDate: '', op: '', dv: {} };
+      const pmh = csFirst_(b, /Past medical history[:：]\s*([^\n]+)/), cf = csFirst_(b, /Clinical findings[:：]\s*([^\n]+)/);
+      let mri = '', risk = '', bone = '', tx = '';
+      b.split('\n').filter(l => l.includes(' | ')).forEach(l => {
+        const c = l.split(' | ').map(x => x.trim()), k = (c[0] || '').toLowerCase(), dt = c[1] || '', res = c.slice(2).join(' ');
+        if (/^psa/.test(k)) { const v = csFirst_(res, /PSA[:：]?\s*([\d.]+)/i); const fp = csFirst_(res, /\(([\d.]+\s*%)\)/); if (v) p.dv.psa = v + (dt ? `（${dt}）` : '') + (fp ? `，fPSA ${fp}` : ''); }
+        else if (/biopsy/.test(k)) {
+          const gs = res.match(/(\d)\s*\+\s*(\d)\s*=\s*\d+/);
+          let pos = 0, tot = 0; (res.match(/\b(\d{1,2})\/(\d{1,2})\b/g) || []).forEach(x => { const [a, z] = x.split('/'); pos += +a; tot += +z; });
+          const vol = csFirst_(res, /([\d.]+)\s*cc/i);
+          if (gs) p.dv.gs = `GS ${gs[1]}+${gs[2]}` + (tot ? `，${pos}/${tot} cores` : '');
+          if (dt) p.dv.bx = dt.replace(/-/g, '/');
+          if (vol) p.dv.vol = vol + '（切片時 TRUS）';
+        }
+        else if (/mri/.test(k)) mri = `${dt.replace(/-/g, '/')}：${res}`.slice(0, 200);
+        else if (/trus|echo/.test(k) && !p.dv.vol) { const vol = csFirst_(res, /([\d.]+)\s*cc/i); if (vol) p.dv.vol = vol + '（TRUS）'; }
+        else if (/bone scan/.test(k)) bone = /no |negative|low probability/i.test(res) ? 'bone scan(-)' : 'bone scan 見報告';
+        else if (/risk group/.test(k)) risk = c[1] || '';
+        else if (/@\s*surgery/.test(k)) { const m = dt.match(/(20\d\d)[-\/](\d{1,2})[-\/](\d{1,2})/); p.opDate = m ? csYmd_(m[1], m[2], m[3]) : ''; p.op = res; }
+        else if (/^treatment/.test(k)) tx = c[1] || '';
+      });
+      if (mri) p.dv.mri = mri;
+      if (/TURP|TUEP|HIFU|hernia|TURBT/i.test(pmh)) p.dv.hx = pmh;
+      p.dv.note = [risk && risk + ' risk', bone, pmh && 'PMH：' + pmh].filter(Boolean).join('；');
+      p.diag = [cf, csFirst_(mri, /(y?c?T[1-4x][a-c]?\s*N[0-9x])/i), p.dv.gs].filter(Boolean).join('，').slice(0, 250);
+      if (tx) p.disc = tx;
+      out.push(p);
+    });
+    return out;
+  }
+  const rows = items.filter(i => i.row).map(i => i.row);
+  rows.forEach((r, k) => {
+    const m = (r[0] || '').match(/^(.{2,6}?)\s*(\d{8})\s*(\d{1,3})\s*y\/o\s*([MF])/i);
+    if (!m) return;
+    const hist = r[1] || '', img = r[2] || '', vc = r[3] || '';
+    const plan = csFirst_(img, /Plan[:：]\s*(.+)$/i), io = img.replace(/Plan[:：].*$/i, '').trim();
+    const po = csPlanOp_(plan);
+    const nx = rows[k + 1] || [];
+    const disc = /^Discussion/i.test(nx[0] || '') ? nx.join(' ').replace(/^Discussion[:：]?\s*/i, '').trim() : '';
+    const cT = csFirst_(io, /(y?c?T[1-4x][a-c]?\s*N[0-9x])/i);
+    const gs = csFirst_(hist, /Gleason score\s*[=:：]?\s*(\d\s*\+\s*\d)/i).replace(/\s/g, '');
+    const psa = csFirst_(hist + ' ' + io, /PSA[^0-9]{0,15}([\d.]+)\s*ng/i);
+    const mri = (io.match(/(20\d\d\/\d\d\/\d\d)\s*Prostate MRI(.*?)(?=20\d\d\/\d\d\/\d\d|$)/i) || []);
+    out.push({
+      date, mrn: m[2], name: m[1].trim(), src, disc,
+      vs: csFirst_(vc, /^(.+?)(部長|主任|醫師)/), rep: csFirst_(vc, /報告醫師\s*(.+?)醫師/),
+      opDate: po.date, op: po.op,
+      diag: [hist, cT].filter(Boolean).join('，').slice(0, 250),
+      dv: {
+        psa, gs: gs ? 'GS ' + gs : '', mri: mri[0] ? `${mri[1]}：${mri[2].trim()}`.slice(0, 200) : '',
+        vol: csFirst_(io, /size[:：]?\s*([\d.]+)\s*(?:ml|cc)/i), adt: /ADT/i.test(hist) ? '有（' + csFirst_(hist, /((?:s\/p\s*)?(?:neoadjuvant|neo-)?\s*ADT[^,，;；]*)/i) + '，藥物／日期待補）' : '',
+        hx: (hist.match(/s\/p\s*(TURP|TUEP|TUIP|HIFU|TURBT|RARC)[^,，;；]*/gi) || []).join('；'),
+      },
+    });
+  });
+  return out;
+}
+
+// 寫進個案追蹤：新病人加一列；舊病人只補空白、更新討論會日期與狀態
+function csApplyMeeting_(ss, pts) {
+  const trk = ss.getSheetByName(CS.TRK), n = trk.getLastRow();
+  const v = n > 1 ? trk.getRange(2, 1, n - 1, 17).getValues() : [];
+  const idx = new Map();
+  v.forEach((r, i) => { const k = String(r[2]).trim().replace(/^'/, ''); if (k) idx.set(k, i); });
+  let last = 1;
+  v.forEach((r, i) => { if (String(r[1]).trim() || String(r[2]).trim()) last = i + 2; });
+  const today = csToday_(), md = d => Utilities.formatDate(d, 'Asia/Taipei', 'M/d');
+  let add = 0, upd = 0;
+  pts.sort((a, b) => (a.date || 0) - (b.date || 0)).forEach(p => {
+    const i = idx.get(p.mrn);
+    if (i === undefined) {
+      const st = p.date && p.date > today ? '已排入' : (p.opDate && p.opDate < today ? '待確認' : '已討論-待手術');
+      const r0 = ++last;
+      trk.getRange(r0, 1, 1, 6).setValues([[st, p.name, "'" + p.mrn, p.opDate || '', p.op || '', p.date || '']]);
+      trk.getRange(r0, 7, 1, 2).setFormulas([[csTrackerG_(r0), csTrackerH_(r0)]]);
+      trk.getRange(r0, 9, 1, 6).setValues([[p.vs || '', p.diag || '', p.disc || '', '', p.rep || '', 'Drive 匯入：' + p.src]]);
+      const row = new Array(17).fill(''); row[0] = st; row[2] = p.mrn; row[3] = p.opDate; row[5] = p.date;
+      v.push(row); idx.set(p.mrn, v.length - 1); add++;
+      return;
+    }
+    const r = v[i], row = i + 2, set = (c, val) => { if (val === '' || val == null) return; r[c - 1] = val; trk.getRange(row, c).setValue(val); ch = true; };
+    let ch = false;
+    const blank = c => String(r[c - 1] instanceof Date ? 'd' : r[c - 1] || '').trim() === '';
+    if (p.date) {
+      if (blank(6)) set(6, p.date);
+      else if (r[5] instanceof Date && p.date > r[5]) { set(6, p.date); set(14, String(r[13] || '') + '；' + md(p.date) + ' 再討論'); }
+      const st = String(r[0]);
+      if (st === '待討論' || (st === '已排入' && p.date <= today)) set(1, p.date > today ? '已排入' : '已討論-待手術');
+    }
+    if (blank(4) && p.opDate) set(4, p.opDate);
+    if (blank(5) && p.op) set(5, p.op);
+    if (blank(9) && p.vs) set(9, p.vs);
+    if ((blank(10) || /資料待補/.test(String(r[9]))) && p.diag) set(10, p.diag);
+    if (blank(11) && p.disc) set(11, p.disc);
+    if (blank(13) && p.rep) set(13, p.rep);
+    if (ch) upd++;
+  });
+  return { add, upd };
+}
+
+// 「達文西術前」只補空白欄位（或把自動帶入的簡短版換成檔案裡較完整的）；回傳補了幾格
+function csDvFill_(ss, pts) {
+  const sh = ss.getSheetByName(CS.DV);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, CS_DV_N).getValues();
+  const idx = new Map(v.map((r, i) => [String(r[3]).trim().replace(/^'/, ''), i]));
+  const col = { psa: 9, gs: 10, bx: 11, mri: 13, vol: 14, adt: 15, hx: 16, note: 18 };
+  let n = 0;
+  pts.forEach(p => {
+    const i = idx.get(p.mrn);
+    if (i === undefined || !p.dv) return;
+    Object.entries(col).forEach(([k, c]) => {
+      const val = p.dv[k];
+      if (!val) return;
+      const cur = String(v[i][c - 1] instanceof Date ? 'd' : v[i][c - 1] || '').trim();
+      // 空白、或只是自動帶入的簡短版（新內容完整包含舊內容）才寫；手動填的不覆蓋
+      if (cur && !(k === 'note' && cur === '自動帶入（請核對）') && !(String(val).length > cur.length && String(val).includes(cur))) return;
+      const w = k === 'bx' ? (csYmd_(...(String(val).split('/'))) || val) : val;
+      sh.getRange(i + 2, c).setValue(w); v[i][c - 1] = w; n++;
+    });
+  });
+  return n;
 }
