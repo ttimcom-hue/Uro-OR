@@ -192,7 +192,7 @@ function mrow(x,dates){return `<tr${x.dup?' title="簡報議程已有同類型�
 function meeting(){if(S.err==='nosync')return setupCard();
  const md0=S.md&&S.md.ts?new Date(S.md.ts):null;
  const head=`<section><div class="row" style="justify-content:space-between"><div class="seg">${[['plan','📅 規劃'],['log','📚 紀錄'],['notice','📢 科內公告'],['stat','📊 統計']].map(([k,v])=>`<button class="${mv===k?'on':''}" data-act="mv" data-v="${k}">${v}</button>`).join('')}</div>
-  <div class="row"><span class="note" id="mscanmsg">${md0?`Drive 議程更新於 ${md0.getMonth()+1}/${md0.getDate()} ${String(md0.getHours()).padStart(2,'0')}:${String(md0.getMinutes()).padStart(2,'0')}`:'尚未讀取 Drive 議程'}</span><button class="btn s" data-act="mscan">🔄 從 Drive 更新</button><a class="btn s" style="text-decoration:none" href="https://drive.google.com/drive/folders/1NsEvZfchGMt49LbPkJztHz2t1Ewhg6mL" target="_blank" rel="noopener">📁 Drive 資料夾 ↗</a></div></div></section>`;
+  <div class="row"><span class="note" id="mscanmsg">${md0?`Drive 議程更新於 ${md0.getMonth()+1}/${md0.getDate()} ${String(md0.getHours()).padStart(2,'0')}:${String(md0.getMinutes()).padStart(2,'0')}（${S.md.weeks.length} 週${S.md.left?`，還有 ${S.md.left} 週讀取中，稍後重新整理`:''}${S.md.weeks.some(w=>w.err)?`，${S.md.weeks.filter(w=>w.err).length} 週簡報讀不到`:''}）`:'尚未讀取 Drive 議程，請按「🔄 從 Drive 更新」'}</span><button class="btn s" data-act="mscan">🔄 從 Drive 更新</button><a class="btn s" style="text-decoration:none" href="https://drive.google.com/drive/folders/1NsEvZfchGMt49LbPkJztHz2t1Ewhg6mL" target="_blank" rel="noopener">📁 Drive 資料夾 ↗</a></div></div></section>`;
  return head+mdl()+(mv==='log'?mLog():mv==='notice'?mNotice():mv==='stat'?mStat():mPlan())+`<p class="note">議程從每週主簡報（YYYYMMDD.pptx）的 OUTLINE 頁自動讀取，只存標題與檔名。請勿在這裡填病人姓名、病歷號。</p>`}
 
 function mPlan(){const M=MP(),W=mWeeks(),dates=mtgDates(8),all=mItems();
@@ -259,7 +259,7 @@ function mStat(){const from=mrange==='6m'?addD(today,-183):mrange==='y'?today.sl
  ${R.length?`<div style="overflow-x:auto"><table><thead><tr><th>報告人</th>${cols.map(t=>`<th>${MTN[t]}</th>`).join('')}<th>合計</th><th>最近一次</th></tr></thead><tbody>${R.map(r=>`<tr><td><b>${esc(r.n)}</b> <span class="note">${esc(role(r.n))}</span></td>${cols.map(t=>`<td>${r.c[t]||''}</td>`).join('')}<td><b>${r.tot}</b></td><td class="t">${md(r.last)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="note">這段期間沒有資料。</p>'}</section>`}
 
 async function savePlan(mut){saving++;try{const fresh=(await get('meeting/plan'))||S.mp||{};S.mp=fresh;const M=MP();mut(M);M.ts=Date.now();await set('meeting/plan',M)}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
-async function mScan(){const m=$('#mscanmsg');if(m)m.textContent='讀取 Drive 中…（第一次可能要 1 分鐘）';
+async function mScan(){const m=$('#mscanmsg');if(m)m.textContent='讀取 Drive 中…（第一次最多要 5 分鐘，請勿關閉）';
  try{const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=meetingScan&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');S.md=j.value;render()}
  catch(e){const m=$('#mscanmsg');if(m)m.textContent='讀不到 Drive：'+(/drive|DriveApp|權限|permission/i.test(String(e))?'Apps Script 需要重新授權 Drive 權限（見開發說明）':String(e.message||e)).slice(0,80)}}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!/^m(v|scan|add|del|pin|nadd|fix|range)$/.test(b.dataset.act))return;e.stopPropagation();const k=b.dataset.act;
