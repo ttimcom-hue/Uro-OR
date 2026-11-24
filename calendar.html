@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="科內行事曆"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="calendar.webmanifest"><link rel="apple-touch-icon" href="hub-apple-touch-icon.png?v=2"><link rel="icon" type="image/png" href="hub-favicon.png?v=2"><meta name="theme-color" content="#4b3b8f"><meta property="og:title" content="泌尿科 科內行事曆"><meta property="og:description" content="晨會、癌症討論會、Seminar、學會與科內活動・每個人是否參加"><meta property="og:image" content="og-hub.png?v=2"><meta property="og:type" content="website">
+<title>泌尿科 科內行事曆</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f5f5f9,#0f0e16);--card:light-dark(#fff,#1a1824);--ink:light-dark(#1b1830,#e7e5f2);--mut:light-dark(#625d7a,#9c97b4);--line:light-dark(#dcdae6,#2e2b3d);--scrub:light-dark(#4b3b8f,#5a49a8);--soft:light-dark(#ecebf5,#252237);--red:#e5484d;--redbg:light-dark(#fdecec,#3a1a1c);--amb:#c77d00;--ambbg:light-dark(#fff4dc,#3a2c10);--ok:#1f8a5b;--okbg:light-dark(#e3f5ec,#13321f)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC",system-ui,sans-serif}
+.t{font-family:Figtree,"Noto Sans TC",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+header{background:var(--scrub);color:#fff;padding:18px max(4vw,14px) 0}
+.hrow{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:flex-end;justify-content:space-between;max-width:1200px;margin:auto}
+h1{font:800 clamp(24px,3.4vw,34px)/1.1 Figtree,"Noto Sans TC",sans-serif;margin:0}
+.sub{opacity:.85;font-size:14px}
+.tabs{display:flex;gap:4px;max-width:1200px;margin:14px auto 0;overflow-x:auto}
+.tabs a{color:#fff;text-decoration:none;border-radius:10px 10px 0 0;padding:11px 18px;opacity:.8;flex:none;min-height:44px}
+.tabs a[aria-current=page]{background:var(--bg);color:var(--ink);opacity:1;font-weight:700}
+.tabs .sep{flex:none;width:1px;background:rgba(255,255,255,.3);margin:10px 6px}
+.tabs a.ext{font-size:14px}
+.hbtn{color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:3px 12px;font:inherit;font-size:13px;text-decoration:none;white-space:nowrap;cursor:pointer}
+.hbtn.on{background:#fff;color:var(--scrub)}
+.hside{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hside select{min-height:30px;padding:2px 6px;font-size:13px;border-radius:99px;background:rgba(255,255,255,.95);color:#1b1830}
+main{max-width:1200px;margin:auto;padding:16px max(3vw,10px) 60px}
+section{margin-bottom:18px}
+h2{font:700 19px/1.3 "Noto Sans TC",sans-serif;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--mut);font-size:13px}
+h3{font-size:15px;margin:14px 0 6px;color:var(--mut);font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.note{color:var(--mut);font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.btn.p{background:var(--scrub);color:#fff;border-color:var(--scrub)}.btn.s{min-height:32px;padding:4px 10px;font-size:13.5px}.btn.d{color:var(--red)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:38px}
+table{width:100%;border-collapse:collapse}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{font-size:13px;color:var(--mut);font-weight:500}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12.5px;background:var(--soft);white-space:nowrap}
+.chip.g{background:var(--okbg);color:var(--ok)}.chip.r{background:var(--redbg);color:var(--red)}.chip.a{background:var(--ambbg);color:var(--amb)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}.seg button{border:0;background:none;color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}.seg button.on{background:var(--scrub);color:#fff}
+/* 工具列 */
+.bar{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.bar .ttl{font:800 22px/1.2 Figtree,"Noto Sans TC",sans-serif;margin:0 4px;white-space:nowrap}
+.cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.cat{--c:#888;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:3px 10px 3px 8px;font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.cat::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--c)}
+.cat.off{opacity:.45}.cat.off::before{background:transparent;border:1.5px solid var(--c)}
+/* 月曆 */
+.mgrid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--line);gap:1px}
+.mgrid .dh{background:var(--soft);text-align:center;font-size:13px;color:var(--mut);padding:4px 0}
+.mc{background:var(--card);min-height:104px;padding:3px 3px 5px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.mc.out{background:light-dark(#fafafc,#14131c)}.mc.out .dn{opacity:.4}
+.mc.sel{outline:2px solid var(--scrub);outline-offset:-2px}
+.dn{font:700 13px Figtree,sans-serif;padding:1px 4px;align-self:flex-start;border-radius:99px}
+.mc.td .dn{background:var(--scrub);color:#fff}
+.mc .we{color:var(--red)}
+.pill{--c:#888;display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 14%,var(--card));color:var(--ink);border-radius:4px;padding:1px 4px;font:inherit;font-size:12px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.pill .tm{font-family:Figtree,sans-serif;color:var(--mut);margin-right:3px}
+.pill.ml{border-radius:0;margin:0 -3px}
+.more{font-size:11.5px;color:var(--mut);padding-left:4px}
+/* 事件列 */
+.ev{--c:#888;display:flex;gap:10px;padding:10px 12px;border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;background:var(--card);margin-bottom:8px;cursor:pointer;align-items:flex-start}
+.ev:hover{border-color:var(--c)}
+.ev .tm{flex:none;width:86px;font:600 14px Figtree,sans-serif;color:var(--mut)}
+.ev .bd{flex:1}.ev b{font-size:15.5px}
+.ev .meta{font-size:13px;color:var(--mut)}
+.ev .side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.dayh{font-weight:700;margin:16px 2px 6px;display:flex;gap:8px;align-items:baseline}.dayh .note{font-weight:400}
+.dayh.td{color:var(--scrub)}
+.cnt{display:inline-flex;gap:6px;font-size:12.5px;white-space:nowrap}
+.cnt span{padding:0 6px;border-radius:99px;background:var(--soft)}
+.cnt .y{background:var(--okbg);color:var(--ok)}.cnt .n{background:var(--redbg);color:var(--red)}.cnt .m,.cnt .L{background:var(--ambbg);color:var(--amb)}
+/* 參加按鈕 */
+.rs{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--card);flex:none}
+.rs button{border:0;background:none;color:var(--mut);font:inherit;font-size:13px;padding:3px 10px;cursor:pointer;min-height:30px;white-space:nowrap}
+.rs button+button{border-left:1px solid var(--line)}
+.rs button.on.y{background:var(--ok);color:#fff}.rs button.on.n{background:var(--red);color:#fff}.rs button.on.m{background:var(--amb);color:#fff}
+.rs[aria-disabled=true] button{cursor:default}
+/* 週 */
+.wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.wcol{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;min-height:160px}
+.wcol.td{border-color:var(--scrub);box-shadow:inset 0 3px 0 var(--scrub)}
+.wcol h4{margin:0 0 6px;font-size:14px;display:flex;justify-content:space-between}
+.wcol .ev{display:block;padding:6px 8px;margin-bottom:6px}.wcol .ev .tm{width:auto;font-size:12.5px}.wcol .ev b{font-size:14px}
+/* 出席表 */
+.att{overflow:auto;max-height:75vh;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.att table{border-collapse:separate;border-spacing:0;width:max-content}
+.att th,.att td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:center;font-size:13px}
+.att thead th{position:sticky;top:0;background:var(--card);z-index:2;vertical-align:bottom;padding:8px 4px;color:var(--ink);min-width:48px;max-width:64px;line-height:1.25;font-size:12.5px}
+.att thead th small{display:block;color:var(--mut);font-weight:400}
+.att thead th.ev0{text-align:left;left:0;z-index:3;color:var(--mut);max-width:none}
+.att td.ev0{position:sticky;left:0;background:var(--card);text-align:left;z-index:1;min-width:180px;max-width:240px;border-right:1px solid var(--line);cursor:pointer}
+.att td.ev0 b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.att .grp{border-left:2px solid var(--line)}
+.st{display:inline-block;width:24px;height:24px;line-height:24px;border-radius:6px;font-weight:700;font-size:13px}
+.st.y{background:var(--okbg);color:var(--ok)}.st.n{background:var(--redbg);color:var(--red)}.st.m,.st.L{background:var(--ambbg);color:var(--amb)}.st.x{color:var(--line)}
+td.cl{cursor:pointer}td.cl:hover .st{outline:2px solid var(--scrub)}
+/* 對話框 */
+.imodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9999;padding:12px}
+.ibox{background:var(--card);color:var(--ink);border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:16px 18px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.ibox h2{margin-top:0}
+.ibox label{display:block;margin:6px 0;font-size:13.5px;color:var(--mut)}.ibox label>input,.ibox label>select,.ibox label>textarea{display:block;margin-top:2px;width:100%}
+.ibox .row label{flex:1}
+.ihead{display:flex;gap:12px;align-items:center;margin-bottom:8px}.ihead img{border-radius:11px}.ibox ol{padding-left:22px;margin:8px 0}.ik{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-weight:700}.inote{color:var(--mut);font-size:13px;margin:4px 0}.ishare{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.ishare input{width:100%;font-size:13px;margin:4px 0}.ibtn{border:1px solid var(--line);background:var(--card);color:inherit;border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;margin:4px 6px 0 0;cursor:pointer}.ibtn.p{background:#4b3b8f;color:#fff;border-color:#4b3b8f}
+.dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 14px}.dl dt{color:var(--mut)}.dl dd{margin:0}
+.plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 12px}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.prow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick{display:flex;flex-wrap:wrap;gap:4px 12px;max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px}
+.pick label{display:flex!important;gap:4px;align-items:center;margin:0!important;color:var(--ink)!important}
+.pick input{width:auto!important;min-height:0}
+.foot{margin-top:20px}
+@media (max-width:760px){
+ .mc{min-height:64px;padding:2px 1px 3px}.pill{font-size:10.5px;padding:0 2px;border-left-width:2px}.pill .tm{display:none}.dn{font-size:12px}
+ .wgrid{grid-template-columns:1fr}.wcol{min-height:0}
+ .ev .tm{width:64px;font-size:13px}.ev{flex-wrap:wrap}.ev .side{flex-direction:row;width:100%;justify-content:space-between;align-items:center}
+ .bar .ttl{font-size:19px}
+ table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}table.stack td{border:0;padding:0}table.stack td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--mut)}
+}
+@media(min-width:700px){.imodal{align-items:center}}
+@media print{header,.bar .seg,.cats,.foot,.hside{display:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<header><div class="hrow"><div><h1>📆 泌尿科 科內行事曆</h1><div class="sub" id="sub"></div></div><div class="hside"><span class="sub" id="sync"></span><span class="hside" id="tools"></span></div></div>
+<nav class="tabs" id="tabs"></nav></header>
+<main id="app"><p class="note">載入中…</p></main>
+<script>
+{
+/* 泌尿科科內行事曆（calendar.html）。與刀房調度板、科務入口、晨會共用同一個 Apps Script 同步網址。
+   讀：common/people（人員名冊）、config/main（休假 → 自動標「休假」）、meeting/plan（晨會網站的「重要會議」與晨會議程項目）、meeting/drive（晨會議程標題）
+   讀寫：calendar/events {ts,
+     events:[{id,title,cat,date,end,time,tend,place,note,aud,ppl:[人員id],ts,del}]     單次活動
+     rules:[{id,title,cat,freq,dow,from,until,time,tend,place,note,aud,ppl,on,ts,del}]  例行（freq：w 每週／2w 隔週／m1–m4 每月第幾個／ml 每月最後一個）
+     skip:{'規則id@日期':1}                     例行的某一次取消
+     att:{'場次鍵':{人員id:'y'|'n'|'m'}}       出席：y 參加／n 不參加／m 未定（休假由調度板自動判斷，不存）
+     mcat:{晨會會議id:分類}, hideM:{晨會會議id:1}}  晨會網站匯入的會議：改分類／不顯示
+   場次鍵＝來源:id@日期（e＝單次、r＝例行、m＝晨會網站的重要會議），超過 180 天前的出席紀錄存檔時自動刪掉（試算表單格 5 萬字上限）。
+   只放會議名稱、時間、地點與出席，不放病人資料。 */
+const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec';
+const KEY='calendar/events';
+const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){return null}},set(k,v){try{localStorage.setItem('or:'+k,JSON.stringify(v))}catch(e){}}};
+let gs=LS.get('gsync');if(!gs||!gs.url)gs={url:SYNC_URL,token:'',on:true};
+const on=()=>gs.on&&gs.url;
+const q_=k=>gs.url+(gs.url.includes('?')?'&':'?')+k+'&token='+encodeURIComponent(gs.token||'');
+async function get(key){const r=await fetch(q_('key='+encodeURIComponent(key)));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
+async function getMany(keys){try{const r=await fetch(q_('keys='+encodeURIComponent(keys.join(','))));const j=await r.json();if(j.ok&&j.value&&typeof j.value==='object'&&!Array.isArray(j.value))return keys.map(k=>({status:'fulfilled',value:j.value[k]??null}))}catch(e){}return Promise.allSettled(keys.map(get))}
+async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token||'',key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addD=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return iso(d)};
+const addM=(s,n)=>{const d=new Date(s.slice(0,7)+'-01T00:00:00');d.setMonth(d.getMonth()+n);return iso(d)};
+const dow=s=>new Date(s+'T00:00:00').getDay();
+const DOW='日一二三四五六';
+const md=s=>s?`${+s.slice(5,7)}/${+s.slice(8)}（${DOW[dow(s)]}）`:'';
+const days=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
+const today=iso(new Date());
+const until=d=>{const n=days(today,d);return n===0?'今天':n===1?'明天':n===2?'後天':n>0?`${n} 天後`:`${-n} 天前`};
+const nid=p=>(p||'c')+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+
+/* ---------- 分類 ---------- */
+const CATS=[['mtg','晨會','#0e7490'],['cc','癌症討論會','#7c3aed'],['sem','Seminar／Journal','#2563eb'],['conf','學會／研討會','#c77d00'],['dept','科會／行政','#e5484d'],['teach','教學／考試','#1f8a5b'],['social','活動／聚餐','#db2777'],['other','其他','#64748b']];
+const CN=Object.fromEntries(CATS.map(x=>[x[0],x[1]])),CC=Object.fromEntries(CATS.map(x=>[x[0],x[2]]));
+const guessCat=t=>{t=String(t);return /晨會/.test(t)?'mtg':/癌症|tumor\s*board|combined\s*conf/i.test(t)?'cc':/seminar|journal|讀書會|book\s*reading|chart\s*run/i.test(t)?'sem':/年會|研討會|學會|congress|symposium|月會|AUA|EAU|TUA|meeting/i.test(t)?'conf':/科會|科務|行政|主治會議|評鑑|會議/.test(t)?'dept':/課程|考試|口試|教學|workshop|訓練|OSCE|甄審/i.test(t)?'teach':/聚餐|尾牙|春酒|旅遊|歡送|迎新|聚會|活動/.test(t)?'social':'other'};
+const FREQ=[['w','每週'],['2w','隔週'],['m1','每月第 1 個'],['m2','每月第 2 個'],['m3','每月第 3 個'],['m4','每月第 4 個'],['ml','每月最後一個']];
+const freqTxt=r=>{const f=(FREQ.find(x=>x[0]===r.freq)||[,''])[1];return `${f}星期${DOW[+r.dow]}`};
+const AUD=[['all','全科'],['VS','主治'],['R','住院醫師＋Fellow'],['pick','指定人員']];
+/* 預設例行：時間地點不確定先留空，請在「⚙ 例行與匯入」補上 */
+const DEF_RULES=[{id:'r_mtg',title:'科部晨會',cat:'mtg',freq:'w',dow:2,from:'2026-01-01',time:'',tend:'',place:'',note:'',aud:'all',on:true},
+ {id:'r_cc',title:'GU 癌症討論會',cat:'cc',freq:'w',dow:4,from:'2026-01-01',time:'',tend:'',place:'',note:'Combined Conference: GU & Radiology & Nephrology',aud:'all',on:true}];
+
+/* ---------- 狀態 ---------- */
+let S={people:null,cfg:null,mp:null,md:null,cal:null,err:'',loading:true},saving=0;
+let edit=!!LS.get('calEdit'),me=LS.get('calMe')||'',hideCats=LS.get('calHide')||[],noRoutine=!!LS.get('calNoRoutine');
+let cur=today,sel=today,openKey='',form=null,imp=null;
+const page=()=>{const h=location.hash.slice(1);return ['month','week','list','att','setup'].includes(h)?h:'month'};
+const CAL=()=>{const c=S.cal||(S.cal={});c.events=c.events||[];if(!c.rules)c.rules=DEF_RULES.map(x=>({...x}));c.skip=c.skip||{};c.att=c.att||{};c.mcat=c.mcat||{};c.hideM=c.hideM||{};return c};
+
+/* ---------- 人員 ---------- */
+const ROLE_ORD='VSFR';
+const lvN=p=>p.role==='R'?(p.lv==='CR'?9:+String(p.lv||'').replace(/\D/g,'')||0):0;
+const PPL=()=>((S.people&&S.people.people)||[]).filter(p=>p&&p.id&&p.on!==false).sort((a,b)=>ROLE_ORD.indexOf(a.role)-ROLE_ORD.indexOf(b.role)||lvN(b)-lvN(a)||String(a.n).localeCompare(String(b.n),'zh-Hant'));
+const pname=p=>p.full||p.n;
+const plv=p=>p.role==='R'?(p.lv||'R'):p.role==='F'?'Fellow':(p.lv||'主治');
+const GRP=[['VS','主治醫師'],['F','Fellow'],['R','住院醫師']];
+const invited=o=>{const L=PPL();const base=o.aud==='VS'?L.filter(p=>p.role==='VS'):o.aud==='R'?L.filter(p=>p.role==='R'||p.role==='F'):o.aud==='pick'?L.filter(p=>(o.ppl||[]).includes(p.id)):L;
+ const A=CAL().att[o.key]||{};return L.filter(p=>base.includes(p)||A[p.id])};
+/* 休假：調度板設定 config/main 的 leaves（住院醫師 id）／vsLeaves（主治名字） */
+function leaveOf(p,d){const c=S.cfg||{};
+ if(p.role==='VS'){const l=(c.vsLeaves||[]).find(l=>(l.s===p.n||l.s===p.full)&&l.from<=d&&(l.to||l.from)>=d);return l?'休假':''}
+ const l=(c.leaves||[]).find(l=>l.r===p.id&&l.from<=d&&(l.to||l.from)>=d);return l?(l.type||'休假')+(l.half==='am'?'・上午':l.half==='pm'?'・下午':''):''}
+const ST={y:['✓','參加'],n:['✗','不參加'],m:['?','未定'],L:['休','休假'],'':['·','未回覆']};
+const stRaw=(o,p)=>(CAL().att[o.key]||{})[p.id]||'';
+const stOf=(o,p)=>stRaw(o,p)||(leaveOf(p,o.date)?'L':'');
+function counts(o){const c={y:0,n:0,m:0,L:0,'':0},L=invited(o);L.forEach(p=>c[stOf(o,p)]++);c.tot=L.length;return c}
+const cntHtml=o=>{const c=counts(o);if(!c.tot)return'';return `<span class="cnt" title="參加／不參加／未定／休假／未回覆">${c.y?`<span class="y">✓ ${c.y}</span>`:''}${c.n?`<span class="n">✗ ${c.n}</span>`:''}${c.m?`<span class="m">? ${c.m}</span>`:''}${c.L?`<span class="L">休 ${c.L}</span>`:''}${c['']?`<span>未回 ${c['']}</span>`:''}</span>`};
+const meP=()=>PPL().find(p=>p.id===me);
+const canSet=pid=>edit||(me&&pid===me);
+const rsvp=(o,p,short)=>{const s=stRaw(o,p),ok=canSet(p.id);return `<span class="rs" ${ok?'':'aria-disabled="true" title="按右上「✏️ 編輯」才能改別人的；改自己的請先在右上選「我是」"'}>${['y','m','n'].map(k=>`<button type="button" class="${s===k?'on '+k:''}" ${ok?`data-act="att" data-k="${esc(o.key)}" data-p="${esc(p.id)}" data-s="${k}"`:''} aria-pressed="${s===k}">${ST[k][0]}${short?'':' '+ST[k][1]}</button>`).join('')}</span>`};
+
+/* ---------- 場次 ---------- */
+const evEnd=e=>e.end&&e.end>e.date?e.end:e.date;
+function ruleHit(r,d){if(dow(d)!==+r.dow||(r.from&&d<r.from)||(r.until&&d>r.until))return false;
+ if(r.freq==='w')return true;if(r.freq==='2w')return((days(r.from||'2026-01-04',d)/7)%2+2)%2===0;if(r.freq==='ml')return addD(d,7).slice(5,7)!==d.slice(5,7);
+ return Math.ceil(+d.slice(8)/7)===+String(r.freq).slice(1)}
+function occs(a,b,all){const C=CAL(),out=[];
+ C.events.filter(e=>!e.del&&e.date&&e.date<=b&&evEnd(e)>=a).forEach(e=>out.push({...e,key:'e:'+e.id+'@'+e.date,src:'e'}));
+ C.rules.filter(r=>!r.del&&r.on!==false).forEach(r=>{let d=a;if(r.from&&d<r.from)d=r.from;for(let i=0;d<=b&&i<400;i++,d=addD(d,1))if(ruleHit(r,d)&&!C.skip[r.id+'@'+d])out.push({...r,date:d,end:'',key:'r:'+r.id+'@'+d,src:'r',rule:r})});
+ ((S.mp&&S.mp.events)||[]).filter(e=>e&&!e.del&&e.date&&e.date<=b&&evEnd(e)>=a&&(all||!C.hideM[e.id])).forEach(e=>out.push({id:e.id,title:e.title,date:e.date,end:e.end||'',time:e.time||'',tend:'',place:e.place||'',note:(e.note||'')+(e.pre?(e.note?'；':'')+'需在晨會預報'+(e.preWho?'（'+e.preWho+'）':''):''),cat:C.mcat[e.id]||mDefCat(e.title),aud:'all',key:'m:'+e.id+'@'+e.date,src:'m',hidden:!!C.hideM[e.id]}));
+ return out.filter(o=>all||!hideCats.includes(o.cat)).sort((x,y)=>x.date<y.date?-1:x.date>y.date?1:(x.time||'99')<(y.time||'99')?-1:(x.time||'99')>(y.time||'99')?1:0)}
+const mDefCat=t=>{const g=guessCat(t);return g==='other'?'conf':g};
+const findOcc=k=>{const d=k.slice(k.lastIndexOf('@')+1);return occs(d,d,true).find(o=>o.key===k)};
+const tmTxt=o=>o.time?o.time+(o.tend?'–'+o.tend:''):(o.end&&o.end>o.date?'多日':'');
+const dateTxt=o=>md(o.date)+(o.end&&o.end>o.date?` ～ ${md(o.end)}`:'');
+const srcTxt=o=>o.src==='r'?`🔁 例行：${freqTxt(o.rule)}`:o.src==='m'?'🕣 來自晨會網站「重要會議」':'';
+/* 晨會議程：同一天晨會網站的議程標題＋規劃項目 */
+function agendaOf(d){const w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),its=((S.mp&&S.mp.items)||[]).filter(x=>x&&!x.del&&x.d===d).map(x=>x.title+(x.who?' - '+x.who:''));
+ const L=[...((w&&w.outline)||[])];its.forEach(t=>{if(!L.some(x=>x.includes(t.split(' - ')[0])))L.push(t)});return L}
+
+/* ---------- 共用畫面片段 ---------- */
+const catChip=c=>`<span class="chip" style="background:color-mix(in srgb,${CC[c]||'#888'} 16%,transparent);color:${CC[c]||'#888'}">${esc(CN[c]||'其他')}</span>`;
+function evCard(o,opt){opt=opt||{};const p=meP(),inv=p&&invited(o).includes(p);
+ return `<div class="ev" style="--c:${CC[o.cat]||'#888'}" data-act="open" data-k="${esc(o.key)}" role="button" tabindex="0">
+  ${opt.noTime?'':`<div class="tm">${esc(tmTxt(o))||'<span class="note">—</span>'}</div>`}
+  <div class="bd">${opt.noTime&&tmTxt(o)?`<span class="tm">${esc(tmTxt(o))}</span> `:''}<b>${esc(o.title)}</b> ${catChip(o.cat)}${o.end&&o.end>o.date?` <span class="note">${esc(dateTxt(o))}</span>`:''}
+   <div class="meta">${[o.place?'📍 '+esc(o.place):'',o.src==='r'?'🔁 例行':'',o.src==='m'?'🕣 晨會網站':''].filter(Boolean).join('・')}</div>
+   ${o.cat==='mtg'&&agendaOf(o.date).length&&!opt.noAgenda?`<div class="meta">議程 ${agendaOf(o.date).length} 項</div>`:''}</div>
+  <div class="side">${cntHtml(o)}${inv?rsvp(o,p,true):''}</div></div>`}
+const catBar=()=>`<div class="cats">${CATS.map(([k,n,c])=>`<button class="cat ${hideCats.includes(k)?'off':''}" style="--c:${c}" data-act="cat" data-c="${k}" aria-pressed="${!hideCats.includes(k)}">${n}</button>`).join('')}</div>`;
+function navBar(pg){let ttl='';
+ if(pg==='month')ttl=`${cur.slice(0,4)} 年 ${+cur.slice(5,7)} 月`;
+ else if(pg==='week'){const a=addD(cur,-dow(cur)),b=addD(a,6);ttl=`${+a.slice(5,7)}/${+a.slice(8)} – ${+b.slice(5,7)}/${+b.slice(8)}`}
+ else if(pg==='list'||pg==='att'){const b=addD(cur,pg==='att'?55:41);ttl=`${+cur.slice(5,7)}/${+cur.slice(8)} 起 ${pg==='att'?8:6} 週`}
+ return `<div class="bar"><div class="seg"><button data-act="nav" data-n="-1" aria-label="上一頁">‹</button><button data-act="nav" data-n="0">今天</button><button data-act="nav" data-n="1" aria-label="下一頁">›</button></div><span class="ttl">${ttl}</span>
+  <span style="flex:1"></span>${pg==='list'||pg==='att'?`<label class="note row" style="gap:4px"><input type="checkbox" data-ch="noRoutine" ${noRoutine?'checked':''} style="min-height:0">隱藏每週例行</label>`:''}
+  <button class="btn s" data-act="ics" title="把這個畫面的活動加到 Google 日曆／iPhone／Outlook">⬇ 加入日曆（.ics）</button>${edit?`<button class="btn s p" data-act="new" data-d="${pg==='month'?sel:cur}">＋ 新增活動</button>`:''}</div>`}
+function rangeOf(pg){if(pg==='month'){const a=cur.slice(0,7)+'-01';return[a,addD(addM(a,1),-1)]}if(pg==='week'){const a=addD(cur,-dow(cur));return[a,addD(a,6)]}if(pg==='att')return[cur,addD(cur,55)];return[cur,addD(cur,41)]}
+
+/* ---------- 月曆 ---------- */
+function monthPage(){const m0=cur.slice(0,7)+'-01',start=addD(m0,-dow(m0)),last=addD(addM(m0,1),-1),end=addD(last,6-dow(last));
+ const O=occs(start,end),cells=[];
+ for(let d=start;d<=end;d=addD(d,1)){const L=O.filter(o=>o.date<=d&&evEnd(o)>=d),p=meP(),max=4;
+  cells.push(`<div class="mc ${d.slice(0,7)!==cur.slice(0,7)?'out':''} ${d===today?'td':''} ${d===sel?'sel':''}" data-act="day" data-d="${d}"><span class="dn ${dow(d)%6===0?'we':''}">${+d.slice(8)}</span>
+   ${L.slice(0,max).map(o=>{const s=p&&invited(o).includes(p)?stOf(o,p):'';return `<button class="pill" style="--c:${CC[o.cat]||'#888'}" data-act="open" data-k="${esc(o.key)}" title="${esc(tmTxt(o)+' '+o.title+(o.place?' @'+o.place:''))}">${s?ST[s][0]+' ':''}${o.time&&o.date===d?`<span class="tm">${esc(o.time)}</span>`:''}${esc(o.title)}</button>`}).join('')}
+   ${L.length>max?`<span class="more">還有 ${L.length-max} 項</span>`:''}</div>`)}
+ const SL=O.filter(o=>o.date<=sel&&evEnd(o)>=sel);
+ return navBar('month')+catBar()+`<div class="mgrid">${[...DOW].map((x,i)=>`<div class="dh ${i%6===0?'we':''}">${x}</div>`).join('')}${cells.join('')}</div>
+  <section style="margin-top:14px"><div class="dayh ${sel===today?'td':''}">${md(sel)} <span class="note">${until(sel)}</span>${edit?`<button class="btn s" data-act="new" data-d="${sel}">＋ 這天新增</button>`:''}</div>
+  ${SL.length?SL.map(o=>evCard(o)).join(''):'<p class="note">這天沒有活動。</p>'}</section>`}
+
+/* ---------- 週 ---------- */
+function weekPage(){const a=addD(cur,-dow(cur)),O=occs(a,addD(a,6));
+ return navBar('week')+catBar()+`<div class="wgrid">${[0,1,2,3,4,5,6].map(i=>{const d=addD(a,i),L=O.filter(o=>o.date<=d&&evEnd(o)>=d);
+  return `<div class="wcol ${d===today?'td':''}"><h4><span>${DOW[i]} <span class="t">${+d.slice(5,7)}/${+d.slice(8)}</span></span>${edit?`<button class="btn s" data-act="new" data-d="${d}" aria-label="這天新增" style="min-height:24px;padding:0 8px">＋</button>`:''}</h4>${L.map(o=>evCard(o,{noTime:true})).join('')||'<span class="note">—</span>'}</div>`}).join('')}</div>`}
+
+/* ---------- 時程表 ---------- */
+function listPage(){const[a,b]=rangeOf('list');let O=occs(a,b);if(noRoutine)O=O.filter(o=>o.src!=='r');
+ const ds=[...new Set(O.map(o=>o.date))];let mo='';
+ return navBar('list')+catBar()+(ds.length?ds.map(d=>{const m=d.slice(0,7),h=m!==mo?`<h3>${+m.slice(0,4)} 年 ${+m.slice(5)} 月</h3>`:'';mo=m;
+  return h+`<div class="dayh ${d===today?'td':''}">${md(d)} <span class="note">${until(d)}</span></div>${O.filter(o=>o.date===d).map(o=>evCard(o)).join('')}`}).join(''):'<p class="note">這段期間沒有活動。</p>')}
+
+/* ---------- 出席表 ---------- */
+function attPage(){const[a,b]=rangeOf('att');let O=occs(a,b);if(noRoutine)O=O.filter(o=>o.src!=='r');const L=PPL();
+ if(!L.length)return navBar('att')+'<p class="note">人員名冊還沒有人（在科務入口「人員名冊」新增）。</p>';
+ const gfirst=new Set(GRP.map(([r])=>(L.find(p=>p.role===r)||{}).id).filter(Boolean));
+ const tot=Object.fromEntries(L.map(p=>[p.id,0]));
+ const rows=O.map(o=>{const inv=new Set(invited(o).map(p=>p.id));return `<tr><td class="ev0" data-act="open" data-k="${esc(o.key)}"><b style="color:${CC[o.cat]}">${esc(o.title)}</b><span class="note">${md(o.date)} ${esc(o.time||'')}</span> ${cntHtml(o)}</td>
+  ${L.map(p=>{const s=inv.has(p.id)?stOf(o,p):'x';if(s==='y')tot[p.id]++;const ok=inv.has(p.id)&&canSet(p.id)&&s!=='L';return `<td class="${gfirst.has(p.id)?'grp ':''}${ok?'cl':''}" ${ok?`data-act="cyc" data-k="${esc(o.key)}" data-p="${esc(p.id)}"`:''} title="${esc(pname(p)+'：'+(s==='x'?'不在邀請名單':s==='L'?leaveOf(p,o.date):ST[s][1]))}"><span class="st ${s}">${s==='x'?'·':ST[s][0]}</span></td>`}).join('')}</tr>`}).join('');
+ return navBar('att')+catBar()+`<p class="note">✓ 參加　✗ 不參加　? 未定　休＝調度板登記休假　空白＝還沒回覆。${edit?'點格子切換狀態。':'點自己那一欄可以切換（先在右上選「我是」）；改別人的要按「✏️ 編輯」。'}</p>
+ ${O.length?`<div class="att"><table><thead><tr><th class="ev0">活動</th>${L.map(p=>`<th class="${gfirst.has(p.id)?'grp':''}" ${p.id===me?'style="color:var(--scrub)"':''}>${esc(pname(p))}<small>${esc(plv(p))}</small></th>`).join('')}</tr></thead>
+ <tbody>${rows}<tr><td class="ev0"><b>參加次數</b></td>${L.map(p=>`<td class="${gfirst.has(p.id)?'grp':''}"><b>${tot[p.id]||''}</b></td>`).join('')}</tr></tbody></table></div>`:'<p class="note">這段期間沒有活動。</p>'}`}
+
+/* ---------- 例行與匯入（編輯模式） ---------- */
+function setupPage(){const C=CAL(),R=C.rules.filter(r=>!r.del);
+ const mev=((S.mp&&S.mp.events)||[]).filter(e=>e&&!e.del&&e.date&&evEnd(e)>=addD(today,-30));
+ return `<section class="card"><h2>🔁 例行會議 <small>每週、隔週、每月第幾個星期幾；某一次不開請在那一場按「這次取消」</small></h2>
+  ${R.length?`<table class="stack"><thead><tr><th>名稱</th><th>時間</th><th>地點</th><th>對象</th><th>啟用</th><th></th></tr></thead><tbody>${R.map(r=>`<tr><td data-l="名稱"><b>${esc(r.title)}</b> ${catChip(r.cat)}</td><td data-l="時間">${esc(freqTxt(r))} ${esc(r.time||'（時間未填）')}${r.tend?'–'+esc(r.tend):''}${r.until?`<div class="note">到 ${md(r.until)}</div>`:''}</td><td data-l="地點">${esc(r.place||'—')}</td><td data-l="對象">${esc((AUD.find(x=>x[0]===r.aud)||AUD[0])[1])}</td>
+   <td data-l="啟用"><input type="checkbox" data-ch="ron" data-id="${esc(r.id)}" ${r.on!==false?'checked':''} style="min-height:0"></td><td><button class="btn s" data-act="redit" data-id="${esc(r.id)}">編輯</button></td></tr>`).join('')}</tbody></table>`:'<p class="note">沒有例行會議。</p>'}
+  <div class="row" style="margin-top:8px"><button class="btn s p" data-act="new" data-d="${today}" data-rep="w">＋ 新增例行會議</button></div></section>
+ <section class="card"><h2>📥 匯入活動</h2>
+  <p class="note" style="margin-top:0">① 貼上文字：一行一個活動，例如<br><code>12/5 18:30-21:00 南區月會 @高雄長庚</code>　<code>2026/12/12-12/13 TUA 年會 @台北</code>　<code>12/20 尾牙</code><br>會自動判斷分類；年份沒寫就用最近的未來日期。</p>
+  <textarea id="imptxt" rows="5" style="width:100%" placeholder="把 LINE 公告、學會行程貼在這裡…"></textarea>
+  <div class="row" style="margin-top:6px"><button class="btn s p" data-act="parse">預覽</button><span class="note">② 或匯入 Google 日曆／Outlook 匯出的 .ics 檔：</span><label class="btn s" style="cursor:pointer">選擇 .ics 檔<input type="file" id="icsf" accept=".ics,text/calendar" style="display:none"></label></div>
+  ${imp?impPreview():''}</section>
+ <section class="card"><h2>🕣 晨會網站的重要會議 <small>自動帶進行事曆（在晨會網站新增／修改）；這裡只改分類或不顯示</small></h2>
+  ${mev.length?`<table class="stack"><tbody>${mev.map(e=>`<tr><td data-l="會議"><b>${esc(e.title)}</b> <span class="note">${md(e.date)}${e.end&&e.end>e.date?' ～ '+md(e.end):''}</span></td><td data-l="分類"><select data-ch="mcat" data-id="${esc(e.id)}">${CATS.map(([k,n])=>`<option value="${k}" ${(C.mcat[e.id]||mDefCat(e.title))===k?'selected':''}>${n}</option>`).join('')}</select></td><td data-l="顯示"><label class="row" style="gap:4px"><input type="checkbox" data-ch="hideM" data-id="${esc(e.id)}" ${C.hideM[e.id]?'':'checked'} style="min-height:0">顯示在行事曆</label></td></tr>`).join('')}</tbody></table>`:'<p class="note">晨會網站目前沒有登記的會議。</p>'}
+  <p class="note"><a href="meeting.html#plan">到晨會網站新增會議 →</a></p></section>`}
+function impPreview(){return `<h3>預覽（${imp.length} 筆，勾選要匯入的）</h3>${imp.length?`<table class="stack"><tbody>${imp.map((x,i)=>`<tr><td data-l="匯入"><input type="checkbox" data-ch="impon" data-i="${i}" ${x.on?'checked':''} style="min-height:0">${x.dup?' <span class="chip a">已存在</span>':''}</td><td data-l="日期">${md(x.date)}${x.end?' ～ '+md(x.end):''} ${esc(x.time||'')}${x.tend?'–'+esc(x.tend):''}${x.freq?`<div class="chip">🔁 ${esc(freqTxt(x))}</div>`:''}</td><td data-l="名稱"><b>${esc(x.title)}</b>${x.place?` <span class="note">📍${esc(x.place)}</span>`:''}</td><td data-l="分類"><select data-ch="impcat" data-i="${i}">${CATS.map(([k,n])=>`<option value="${k}" ${x.cat===k?'selected':''}>${n}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table>
+  <div class="row" style="margin-top:8px"><button class="btn p" data-act="impgo">匯入勾選的 ${imp.filter(x=>x.on).length} 筆</button><button class="btn" data-act="impx">取消</button></div>`:'<p class="note">看不懂這些內容，請確認每行開頭是日期（例如 12/5）。</p>'}`}
+
+/* 解析貼上的文字 */
+const fixY=(m,d,y)=>{if(y)return`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;let s=`${today.slice(0,4)}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;if(days(today,s)<-60)s=(+today.slice(0,4)+1)+s.slice(4);return s};
+function parseText(t){const out=[];String(t||'').replace(/\r/g,'').split('\n').forEach(line=>{let s=line.replace(/^[\s\-•*·・●▪︎\d]+[.、)）]\s+/,'').trim();if(!s)return;
+ const m=s.match(/^(?:(\d{4})[\/\-.年])?(\d{1,2})[\/\-.月](\d{1,2})日?\s*(?:[(（][一二三四五六日][)）])?\s*(?:[~～\-–至到]\s*(?:(\d{1,2})[\/\-.月])?(\d{1,2})日?\s*(?:[(（][一二三四五六日][)）])?)?/);if(!m)return;
+ const mo=+m[2],dd=+m[3];if(mo<1||mo>12||dd<1||dd>31)return;const date=fixY(mo,dd,m[1]);let end='';
+ if(m[5]){end=fixY(m[4]?+m[4]:mo,+m[5],m[1]);if(end<date)end=fixY(m[4]?+m[4]:mo,+m[5],+date.slice(0,4)+1)}
+ s=s.slice(m[0].length).trim();let time='',tend='';const tm=s.match(/^(?:(上午|早上|中午|下午|晚上)\s*)?(\d{1,2})[:：](\d{2})(?:\s*[~～\-–到]\s*(\d{1,2})[:：](\d{2}))?/);
+ if(tm){let h=+tm[2];if(/下午|晚上/.test(tm[1]||'')&&h<12)h+=12;time=String(h).padStart(2,'0')+':'+tm[3];if(tm[4]){let h2=+tm[4];if(h2<h&&h2<12)h2+=12;tend=String(h2).padStart(2,'0')+':'+tm[5]}s=s.slice(tm[0].length).trim()}
+ let place='';const pm=s.match(/\s*[@＠]\s*(.+)$/)||s.match(/\s+(?:地點|於)[:：]?\s*(.+)$/);if(pm){place=pm[1].trim();s=s.slice(0,pm.index).trim()}
+ const title=s.replace(/^[：:,，\-–\s]+/,'').trim();if(!title)return;out.push({title,date,end:end&&end>date?end:'',time,tend,place,cat:guessCat(title)})});return out}
+/* 解析 .ics（Google 日曆／Outlook 匯出）。只取標題、時間、地點；不匯入說明欄。 */
+function parseIcs(t){const L=String(t||'').replace(/\r\n[ \t]/g,'').replace(/\n[ \t]/g,'').split(/\r?\n/),out=[];let e=null;
+ const un=s=>s.replace(/\\n/gi,' ').replace(/\\([,;\\])/g,'$1');
+ const dt=(v,p)=>{const m=v.match(/^(\d{4})(\d\d)(\d\d)(?:T(\d\d)(\d\d)\d\d(Z)?)?/);if(!m)return null;
+  if(!m[4])return{d:`${m[1]}-${m[2]}-${m[3]}`,t:'',allday:true};
+  let D=new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]));if(!m[6])return{d:`${m[1]}-${m[2]}-${m[3]}`,t:`${m[4]}:${m[5]}`};
+  D=new Date(D.getTime()+8*36e5);const s=D.toISOString();return{d:s.slice(0,10),t:s.slice(11,16)}};
+ L.forEach(l=>{if(l==='BEGIN:VEVENT'){e={};return}if(l==='END:VEVENT'){if(e&&e.s&&e.title&&!/CANCELLED/i.test(e.status||''))out.push(e);e=null;return}if(!e)return;
+  const i=l.indexOf(':');if(i<0)return;const k=l.slice(0,i).split(';')[0].toUpperCase(),v=l.slice(i+1);
+  if(k==='SUMMARY')e.title=un(v).trim();else if(k==='LOCATION')e.place=un(v).trim();else if(k==='DTSTART')e.s=dt(v);else if(k==='DTEND')e.e=dt(v);else if(k==='RRULE')e.rr=v;else if(k==='STATUS')e.status=v});
+ return out.map(x=>{let end='';if(x.e){end=x.e.d;if(x.s.allday)end=addD(end,-1);if(end<=x.s.d)end=''}
+  const o={title:x.title,date:x.s.d,end,time:x.s.t||'',tend:x.e&&x.e.t&&!end?x.e.t:'',place:x.place||'',cat:guessCat(x.title)};
+  if(x.rr){const R=Object.fromEntries(x.rr.split(';').map(s=>s.split('='))),iv=+(R.INTERVAL||1),bd=R.BYDAY||'';
+   if(R.FREQ==='WEEKLY'&&iv<=2&&(!bd||!bd.includes(','))){o.freq=iv===2?'2w':'w';o.dow=dow(o.date)}
+   else if(R.FREQ==='MONTHLY'&&/^-?\d?(MO|TU|WE|TH|FR|SA|SU)$/.test(bd)){const n=parseInt(bd)||Math.ceil(+o.date.slice(8)/7);o.freq=n<0?'ml':'m'+Math.min(n,4);o.dow=dow(o.date)}
+   if(o.freq){o.from=o.date;o.end='';if(R.UNTIL){const u=dt(R.UNTIL);if(u)o.until=u.d}}}
+  return o}).filter(o=>o.freq||evEnd(o)>=addD(today,-31))}
+function markDup(L){const C=CAL();L.forEach(x=>{x.dup=x.freq?C.rules.some(r=>!r.del&&r.title===x.title&&+r.dow===+x.dow):C.events.some(e=>!e.del&&e.date===x.date&&e.title===x.title);x.on=!x.dup});return L}
+
+/* ---------- 活動詳細 ---------- */
+function detailDialog(){const o=findOcc(openKey);if(!o){openKey='';return''}
+ const inv=invited(o),others=PPL().filter(p=>!inv.includes(p)),ag=o.cat==='mtg'?agendaOf(o.date):[];
+ return `<div class="imodal" data-act="close"><div class="ibox" role="dialog" aria-label="${esc(o.title)}">
+ <div class="row" style="justify-content:space-between;align-items:flex-start"><h2 style="margin:0">${esc(o.title)}</h2><button class="btn s" data-act="close" aria-label="關閉">✕</button></div>
+ <div class="row" style="margin:4px 0 10px">${catChip(o.cat)}${o.hidden?' <span class="chip a">不顯示中</span>':''}</div>
+ <dl class="dl"><dt>日期</dt><dd>${esc(dateTxt(o))} <span class="note">${until(o.date)}</span></dd>${tmTxt(o)?`<dt>時間</dt><dd>${esc(tmTxt(o))}</dd>`:''}${o.place?`<dt>地點</dt><dd>${esc(o.place)}</dd>`:''}${o.note?`<dt>備註</dt><dd>${esc(o.note)}</dd>`:''}${srcTxt(o)?`<dt>來源</dt><dd class="note">${esc(srcTxt(o))}</dd>`:''}<dt>對象</dt><dd>${esc((AUD.find(x=>x[0]===o.aud)||AUD[0])[1])}（${inv.length} 人）</dd></dl>
+ ${ag.length?`<h3>晨會議程</h3><ol style="margin:0;padding-left:22px">${ag.slice(0,15).map(t=>`<li>${esc(t)}</li>`).join('')}</ol>`:''}
+ <div class="row" style="margin-top:10px"><a class="btn s" href="${esc(gcal(o))}" target="_blank" rel="noopener">＋ Google 日曆</a><button class="btn s" data-act="ics1" data-k="${esc(o.key)}">⬇ .ics</button>
+  ${edit&&o.src==='e'?`<button class="btn s" data-act="edit1" data-k="${esc(o.key)}">✏️ 編輯</button><button class="btn s d" data-act="del1" data-k="${esc(o.key)}">刪除</button>`:''}
+  ${edit&&o.src==='r'?`<button class="btn s" data-act="redit" data-id="${esc(o.id)}">✏️ 編輯例行</button><button class="btn s d" data-act="skip" data-k="${esc(o.key)}">這次取消</button>`:''}
+  ${edit&&o.src==='m'?`<a class="btn s" href="meeting.html#plan">到晨會網站編輯</a><button class="btn s" data-act="hidem" data-id="${esc(o.id)}">${o.hidden?'恢復顯示':'不顯示'}</button>`:''}</div>
+ <h3>出席 ${cntHtml(o)}</h3>${me?'':'<p class="note" style="margin-top:0">先在右上角選「我是：」，就能直接回覆自己要不要參加。</p>'}
+ ${GRP.map(([r,n])=>{const L=inv.filter(p=>p.role===r);return L.length?`<div class="note" style="margin-top:8px">${n}（${L.length}）</div><div class="plist">${L.map(p=>{const lv=leaveOf(p,o.date);return `<div class="prow"><span class="nm" ${p.id===me?'style="font-weight:700;color:var(--scrub)"':''}>${esc(pname(p))} <span class="note">${esc(plv(p))}</span>${lv?` <span class="chip a">${esc(lv)}</span>`:''}</span>${rsvp(o,p,true)}</div>`}).join('')}</div>`:''}).join('')}
+ ${edit&&others.length?`<details style="margin-top:10px"><summary class="note">不在邀請名單的人（${others.length}）</summary><div class="plist">${others.map(p=>`<div class="prow"><span class="nm">${esc(pname(p))} <span class="note">${esc(plv(p))}</span></span>${rsvp(o,p,true)}</div>`).join('')}</div></details>`:''}
+ </div></div>`}
+
+/* ---------- 新增／編輯 ---------- */
+function formDialog(){const f=form;
+ return `<div class="imodal" data-act="fcancel"><form class="ibox" id="evf"><h2>${f.id?(f.kind==='rule'?'編輯例行會議':'編輯活動'):'新增活動'}</h2>
+ <label>名稱<input name="title" value="${esc(f.title||'')}" required placeholder="例：南區月會、Journal club、尾牙"></label>
+ <div class="row"><label>分類<select name="cat">${CATS.map(([k,n])=>`<option value="${k}" ${(f.cat||'other')===k?'selected':''}>${n}</option>`).join('')}</select></label>
+  <label>重複<select name="freq" ${f.id&&f.kind!=='rule'?'disabled':''}><option value="">不重複</option>${FREQ.map(([k,n])=>`<option value="${k}" ${f.freq===k?'selected':''}>${n}星期幾</option>`).join('')}</select></label></div>
+ <div class="row"><label>日期<span class="note">（例行＝第一次）</span><input type="date" name="date" value="${esc(f.date||'')}" required></label><label>到<span class="note">（多天活動／例行的最後一次，可空白）</span><input type="date" name="end" value="${esc((f.kind==='rule'?f.until:f.end)||'')}"></label></div>
+ <div class="row"><label>開始時間<input type="time" name="time" value="${esc(f.time||'')}"></label><label>結束時間<input type="time" name="tend" value="${esc(f.tend||'')}"></label></div>
+ <label>地點<input name="place" value="${esc(f.place||'')}" placeholder="例：第一會議室、高雄長庚"></label>
+ <label>備註<input name="note" value="${esc(f.note||'')}" placeholder="報名方式、要準備的東西…（不要填病人資料）"></label>
+ <label>參加對象<select name="aud" id="faud">${AUD.map(([k,n])=>`<option value="${k}" ${(f.aud||'all')===k?'selected':''}>${n}</option>`).join('')}</select></label>
+ <div class="pick" id="fppl" ${f.aud==='pick'?'':'hidden'}>${PPL().map(p=>`<label><input type="checkbox" name="ppl" value="${esc(p.id)}" ${(f.ppl||[]).includes(p.id)?'checked':''}>${esc(pname(p))}</label>`).join('')||'<span class="note">人員名冊沒有人</span>'}</div>
+ <div class="row" style="margin-top:12px"><button class="btn p" type="submit">儲存</button><button class="btn" type="button" data-act="fcancel">取消</button>${f.id&&f.kind==='rule'?'<span style="flex:1"></span><button class="btn d" type="button" data-act="rdel">刪除例行會議</button>':''}</div></form></div>`}
+
+/* ---------- 日曆匯出 ---------- */
+const ymd=d=>d.replace(/-/g,'');
+const hm=t=>t.replace(':','')+'00';
+const plus2=t=>String(Math.min(+t.slice(0,2)+2,23)).padStart(2,'0')+t.slice(2);
+function gcal(o){let dates;if(o.time){const te=o.tend||plus2(o.time);dates=ymd(o.date)+'T'+hm(o.time)+'/'+ymd(evEnd(o))+'T'+hm(te)}else dates=ymd(o.date)+'/'+ymd(addD(evEnd(o),1));
+ return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(o.title)+'&dates='+dates+'&ctz=Asia/Taipei&details='+encodeURIComponent((o.note||'')+'\n— 泌尿科科內行事曆')+'&location='+encodeURIComponent(o.place||'')}
+function icsOf(list){const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//uro-or//calendar//ZH','CALSCALE:GREGORIAN','X-WR-TIMEZONE:Asia/Taipei'];
+ const tx=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/[,;]/g,m=>'\\'+m);
+ const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+ list.forEach(o=>{L.push('BEGIN:VEVENT','UID:'+o.key.replace(/[^\w@.-]/g,'_')+'@uro-calendar','DTSTAMP:'+stamp,'SUMMARY:'+tx(o.title));
+  if(o.time)L.push('DTSTART;TZID=Asia/Taipei:'+ymd(o.date)+'T'+hm(o.time),'DTEND;TZID=Asia/Taipei:'+ymd(evEnd(o))+'T'+hm(o.tend||plus2(o.time)));
+  else L.push('DTSTART;VALUE=DATE:'+ymd(o.date),'DTEND;VALUE=DATE:'+ymd(addD(evEnd(o),1)));
+  if(o.place)L.push('LOCATION:'+tx(o.place));if(o.note)L.push('DESCRIPTION:'+tx(o.note));
+  L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+tx(o.title),'TRIGGER:'+(o.time?'-P1D':'-PT15H'),'END:VALARM','END:VEVENT')});
+ L.push('END:VCALENDAR');return L.join('\r\n')}
+function dlIcs(list,name){const b=new Blob([icsOf(list)],{type:'text/calendar;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name+'.ics';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+
+/* ---------- 畫面 ---------- */
+const TABS=[['month','月曆'],['week','週'],['list','時程表'],['att','出席表']];
+function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p>行事曆和刀房調度板共用同一個 Google 同步網址。</p>
+ <div class="row"><input id="u" placeholder="https://script.google.com/macros/s/…/exec" style="flex:1;min-width:260px" value="${esc(gs.url)}"><input id="tk" placeholder="密碼（沒有就留空）" value="${esc(gs.token||'')}" style="width:150px"><button class="btn p" data-act="conn">連線</button></div></section>`}
+function render(){let pg=page();if(pg==='setup'&&!edit)pg='month';
+ $('#sub').textContent=`晨會・癌症討論會・Seminar・學會・科內活動　今天 ${md(today)}`;
+ $('#sync').textContent=S.loading?'讀取中…':saving?'儲存中…':S.err==='conn'?'無法連上同步':'已同步';
+ $('#tabs').innerHTML=TABS.concat(edit?[['setup','⚙ 例行與匯入']]:[]).map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a><a class="ext" href="meeting.html">🕣 晨會</a><a class="ext" href="hub.html?from=cal#fb">💬 意見回饋</a>';
+ const L=PPL();
+ $('#tools').innerHTML=`<label class="sub" style="display:flex;gap:4px;align-items:center">我是<select data-ch="me" aria-label="我是"><option value="">（選擇）</option>${GRP.map(([r,n])=>{const G=L.filter(p=>p.role===r);return G.length?`<optgroup label="${n}">${G.map(p=>`<option value="${esc(p.id)}" ${p.id===me?'selected':''}>${esc(pname(p))}</option>`).join('')}</optgroup>`:''}).join('')}</select></label><button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button><a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
+ if(!on()){$('#app').innerHTML=setupCard();return}
+ if(S.loading&&!S.cal&&!S.people){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
+ const y=scrollY,ae=document.activeElement,aid=ae&&ae.id;const txt=$('#imptxt')?$('#imptxt').value:null;
+ $('#app').innerHTML=(pg==='week'?weekPage():pg==='list'?listPage():pg==='att'?attPage():pg==='setup'?setupPage():monthPage())
+  +`<p class="note foot">出席狀態全科共用：選「我是」後點 ✓／✗／? 回覆自己的；休假從刀房調度板的休假登記自動帶入。晨會網站的「重要會議」會自動出現在這裡。請勿填病人姓名、病歷號。</p>`
+  +(openKey?detailDialog():'')+(form?formDialog():'');
+ if(txt!=null&&$('#imptxt'))$('#imptxt').value=txt;if(aid&&$('#'+aid)&&aid!=='imptxt')$('#'+aid).focus();scrollTo(0,y)}
+
+async function load(){S.loading=true;render();if(!on()){S.loading=false;render();return}
+ const k=['common/people','config/main','meeting/plan','meeting/drive',KEY];const r=await getMany(k);const v=i=>r[i].status==='fulfilled'?r[i].value:null;
+ S.err=r.every(x=>x.status==='rejected')?'conn':'';S.people=v(0);S.cfg=v(1)&&v(1).cfg;S.mp=v(2);S.md=v(3);if(!pending)S.cal=v(4);S.loading=false;render()}
+/* 先改本機畫面，再讀最新的雲端資料、套用同一個修改後存回（避免蓋掉別人剛存的） */
+let pending=0;
+function prune(C){const lim=addD(today,-180);Object.keys(C.att).forEach(k=>{if(k.slice(k.lastIndexOf('@')+1)<lim||!Object.keys(C.att[k]||{}).length)delete C.att[k]});Object.keys(C.skip).forEach(k=>{if(k.slice(k.lastIndexOf('@')+1)<lim)delete C.skip[k]})}
+async function saveCal(mut){mut(CAL());render();saving++;pending++;render();
+ try{let fresh=null;try{fresh=await get(KEY)}catch(e){}if(fresh){S.cal=fresh;mut(CAL())}const C=CAL();prune(C);C.ts=Date.now();await set(KEY,C)}catch(e){alert('儲存失敗，請稍後再試')}
+ saving--;pending--;render()}
+const setAtt=(k,pid,s)=>saveCal(C=>{const A=C.att[k]=C.att[k]||{};if(s)A[pid]=s;else delete A[pid]});
+const upsert=(arr,x)=>{const i=arr.findIndex(y=>y.id===x.id);if(i>=0)arr[i]={...arr[i],...x};else arr.push(x)};
+
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const k=b.dataset.act;
+ if(k==='close'||k==='fcancel'){if(e.target===b||b.tagName==='BUTTON'){if(k==='close')openKey='';else form=null;render()}return}
+ e.stopPropagation();
+ if(k==='edit'){edit=!edit;LS.set('calEdit',edit);if(!edit&&page()==='setup')location.hash='#month';render()}
+ else if(k==='nav'){const n=+b.dataset.n,pg=page();if(!n){cur=today;sel=today}else if(pg==='month'){cur=addM(cur,n);sel=cur.slice(0,7)===today.slice(0,7)?today:cur}else cur=addD(cur,n*(pg==='week'?7:pg==='att'?56:42));render()}
+ else if(k==='day'){sel=b.dataset.d;if(sel.slice(0,7)!==cur.slice(0,7))cur=sel;render()}
+ else if(k==='open'){openKey=b.dataset.k;render()}
+ else if(k==='cat'){const c=b.dataset.c;hideCats=hideCats.includes(c)?hideCats.filter(x=>x!==c):hideCats.concat(c);LS.set('calHide',hideCats);render()}
+ else if(k==='att'){const cur_=stRaw({key:b.dataset.k},{id:b.dataset.p});setAtt(b.dataset.k,b.dataset.p,cur_===b.dataset.s?'':b.dataset.s)}
+ else if(k==='cyc'){const o=findOcc(b.dataset.k),p=PPL().find(x=>x.id===b.dataset.p);if(!o||!p)return;const s=stRaw(o,p),nx={'':'y',y:'n',n:'m',m:''}[s];setAtt(o.key,p.id,nx)}
+ else if(k==='new'){form={kind:'event',date:b.dataset.d||today,cat:'other',aud:'all',freq:b.dataset.rep||''};if(form.freq)form.kind='rule';render()}
+ else if(k==='edit1'){const o=findOcc(b.dataset.k),ev=o&&CAL().events.find(x=>x.id===o.id);if(ev){form={...ev,kind:'event'};openKey='';render()}}
+ else if(k==='del1'){const o=findOcc(b.dataset.k);if(o&&confirm(`刪除「${o.title}」？`)){openKey='';saveCal(C=>{const ev=C.events.find(x=>x.id===o.id);if(ev){ev.del=true;ev.ts=Date.now()}})}}
+ else if(k==='redit'){const r=CAL().rules.find(x=>x.id===b.dataset.id);if(r){form={...r,kind:'rule',date:r.from||today};openKey='';render()}}
+ else if(k==='rdel'){const id=form&&form.id;if(id&&confirm('刪除這個例行會議？（過去的出席紀錄也會看不到）')){form=null;saveCal(C=>{const r=C.rules.find(x=>x.id===id);if(r){r.del=true;r.ts=Date.now()}})}}
+ else if(k==='skip'){const kk=b.dataset.k,id=kk.slice(2);if(confirm('這次取消（不開）？')){openKey='';saveCal(C=>{C.skip[id]=1})}}
+ else if(k==='hidem'){const id=b.dataset.id;saveCal(C=>{if(C.hideM[id])delete C.hideM[id];else C.hideM[id]=1})}
+ else if(k==='ics'){const pg=page(),[a,z]=rangeOf(pg==='setup'?'list':pg);let O=occs(a,z);if(pg==='list'&&noRoutine)O=O.filter(o=>o.src!=='r');if(!O.length)return alert('這個畫面沒有活動');dlIcs(O,'泌尿科行事曆_'+a)}
+ else if(k==='ics1'){const o=findOcc(b.dataset.k);if(o)dlIcs([o],o.title)}
+ else if(k==='parse'){imp=markDup(parseText($('#imptxt').value));render()}
+ else if(k==='impx'){imp=null;render()}
+ else if(k==='impgo'){const L=(imp||[]).filter(x=>x.on);if(!L.length)return;const n=L.length;imp=null;
+  saveCal(C=>L.forEach(x=>{const base={title:x.title,cat:x.cat,time:x.time||'',tend:x.tend||'',place:x.place||'',note:'',aud:'all',ts:Date.now()};
+   if(x.freq){if(!C.rules.some(r=>!r.del&&r.title===x.title&&+r.dow===+x.dow))C.rules.push({...base,id:nid('r'),freq:x.freq,dow:x.dow,from:x.from,until:x.until||'',on:true})}
+   else if(!C.events.some(e=>!e.del&&e.date===x.date&&e.title===x.title))C.events.push({...base,id:nid('e'),date:x.date,end:x.end||''})}));
+  if($('#imptxt'))$('#imptxt').value='';toast(`已匯入 ${n} 筆`)}
+ else if(k==='conn'){gs={url:$('#u').value.trim(),token:$('#tk').value.trim(),on:true};LS.set('gsync',gs);load()}
+});
+document.addEventListener('change',e=>{const el=e.target,c=el.dataset&&el.dataset.ch;
+ if(el.id==='icsf'&&el.files&&el.files[0]){const fr=new FileReader();fr.onload=()=>{imp=markDup(parseIcs(fr.result));render()};fr.readAsText(el.files[0]);return}
+ if(el.id==='faud'){$('#fppl').hidden=el.value!=='pick';return}
+ if(!c)return;
+ if(c==='me'){me=el.value;LS.set('calMe',me);render()}
+ else if(c==='noRoutine'){noRoutine=el.checked;LS.set('calNoRoutine',noRoutine);render()}
+ else if(c==='ron'){const id=el.dataset.id,v=el.checked;saveCal(C=>{const r=C.rules.find(x=>x.id===id);if(r){r.on=v;r.ts=Date.now()}})}
+ else if(c==='mcat'){const id=el.dataset.id,v=el.value;saveCal(C=>{C.mcat[id]=v})}
+ else if(c==='hideM'){const id=el.dataset.id,v=el.checked;saveCal(C=>{if(v)delete C.hideM[id];else C.hideM[id]=1})}
+ else if(c==='impon'){imp[+el.dataset.i].on=el.checked;render()}
+ else if(c==='impcat'){imp[+el.dataset.i].cat=el.value}
+});
+document.addEventListener('submit',e=>{if(e.target.id!=='evf')return;e.preventDefault();const F=new FormData(e.target),g=n=>String(F.get(n)||'').trim(),f=form;
+ const freq=f.kind==='rule'?g('freq')||f.freq:(f.id?'':g('freq'));
+ const base={title:g('title'),cat:g('cat'),time:g('time'),tend:g('tend'),place:g('place'),note:g('note'),aud:g('aud'),ppl:g('aud')==='pick'?F.getAll('ppl').map(String):[],ts:Date.now()};
+ if(!base.title||!g('date'))return;
+ if(freq){if(f.kind==='rule'&&!g('freq'))return alert('例行會議要選重複方式');const r={...base,id:f.kind==='rule'&&f.id?f.id:nid('r'),freq,dow:dow(g('date')),from:g('date'),until:g('end'),on:f.on!==false};form=null;saveCal(C=>upsert(C.rules,r))}
+ else{const ev={...base,id:f.id||nid('e'),date:g('date'),end:g('end')>g('date')?g('end'):''};form=null;sel=ev.date;saveCal(C=>upsert(C.events,ev))}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(openKey||form)){openKey='';form=null;render()}
+ if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.ev[data-act]')){e.preventDefault();e.target.click()}});
+addEventListener('hashchange',()=>{openKey='';form=null;render()});
+const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
+load();setInterval(()=>{if(!document.hidden&&!saving&&!form&&!openKey)load()},300000);
+
+/* ===== 加到主畫面 ===== */
+let bip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});
+try{if('serviceWorker' in navigator&&/^https:/.test(location.protocol)&&!/claude|googleusercontent/.test(location.host))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+const instLink=()=>location.origin+location.pathname.replace(/[^/]*$/,'')+'calendar.html?openExternalBrowser=1';
+function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua),ios=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),and=/Android/i.test(ua);
+ const steps=inApp?`<p><b>你現在是在 LINE 裡面開啟的</b>，要先換到手機瀏覽器才能加到主畫面。</p><button class="ibtn p" data-iext>用 ${ios?'Safari':'Chrome'} 開啟</button><p class="inote">開啟後再按一次「📲 加到主畫面」。</p>`
+  :ios?`<ol><li>點 Safari 下方（或上方）的<b>分享</b>按鈕 <span class="ik">⬆︎</span></li><li>往下滑，點<b>「加入主畫面」</b> <span class="ik">＋</span></li><li>右上角按<b>「新增」</b></li></ol>`
+  :and?`<ol><li>點 Chrome 右上角 <span class="ik">⋮</span></li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li><li>按<b>「安裝」</b></li></ol>`
+  :`<ol><li>Chrome／Edge：網址列右邊的 <span class="ik">⊕</span> 安裝圖示，或選單 →「安裝」</li><li>手機上用 Safari／Chrome 開這個網址，再按「📲 加到主畫面」</li></ol>`;
+ const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox" style="max-width:420px"><div class="ihead"><img src="hub-apple-touch-icon.png?v=2" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
+ <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
+ document.body.appendChild(m);m.addEventListener('click',async e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){if(await copyText('泌尿科 科內行事曆\n'+instLink()))e.target.textContent='已複製 ✓'}})}
+document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);
+/* ===== 一鍵分享／複製連結（[data-share]）===== */
+const SHARE_T='泌尿科 科內行事曆';
+function shareLink(){const h=location.hash&&!/^#(month)?$/.test(location.hash)?location.hash:'';const base=location.origin+location.pathname.replace(/[^/]*$/,'')+'calendar.html';return base+'?openExternalBrowser=1'+h}
+function toast(t){const d=document.createElement('div');d.textContent=t;d.setAttribute('role','status');d.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b1830;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;z-index:10000;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:90vw;text-align:center';document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+async function copyText(t){try{await navigator.clipboard.writeText(t);return true}catch(e){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}a.remove();return ok}}
+document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-share]');if(!a)return;e.preventDefault();e.stopPropagation();
+ const url=shareLink(),text=SHARE_T+'（點開後可按「📲 加到主畫面」）';
+ if(navigator.share&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){try{await navigator.share({title:SHARE_T,text,url});return}catch(x){if(x&&x.name==='AbortError')return}}
+ if(await copyText(text+'\n'+url))toast('✓ 已複製連結，貼到 LINE 或訊息就能分享');else prompt('複製這個連結分享給大家：',url)},true);
+}
+</script>
+</body>
+</html>
