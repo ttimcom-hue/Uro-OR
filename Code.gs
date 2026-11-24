@@ -145,7 +145,14 @@ function hoTest(){const rows=hoRows();const d=new Date(),iso=x=>Utilities.format
 // ===== 泌尿科交班網站（handoff.html）=====
 // 病人姓名、病歷號、病情只經過這裡：一律要交班密碼（指令碼屬性 HO_PASS，不寫在程式裡），
 // 其他主治交班／出院／特殊個案存在試算表的「交班資料」工作表（隱藏），不進公開可讀的 data 工作表。
-function hoPassOk(p){const k=PropertiesService.getScriptProperties().getProperty('HO_PASS');if(!k)throw new Error('nopass');if(String(p||'')!==String(k)){Utilities.sleep(1500);throw new Error('badpass')}}
+// 管理密碼 HO_PASS（可管理邀請連結）；個人邀請連結的金鑰存在指令碼屬性 HO_KEYS [{t,n,ts}]，可個別停用
+function hoKeys(){try{return JSON.parse(PropertiesService.getScriptProperties().getProperty('HO_KEYS')||'[]')}catch(e){return[]}}
+function hoAuth(p){const k=PropertiesService.getScriptProperties().getProperty('HO_PASS');if(!k)throw new Error('nopass');p=String(p||'');
+  if(p&&p===String(k))return{admin:true,who:''};const x=p.length>=16&&hoKeys().find(z=>z.t===p);if(x)return{admin:false,who:x.n};Utilities.sleep(1500);throw new Error('badpass')}
+function hoKeyOp(b){const P=PropertiesService.getScriptProperties();let K=hoKeys();
+  if(b.op==='keyadd'){const n=String(b.n||'').trim().slice(0,30);if(!n)throw new Error('請填姓名');K.push({t:Utilities.getUuid().replace(/-/g,''),n,ts:Date.now()})}
+  if(b.op==='keydel')K=K.filter(z=>z.t!==b.t);
+  if(b.op!=='keys')P.setProperty('HO_KEYS',JSON.stringify(K));return{keys:K}}
 function hoTabsOf(doc){const out=[];const walk=tabs=>(tabs||[]).forEach(t=>{try{out.push({title:t.getTitle(),body:t.asDocumentTab().getBody()})}catch(e){}walk(t.getChildTabs&&t.getChildTabs())});
   if(doc.getTabs)walk(doc.getTabs());if(!out.length)out.push({title:'',body:doc.getBody()});return out}
 function hoTbl(b){if(!b)return null;const ts=b.getTables();for(let i=0;i<ts.length;i++)if(ts[i].getNumRows()&&ts[i].getRow(0).getNumCells()>=7)return ts[i];return null}
@@ -181,8 +188,9 @@ function hoRowOp(b){const L=LockService.getScriptLock();L.waitLock(20000);try{
     else throw new Error('bad op')}
   doc.saveAndClose();CacheService.getScriptCache().remove('hoSite')}finally{L.releaseLock()}
   return hoSiteLoad(true)}
-function hoApi(b){hoPassOk(b.pass);
-  if(b.op==='load')return hoSiteLoad(!!b.force);
+function hoApi(b){const A=hoAuth(b.pass);
+  if(/^key/.test(b.op)){if(!A.admin)throw new Error('只有管理密碼可以管理邀請連結');const L=LockService.getScriptLock();L.waitLock(15000);try{return hoKeyOp(b)}finally{L.releaseLock()}}
+  if(b.op==='load'){const r=hoSiteLoad(!!b.force);r.me=A;return r}
   if(b.op==='row')return hoRowOp(b.row||{});
   const L=LockService.getScriptLock();L.waitLock(15000);try{if(b.op==='put')hoItemPut(b.item);else if(b.op==='del')hoItemDel(b.id);else throw new Error('bad op')}finally{L.releaseLock()}
   return{items:hoItems(),at:Date.now()}}
