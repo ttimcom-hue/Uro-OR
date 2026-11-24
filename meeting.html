@@ -155,6 +155,8 @@ function autoEvents(all){const M=MP(),map={};
   const e=map[date]||(map[date]={id:'auto:'+date,date,title:name,auto:true,src:x.d,pre:false,preDone:[]});
   if(name.length>e.title.length&&x.t!=='pre')e.title=name;
   if(x.t==='pre'){e.pre=true;e.preDone.push({d:x.d,who:x.who})}});
+ /* Apps Script 從簡報截圖辨識到的會議（weeks[].img，只有名稱、日期、時間、地點） */
+ ((S.md&&S.md.weeks)||[]).forEach(w=>(w.img||[]).forEach(x=>{if(x&&x.d&&x.title&&!map[x.d])map[x.d]={id:'auto:'+x.d,date:x.d,end:x.end||'',time:x.t||'',place:x.place||'',title:x.title,auto:true,src:w.d,pre:false,preDone:[],img:true}}));
  return Object.values(map).filter(e=>!M.hideAuto[e.date+'|'+e.title])}
 function allEvents(all){const M=MP(),man=M.events.filter(e=>!e.del&&e.date),au=autoEvents(all).filter(a=>!man.some(e=>e.date===a.date));
  const pres=all.filter(x=>x.t==='pre'&&x.d);
@@ -208,7 +210,7 @@ const pinned=(M,k)=>{const p=M.pins[k];return p&&p.on&&(!p.until||p.until>=today
 const pinBtn=(M,x)=>edit&&NOTICE.includes(x.t)?`<button class="btn s ${pinned(M,x.k)?'p':''}" data-act="pin" data-k="${esc(x.k)}">${pinned(M,x.k)?'📌 已釘選':'📌 釘選'}</button>`:'';
 const evCal=e=>`<a class="btn s" href="${esc(gcal(e))}" target="_blank" rel="noopener">＋ Google 日曆</a><button class="btn s" data-act="ics" data-id="${esc(e.id)}">⬇ .ics（iPhone／Outlook）</button>`;
 const evLine=(e,full)=>`<div class="ev"><div class="evd"><b class="t">${+e.date.slice(5,7)}/${+e.date.slice(8)}</b><span>${DOW[dow(e.date)]}${e.end&&e.end>e.date?'–'+(+e.end.slice(5,7))+'/'+(+e.end.slice(8)):''}</span></div>
- <div class="evb"><b>${esc(e.title)}</b> <span class="chip ${days(today,e.date)<=7?'r':'a'}">${until(e.date)}</span>${e.auto?' <span class="note">（議程提到）</span>':''}
+ <div class="evb"><b>${esc(e.title)}</b> <span class="chip ${days(today,e.date)<=7?'r':'a'}">${until(e.date)}</span>${e.auto?` <span class="note">（${e.img?'簡報截圖辨識':'議程提到'}）</span>`:''}
   <div class="note">${[e.time,e.place].filter(Boolean).map(esc).join('・')}${e.pre?`${e.time||e.place?'・':''}需預報：${md(prevMtg(e.date))}晨會${names(e.preWho)?'（'+esc(names(e.preWho))+'）':''}${e.preDone&&e.preDone.length?e.preDone.map(p=>(p.d<=today?' ✓ 已預報 ':' 已排 ')+md(p.d)+(p.who?' '+esc(p.who):'')).join('、'):''}`:''}${e.note?'<br>'+esc(e.note):''}</div>
   ${full?`<div class="row" style="margin-top:6px">${evCal(e)}${edit?(e.auto?`<button class="btn s" data-act="evadopt" data-id="${esc(e.id)}">✏️ 補上時間地點</button><button class="btn s" data-act="evhide" data-id="${esc(e.id)}">不顯示</button>`:`<button class="btn s" data-act="evedit" data-id="${esc(e.id)}">✏️ 編輯</button><button class="btn s" data-act="evdel" data-id="${esc(e.id)}">刪除</button>`):''}</div>`:''}</div></div>`;
 const whoX=x=>x.who&&!x.title.includes(x.who.split('、')[0].slice(-2))?` <span class="note">${esc(x.who)}</span>`:'';
