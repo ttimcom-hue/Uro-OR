@@ -370,11 +370,11 @@ function assign(day,D){const res=cfg.res.filter(r=>r.on&&(!isFel(r)||['am','pm']
   let need=dowOf(day.date)===6?(half==='am'?1:0):(+cfg.set['opd'+half]||0);for(const r of res)if(A[r.id]&&A[r.id].k==='OPD')need--;
   const byAb=(a,b)=>abSum(a)-abSum(b);
   const fillOPD=pool=>{for(const r of pool){if(need<=0)break;A[r.id]={k:'OPD',auto:true};used.add(r.id);need--}};
-  const byLv=(a,b)=>lvOf(a)-lvOf(b)||byAb(a,b);const R12=r=>['R1','R2'].includes(r.lv);fillOPD(res.filter(r=>!used.has(r.id)&&R12(r)&&!r.sup).sort(byLv));fillOPD(res.filter(r=>!used.has(r.id)&&R12(r)).sort(byLv));
+  const byLv=(a,b)=>lvOf(a)-lvOf(b)||(a.sup?1:0)-(b.sup?1:0)||byAb(a,b);const R12=r=>['R1','R2'].includes(r.lv);fillOPD(res.filter(r=>!used.has(r.id)).sort(byLv));
   ga.forEach(pick);
-  fillOPD(res.filter(r=>!used.has(r.id)&&isJr(r)&&!r.sup).sort(byLv));fillOPD(res.filter(r=>!used.has(r.id)&&isJr(r)).sort(byLv));
+  fillOPD(res.filter(r=>!used.has(r.id)&&isJr(r)).sort(byLv));
   nga.forEach(pick);
-  fillOPD(res.filter(r=>!used.has(r.id)&&!r.sup).sort(byAb));fillOPD(res.filter(r=>!used.has(r.id)).sort(byAb));
+  fillOPD(res.filter(r=>!used.has(r.id)).sort(byLv));
   const canSup=r=>r&&['R2','R3'].includes(r.lv)&&!r.sup;
   for(const[id,a]of Object.entries(A)){if(a.k!=='OPD')continue;const r=res.find(x=>x.id===id);if(!r||!r.sup)continue;
    if(Object.entries(A).some(([j,b])=>j!==id&&b.k==='OPD'&&canSup(res.find(x=>x.id===j))))continue;
