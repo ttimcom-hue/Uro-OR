@@ -358,11 +358,11 @@ function assign(day,D){const res=cfg.res.filter(r=>r.on&&(!isFel(r)||['am','pm']
   for(const d of dh.filter(d=>d.minR)){if(Object.entries(A).some(([id,a])=>a.k==='room'&&a.room===d.room&&lvOf(res.find(x=>x.id===id))>=d.minR))continue;const dfo=r=>d.cs.reduce((s,x)=>s+Math.max(0,x.lv-ab(r,x.cat)),0);
    const cands=res.filter(r=>!used.has(r.id)&&!isFel(r)&&lvOf(r)>=d.minR&&wlOK(r,d)).sort((a,b)=>(((out.am[b.id]||{}).room===d.room)-((out.am[a.id]||{}).room===d.room))||dfo(a)-dfo(b)||lvOf(a)-lvOf(b));
    const r=cands[0];if(r){used.add(r.id);A[r.id]={k:'room',room:d.room,def:dfo(r),wl:true,prio:d.prio};d.done=true}}
-  if(half==='pm')for(const d of dh){if(d.done)continue;const r=res.find(r=>!used.has(r.id)&&out.am[r.id]&&out.am[r.id].k==='room'&&!out.am[r.id].sup&&out.am[r.id].room===d.room);if(!r)continue;if(isGA(d.room)&&isJr(r)&&d.pref!=='jr'&&d.pref!=='most_jr')continue;if(d.pref==='most_jr'||d.pref==='most_sr')continue;if(d.pref==='sr'&&lvOf(r)<3)continue;if(d.minR&&lvOf(r)<d.minR)continue;const def=d.cs.reduce((s,x)=>s+Math.max(0,x.lv-ab(r,x.cat)),0);if(def>0||!wlOK(r,d))continue;used.add(r.id);A[r.id]={k:'room',room:d.room,def:0,wl:true,prio:d.prio};d.done=true}
+  if(half==='pm')for(const d of dh){if(d.done)continue;const r=res.find(r=>!used.has(r.id)&&out.am[r.id]&&out.am[r.id].k==='room'&&!out.am[r.id].sup&&out.am[r.id].room===d.room);if(!r)continue;if(isGA(d.room)&&isJr(r)&&d.pref!=='jr'&&d.pref!=='most_jr')continue;if(d.pref==='most_jr'||d.pref==='most_sr')continue;if(d.pref==='sr'&&lvOf(r)<3)continue;if(d.minR&&lvOf(r)<d.minR)continue;const def=d.cs.reduce((s,x)=>s+Math.max(0,x.lv-ab(r,x.cat)),0);if(!wlOK(r,d))continue;used.add(r.id);A[r.id]={k:'room',room:d.room,def,wl:true,prio:d.prio};d.done=true}
   const pick=(d)=>{if(d.done){delete d.done;return}const strict=wlHit(d),g=isGA(d.room);let best=null;
    for(const r of res){if(used.has(r.id))continue;const def=d.cs.reduce((s,x)=>s+Math.max(0,x.lv-ab(r,x.cat)),0);const over=d.cs.reduce((s,x)=>s+Math.max(0,ab(r,x.cat)-x.lv),0)/d.cs.length;const wl=wlOK(r,d);
     const wpos=d.cs.reduce((m,x)=>{const w=cfg.wl.find(w=>w.s===x.c.surgeon&&(w.cat==='*'||w.cat===x.cat));if(!w)return m;const i=(w.allow||[]).indexOf(r.id);return i<0?m:m+(w.allow.length-i)*250},0);
-    let sc=wpos+(d.minR?(lvOf(r)>=d.minR?1500:-1500):0)+(d.pref==='most_jr'?-lvOf(r)*500:d.pref==='most_sr'?lvOf(r)*500:d.pref==='jr'?(isJr(r)?0:-600-lvOf(r)*150):d.pref==='sr'?(lvOf(r)>=3?lvOf(r)*60:-3000):g?(isJr(r)?-3000:0):(isJr(r)?0:-3000))+(def===0?1000:0)-def*120+(wl?600:0)+(half==='pm'&&out.am[r.id]&&out.am[r.id].room===d.room?300:0)+(d.prio>=9?d.cs.reduce((s,x)=>s+ab(r,x.cat),0)*15:d.cs.reduce((s,x)=>s+(ab(r,x.cat)===2?(x.dur||60)/30:0),0)*25-over*5-abSum(r)*.5);
+    let sc=wpos+(d.minR?(lvOf(r)>=d.minR?1500:-1500):0)+(d.pref==='most_jr'?-lvOf(r)*500:d.pref==='most_sr'?lvOf(r)*500:d.pref==='jr'?(isJr(r)?0:-600-lvOf(r)*150):d.pref==='sr'?(lvOf(r)>=3?lvOf(r)*60:-3000):g?(isJr(r)?-3000:0):(isJr(r)?0:-3000))+(def===0?200:0)-def*40+(wl?600:0)+(half==='pm'&&out.am[r.id]&&out.am[r.id].room===d.room?300:0)+(d.prio>=9?d.cs.reduce((s,x)=>s+ab(r,x.cat),0)*5:d.cs.reduce((s,x)=>s+(ab(r,x.cat)===2?(x.dur||60)/30:0),0)*8-over*2-abSum(r)*.2);
     if(!best||sc>best.sc)best={r,sc,def,wl}}
    if(!best){out.unfilled.push(d);return}
    used.add(best.r.id);A[best.r.id]={k:'room',room:d.room,def:best.def,wl:best.wl,prio:d.prio,lc:[...new Set(d.cs.filter(x=>ab(best.r,x.cat)===2).map(x=>x.cat))]};
@@ -386,9 +386,18 @@ function assign(day,D){const res=cfg.res.filter(r=>r.on&&(!isFel(r)||['am','pm']
   const lCats=(r,room)=>{const d=ga.find(d=>d.room===room);return d?[...new Set(d.cs.filter(x=>ab(r,x.cat)===2).map(x=>x.cat))]:[]};
   const learn=(r,room)=>{const d=ga.find(d=>d.room===room);return d?d.cs.reduce((s,x)=>{const v=ab(r,x.cat);return s+(v===2?3:v===1?1:0)*(x.dur||60)/30},0):0};
   const gr2=gr.length?gr:[...new Set(dh.map(d=>d.room))];const juniorIn=room=>Object.entries(A).some(([id,a])=>a.k==='room'&&a.room===room&&isJr(res.find(x=>x.id===id)||{}));
-  for(const r of res.filter(r=>!used.has(r.id)).sort((a,b)=>isJr(a)-isJr(b)||abSum(b)-abSum(a))){if(!gr2.length){A[r.id]={k:'ward',auto:true};continue}let best=null;
-   for(const room of gr2){const d=ga.find(x=>x.room===room)||dh.find(x=>x.room===room);const sen=seniorIn(room),jun=juniorIn(room);const need4=d&&d.minR&&!Object.entries(A).some(([id,a])=>a.k==='room'&&a.room===room&&lvOf(res.find(x=>x.id===id))>=d.minR);let sc=-cnt(room)*1000+learn(r,room)*8+(isJr(r)?(sen&&!jun?300:jun?-100:0):(!sen?300:0))+(d&&d.pref==='most_jr'?(isJr(r)?150:0)-lvOf(r)*30:d&&d.pref==='most_sr'?lvOf(r)*30:d&&d.pref==='jr'?(isJr(r)?150:0):d&&d.pref==='sr'?(lvOf(r)>=3?150:-150):0)+(need4&&lvOf(r)>=d.minR?600:0);if(d&&wlHit(d)&&!wlOK(r,d))sc-=25;if(!best||sc>best.sc)best={room,sc}}
-   A[r.id]={k:'room',room:best.room,sup:true,lc:lCats(r,best.room)}}
+  const E=res.filter(r=>!used.has(r.id)).sort((a,b)=>isJr(a)-isJr(b)||lvOf(b)-lvOf(a)||abSum(b)-abSum(a));
+  if(!gr2.length)E.forEach(r=>{A[r.id]={k:'ward',auto:true}});
+  else if(E.length){const rr=id=>res.find(x=>x.id===id);const base={};for(const room of gr2)base[room]=Object.entries(A).filter(([,a])=>a.k==='room'&&a.room===room).map(([id])=>rr(id)).filter(Boolean);
+   const dOf=room=>ga.find(x=>x.room===room)||dh.find(x=>x.room===room);
+   const pv=(r,room)=>{const d=dOf(room);let v=learn(r,room)*2;if(!d)return v;if(wlHit(d)&&!wlOK(r,d))v-=5000;if(d.pref==='most_jr')v+=(isJr(r)?150:0)-lvOf(r)*30;else if(d.pref==='most_sr')v+=lvOf(r)*30;else if(d.pref==='jr')v+=isJr(r)?150:0;else if(d.pref==='sr')v+=lvOf(r)>=3?150:-150;if(d.minR&&!base[room].some(m=>lvOf(m)>=d.minR)&&lvOf(r)>=d.minR)v+=600;return v};
+   const all=[...Object.values(base).flat(),...E],anyJr=all.some(isJr),anySr=all.some(m=>!isJr(m));
+   const rq=ms=>{let v=-1000*ms.length*ms.length;for(let x=0;x<ms.length;x++)for(let y=x+1;y<ms.length;y++)if(lvOf(ms[x])===lvOf(ms[y]))v-=400;if(ms.length>=2){if(anyJr&&!ms.some(isJr))v-=300;if(anySr&&!ms.some(m=>!isJr(m)))v-=300}return v};
+   const P=E.map(r=>gr2.map(room=>pv(r,room)));const sel=E.map(()=>0);let best=null;
+   const total=()=>{let v=0;const M={};gr2.forEach(room=>M[room]=[...base[room]]);E.forEach((r,j)=>{v+=P[j][sel[j]];M[gr2[sel[j]]].push(r)});for(const room of gr2)v+=rq(M[room]);return v};
+   if(Math.pow(gr2.length,E.length)<=40000){const rec=k=>{if(k===E.length){const v=total();if(!best||v>best.v)best={v,a:[...sel]};return}for(let q=0;q<gr2.length;q++){sel[k]=q;rec(k+1)}};rec(0)}
+   else{const M={};gr2.forEach(room=>M[room]=[...base[room]]);E.forEach((r,j)=>{let bq=0,bv=-Infinity;gr2.forEach((room,q)=>{const v=P[j][q]+rq([...M[room],r])-rq(M[room]);if(v>bv){bv=v;bq=q}});sel[j]=bq;M[gr2[bq]].push(r)});best={a:[...sel]}}
+   E.forEach((r,j)=>{const room=gr2[best.a[j]];A[r.id]={k:'room',room,sup:true,lc:lCats(r,room)}})}
   out.opdShort[half]=Math.max(0,need)}
  return out}
 function planMoves(day,tl){const S=cfg.set,dl=T(S.deadline),turn=+S.turn||0,st=T(S.start),pmS=T(S.pmStart||'13:00'),R={},top=topS();
