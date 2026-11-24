@@ -98,6 +98,7 @@ const CANCER_URL='https://docs.google.com/spreadsheets/d/1OaCFv8mcIf8lKyyX__Tj_a
 const TOOLS=[
  {i:'🗓️',n:'刀房調度板',u:'./',d:'每日刀序、住院醫師人力、急診刀、術前準備、值班表',sub:[['import','📥 匯入刀表'],['plan','今日排程'],['er','急診刀'],['prep','術前準備'],['res','人力與能力']]},
  {i:'🕣',n:'晨會',u:'meeting.html',d:'重要公告與規定、重要會議日曆、未來晨會時程、紀錄與統計（獨立網站）'},
+ {i:'📆',n:'科內行事曆',u:'calendar.html',d:'晨會、癌症討論會、Seminar、學會與科內活動；月曆／週／時程表切換，每個人是否參加',sub:[['month','月曆'],['list','時程表'],['att','出席表']]},
  {i:'📝',n:'黃部長交班',u:'#ho',d:'交班單（Google 文件），可直接在入口內檢視'},
  {i:'🎗️',n:'癌症討論會',u:'#cc',d:'下次討論會要挑的個案、討論後注意事項、統計（資料在 Google 試算表）'},
  {i:'📒',n:'Notion 科內筆記',u:NOTION_URL,d:'科內共筆、規範與教學資料',ext:1}];
@@ -199,6 +200,7 @@ function handoff(){if(S.err==='nosync')return setupCard();const hu=(S.ho&&S.ho.u
    資料鍵 feedback/list {items:[{id,name,cat,text,at,st:'new'|'done',re}], ts}（與舊版調度板回饋同一份）。
    更新紀錄：每次合併到 main 時在 CHANGELOG 最前面加一筆（v 版本、d 日期、t 標題、s 影響的網站、i 摘要）。 */
 const CHANGELOG=[
+ {v:'1.8',d:'2026-11-24',t:'科內行事曆',s:['行事曆','科務入口'],i:['新網站「科內行事曆」：晨會（週二 07:25）、癌症討論會（週四 07:25，都在 554）、Seminar、學會與科內活動，可切換月曆／週／時程表／出席表','每個人選「我是」後直接回覆參加／不參加／未定；調度板登記的休假自動標「休」','晨會簡報裡只貼截圖的會議會自動辨識文字（待確認）；晨會網站的重要會議自動帶入','可貼上文字或匯入 .ics 檔，也能整批加到自己的日曆']},
  {v:'1.7',d:'2026-11-23',t:'一鍵分享連結',s:['科務入口','刀房調度板','晨會'],i:['三個網站標題列都有「🔗 分享」：手機直接叫出分享選單（LINE、訊息…），電腦自動複製連結','分享的是目前這一頁（例如癌症討論會、急診刀），對方點開就到同一頁，LINE 會用手機瀏覽器開啟']},
  {v:'1.6',d:'2026-11-23',t:'入口加速、新圖示、意見回饋集中',s:['科務入口','刀房調度板','晨會'],i:['科務入口打開時先顯示上次的資料，背景再一次讀取最新資料，不用再等好幾秒','三個網站換上新的主畫面圖示與分享縮圖（刀房＝青綠、科務＝靛藍、晨會＝橘）','意見回饋集中到科務入口這一頁；調度板、晨會只留「💬 意見回饋」按鈕','新增版本紀錄']},
  {v:'1.5',d:'2026-11-23',t:'癌症討論會整合、術前資料',s:['科務入口','癌症討論會'],i:['科務入口新增「癌症討論會」分頁：人數卡片＋直接看試算表','試算表新增「統計」與「達文西術前」頁','從 Drive 每週名單與討論紀錄（含 PDF）自動更新個案追蹤','調度板顯示黃部長交班單的術前數值（PSA、TPV、Gleason 等）']},
@@ -207,8 +209,8 @@ const CHANGELOG=[
  {v:'1.2',d:'2026-11-23',t:'急診刀與自動更新',s:['刀房調度板'],i:['急診刀改填全院等待的插刀／緊急刀／一般急台數','Apps Script 會自動從 GitHub 更新程式']},
  {v:'1.1',d:'2026-11-23',t:'調度板簡潔化',s:['刀房調度板'],i:['分成「看刀表」與「✏️ 排刀模式」，設定收進 ⚙','時間軸依主治上色，可切回依術式','人力表只顯示分派結果']},
  {v:'1.0',d:'2026-11-22',t:'第一版上線',s:['刀房調度板','科務入口'],i:['匯入刀表、自動排序與人力分派、急診刀、術前準備','科務入口：今日總覽、人員名冊、常用連結','可加到手機主畫面']}];
-const FBC=['刀房調度板','科務入口','晨會','癌症討論會','黃部長交班','其他'];
-const FROM={or:'刀房調度板',meeting:'晨會',cc:'癌症討論會',ho:'黃部長交班',hub:'科務入口'};
+const FBC=['刀房調度板','科務入口','晨會','行事曆','癌症討論會','黃部長交班','其他'];
+const FROM={or:'刀房調度板',meeting:'晨會',cal:'行事曆',cc:'癌症討論會',ho:'黃部長交班',hub:'科務入口'};
 let fbShow='open',fbMsg='',fbDraft='';
 const fbItems=()=>((S.fb&&S.fb.items)||[]);
 async function fbSave(mut){if(S.fb&&S.fb.items)mut(S.fb.items);fbMsg='儲存中…';render();try{const fresh=(await get('feedback/list'))||{items:[]};fresh.items=fresh.items||[];mut(fresh.items);fresh.ts=Date.now();await set('feedback/list',fresh);S.fb=fresh;fbMsg='已儲存'}catch(e){fbMsg='儲存失敗，請稍後再試'}render()}
@@ -233,7 +235,7 @@ function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p
 function render(){const pg=page();
  $('#sub').textContent=`總醫師工具箱・${md(today)}`;
  $('#sync').textContent=S.stale?'更新中…':S.loading?'讀取中…':S.err==='conn'?'無法連上同步，顯示可能不是最新':S.err==='nosync'?'未設定同步':'已同步';
- $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['cc','癌症討論會'],['people','人員名冊'],['links','常用連結'],['fb','💬 回饋・更新']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="meeting.html">🕣 晨會</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
+ $('#tabs').innerHTML=[['home','首頁'],['ho','黃部長交班'],['cc','癌症討論會'],['people','人員名冊'],['links','常用連結'],['fb','💬 回饋・更新']].map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="./">🗓️ 刀房調度板</a><a class="ext" href="meeting.html">🕣 晨會</a><a class="ext" href="calendar.html">📆 行事曆</a><a class="ext" href="'+NOTION_URL+'" target="_blank" rel="noopener">📒 Notion ↗</a>';
  $('#inst').innerHTML='<a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a> '+(isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>');
  if(S.loading&&!S.people&&S.err!=='nosync'){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  $('#app').innerHTML=pg==='ho'?handoff():pg==='cc'?cancer():pg==='people'?people():pg==='links'?links():pg==='fb'?fbPage():home()}

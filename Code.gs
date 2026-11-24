@@ -63,10 +63,68 @@ function mtgWeek_(f,cache,yr){const mmdd=f.getName();const files=[];let main=nul
     const d=new Date(y,+mmdd.slice(0,2)-1,+mmdd.slice(2));if(d<new Date(c.getTime()-60*864e5))y++}
   const w={d:y+'-'+mmdd.slice(0,2)+'-'+mmdd.slice(2),fk:(yr||'')+'/'+mmdd,files,outline:[]};
   if(main){w.mid=main.getId();w.mt=main.getLastUpdated().getTime();w.mn=main.getName();
-    const c=cache[w.mid+'|'+w.mt];
+    const c=cache[w.mid+'|'+w.mt];let blob=null;const B=()=>blob||(blob=mtgBlob_(main));
     if(c&&c.outline&&c.outline.length){w.outline=c.outline;w.how=c.how}
-    else{try{const r=mtgOutline_(mtgBlob_(main));w.outline=r.items;w.how=r.how}catch(e){w.err=String(e).slice(0,120)}}}
+    else{try{const r=mtgOutline_(B());w.outline=r.items;w.how=r.how}catch(e){w.err=String(e).slice(0,120)}}
+    // 截圖辨識：只做最近 3 週～未來 5 週的晨會，簡報沒改過就沿用上次結果
+    if(c&&c.img)w.img=c.img;
+    else if(mtgRecent_(w.d)){try{w.img=mtgImgEvents_(B(),w.d)}catch(e){w.imgErr=String(e).slice(0,120)}}}
   return w}
+const mtgRecent_=d=>{const t=Date.now(),x=new Date(d+'T00:00:00+08:00').getTime();return x>=t-21*864e5&&x<=t+35*864e5};
+
+/* ---------- 晨會簡報裡的會議截圖 → 文字辨識 ----------
+   有些重要會議只貼截圖。只看「標題／內文提到會議」的投影片、完全沒有文字的投影片，以及會議投影片的下一張（多半是接續的截圖），
+   每週最多 8 張 png／jpg（15 KB～8 MB）。用 Drive 把圖片轉成 Google 文件（OCR）→ 讀文字 → 立刻刪除暫存檔（drive.file 權限）。
+   **只存辨識出的會議名稱、日期、時間、地點**，不存整段文字；含長串數字、病歷、床號、歲等字眼的行一律丟掉。 */
+const MTG_IMG_KW=/會議|月會|年會|研討|課程|講座|論壇|工作坊|公告|活動|報名|workshop|symposium|congress|meeting|conference|course|seminar|forum/i;
+function mtgImgEvents_(blob,wd){
+  const files=Utilities.unzip(blob.setContentType('application/zip')),by={};files.forEach(f=>by[f.getName()]=f);
+  const num=b=>+(b.getName().match(/(\d+)\.xml$/)||[0,0])[1];
+  const slides=files.filter(b=>/^ppt\/slides\/slide\d+\.xml$/.test(b.getName())).sort((a,b)=>num(a)-num(b));
+  const out=[],seen={};let n=0,prevKw=false;
+  slides.forEach((sl,i)=>{const x=sl.getDataAsString('UTF-8');
+    const txt=(x.match(/<a:t(?:\s[^>]*)?>[^<]*<\/a:t>/g)||[]).map(t=>t.replace(/<[^>]+>/g,'')).join(' ').replace(/\s+/g,' ').trim();
+    const kw=MTG_IMG_KW.test(txt),take=i>0&&(kw||!txt||(prevKw&&txt.length<30));prevKw=kw;if(!take||n>=8)return;
+    const rel=by['ppt/slides/_rels/'+sl.getName().split('/').pop()+'.rels'];if(!rel)return;
+    const R={};(rel.getDataAsString('UTF-8').match(/<Relationship\b[^>]*>/g)||[]).forEach(r=>{const id=(r.match(/Id="([^"]+)"/)||[])[1],tg=(r.match(/Target="([^"]+)"/)||[])[1];if(id&&tg)R[id]=tg});
+    (x.match(/r:embed="[^"]+"/g)||[]).forEach(m=>{if(n>=8)return;const tg=R[m.slice(9,-1)];if(!tg||!/\.(png|jpe?g)$/i.test(tg))return;
+      const nm='ppt/'+tg.replace(/^\.\.\//,''),img=by[nm];if(!img||seen[nm])return;seen[nm]=1;const sz=img.getBytes().length;if(sz<15000||sz>8*1024*1024)return;
+      n++;try{mtgImgParse_(mtgOcr_(img,nm),wd).forEach(e=>{if(!out.some(o=>o.d===e.d&&o.title===e.title))out.push(e)})}catch(e){console.log('OCR',nm,e)}})});
+  return out.slice(0,10)}
+function mtgOcr_(img,nm){
+  const h={Authorization:'Bearer '+ScriptApp.getOAuthToken()},b='mi'+Date.now(),ct=/\.png$/i.test(nm)?'image/png':'image/jpeg';
+  const meta=JSON.stringify({name:'暫存-晨會截圖辨識（會自動刪除）',mimeType:'application/vnd.google-apps.document'});
+  const body=Utilities.newBlob(`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: ${ct}\r\n\r\n`).getBytes()
+    .concat(img.getBytes()).concat(Utilities.newBlob(`\r\n--${b}--`).getBytes());
+  const r=UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=zh-TW&fields=id',{method:'post',contentType:'multipart/related; boundary='+b,payload:body,headers:h,muteHttpExceptions:true});
+  if(r.getResponseCode()>=300)throw new Error('圖片辨識失敗 '+r.getResponseCode());
+  const id=JSON.parse(r.getContentText()).id;
+  try{return DocumentApp.openById(id).getBody().getText()}
+  finally{UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/'+id,{method:'delete',headers:h,muteHttpExceptions:true})}}
+/* 純文字解析（可用 node 的 vm 測試）：一張截圖 → 0～1 個會議 {d,end,t,title,place}。日期要在該次晨會前 1 天之後（過去的日期不算） */
+function mtgImgParse_(text,wd){
+  const L=String(text||'').replace(/\r/g,'').split('\n').map(s=>s.replace(/[\s\u3000]+/g,' ').trim()).filter(Boolean);
+  const bad=s=>/\d{6,}|病歷|床號|\d\s*歲|y\/o|病人|患者|身分證/i.test(s);
+  const iso=(y,m,d)=>y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  const dd=(a,b)=>Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/864e5);
+  const DRE=/(?:(20\d\d|1[01]\d)\s*[年.\/-]\s*)?(\d{1,2})\s*[月.\/-]\s*(\d{1,2})(?!\d)\s*日?(?:\s*[(（][一二三四五六日][)）])?(?:\s*[~～\-–至到]\s*(?:(\d{1,2})\s*[月.\/-]\s*)?(\d{1,2})(?![\d:：])\s*日?)?/g;
+  let hit=null;
+  const order=L.map((s,i)=>i).sort((a,b)=>(/日期|時間|date/i.test(L[b])?1:0)-(/日期|時間|date/i.test(L[a])?1:0)||a-b);
+  for(const i of order){if(bad(L[i]))continue;DRE.lastIndex=0;let m;
+    while((m=DRE.exec(L[i]))){const mo=+m[2],da=+m[3];if(mo<1||mo>12||da<1||da>31)continue;if(!m[1]&&/[:：]/.test(L[i].slice(m.index+m[0].length,m.index+m[0].length+1)))continue;
+      let y=m[1]?+m[1]:+wd.slice(0,4);if(y<200)y+=1911;let d=iso(y,mo,da);if(!m[1]&&dd(wd,d)<-60)d=iso(y+1,mo,da);
+      if(dd(wd,d)<-1||dd(wd,d)>400)continue;let end='';if(m[5]){const em=m[4]?+m[4]:mo,ed=+m[5];if(em>=1&&em<=12&&ed>=1&&ed<=31){end=iso(+d.slice(0,4)+(em<mo?1:0),em,ed);if(end<=d)end=''}}
+      hit={i,d,end,rest:L[i].slice(m.index+m[0].length)};break}
+    if(hit)break}
+  if(!hit)return[];
+  let t='';const tm=(hit.rest+' '+(L[hit.i+1]||'')).match(/(上午|下午|晚上|AM|PM)?\s*(\d{1,2})\s*[:：]\s*(\d{2})/i);
+  if(tm){let h=+tm[2];if(/下午|晚上|PM/i.test(tm[1]||'')&&h<12)h+=12;if(h<24)t=String(h).padStart(2,'0')+':'+tm[3]}
+  const KW=/會|課程|研討|講座|論壇|工作坊|workshop|symposium|congress|meeting|conference|course|seminar|forum|masterclass/i,STRONG=/月會|年會|研討會|討論會|課程|講座|論壇|工作坊|workshop|symposium|congress|meeting|conference|course|seminar|forum|masterclass/i,SKIP=/^(地點|地址|會場|場地|日期|時間|報名|主辦|協辦|聯絡|費用|電話|網址|備註|講者|主持|座長)/;
+  const ok=s=>!SKIP.test(s)&&!bad(s)&&s.length>=3&&s.length<=40&&!(DRE.lastIndex=0,DRE.test(s));
+  const title=L.find(s=>STRONG.test(s)&&ok(s))||L.find(s=>KW.test(s)&&ok(s));DRE.lastIndex=0;
+  if(!title)return[];
+  const pl=L.map(s=>s.match(/^(?:地點|地址|會場|場地|venue|location)\s*[:：]?\s*(.+)/i)).find(Boolean);
+  return[{d:hit.d,end:hit.end,t,title:title.replace(/^[【\[「]|[】\]」]$/g,'').slice(0,40),place:pl&&!bad(pl[1])?pl[1].slice(0,40):''}]}
 function mtgBlob_(file){
   if(file.getMimeType()==='application/vnd.google-apps.presentation'){
     return UrlFetchApp.fetch('https://docs.google.com/presentation/d/'+file.getId()+'/export/pptx',{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()}}).getBlob()}

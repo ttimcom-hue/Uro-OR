@@ -1,0 +1,17 @@
+{
+  "id": "./calendar.html",
+  "name": "泌尿科 科內行事曆",
+  "short_name": "行事曆",
+  "description": "泌尿科晨會、癌症討論會、Seminar、學會與科內活動，以及每個人是否參加",
+  "lang": "zh-Hant-TW",
+  "start_url": "./calendar.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f5f9",
+  "theme_color": "#4b3b8f",
+  "icons": [
+    {"src": "calendar-icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "calendar-icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "calendar-icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
