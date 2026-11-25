@@ -66,6 +66,24 @@ textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid v
 <nav class="tabs" id="tabs"></nav></header>
 <main id="app"><p class="note">載入中…</p></main>
 <script>
+/* 開機保護：主程式沒跑起來時（舊瀏覽器、程式錯誤、本機暫存壞掉）顯示原因與修復按鈕，不要只剩空白。刻意用舊式 JS 寫，舊瀏覽器也能執行。 */
+(function(){var shown=false,errs=[];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function ok(){return !!document.querySelector('.tabs > *')}
+function show(why){if(shown||ok())return;shown=true;var d=document.createElement('div');d.id='bootErr';
+ d.style.cssText='max-width:640px;margin:24px auto;padding:16px 18px;border:2px solid #e5484d;border-radius:12px;background:#fff;color:#0f262b;font:15px/1.6 sans-serif';
+ d.innerHTML='<b style="font-size:18px">網頁沒有正常載入</b><p>請依序試：<br>1. 按「重新載入」<br>2. 還是不行，按「清除這台電腦的暫存」（雲端的資料不受影響；這台電腦還沒同步上去的修改會消失）<br>3. 都不行的話，請把下面灰色的字截圖回報</p><p><button id="bootR" style="font-size:15px;padding:6px 12px">重新載入</button> <button id="bootC" style="font-size:15px;padding:6px 12px">清除這台電腦的暫存</button></p><p style="color:#587076;font-size:12.5px;word-break:break-all">'+esc(why)+(errs.length?'<br>'+esc(errs.slice(0,3).join(' / ')):'')+'<br>'+esc(navigator.userAgent)+'</p>';
+ document.body.insertBefore(d,document.body.firstChild);
+ document.getElementById('bootR').onclick=function(){location.reload()};
+ document.getElementById('bootC').onclick=function(){if(!confirm('確定清除這台電腦的暫存？雲端的資料不受影響。'))return;try{localStorage.clear()}catch(e){}
+  var p=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){for(var i=0;i<rs.length;i++)rs[i].unregister()}))}catch(e){}
+  try{if(window.caches)p.push(caches.keys().then(function(ks){for(var i=0;i<ks.length;i++)caches['delete'](ks[i])}))}catch(e){}
+  var go=function(){location.reload()};if(window.Promise&&p.length)Promise.all(p).then(go,go);else go()}}
+window.addEventListener('error',function(e){errs.push((e.message||'錯誤')+(e.lineno?' (第 '+e.lineno+' 行)':''));setTimeout(function(){show('程式錯誤')},400)});
+setTimeout(function(){show('載入逾時（15 秒）')},15000);
+})();
+</script>
+<script>
 {
 /* 同步：與刀房調度板共用同一個 Google Apps Script 儲存區
    共用資料鍵（給之後的小工具用）：
