@@ -142,16 +142,78 @@ function mtgOutline_(blob){
   const oi=all.findIndex(p=>p.some(t=>/^(outline|agenda|大綱|議程)$/i.test(t)));
   if(oi>=0)return{how:'outline',items:all[oi].filter(t=>!/^(outline|agenda|大綱|議程)$/i.test(t)).slice(0,20)};
   const seen=new Set();return{how:'titles',items:all.slice(1).map(p=>p[0]).filter(t=>t&&!seen.has(t)&&seen.add(t)).slice(0,15)}}
+// ===== 登入與權限（Google 帳號）=====
+// 含可辨識病人資料的資料（刀表 days/、急診刀 er/list、交班單術前資料、刀表匯入、Drive 討論會掃描）只給「核可帳號」：
+//   ＝黃部長交班單（hoDocId()）的擁有者、編輯者、檢視者／加註者，加上指令碼屬性 AUTH_EXTRA（逗號分隔 email）。每 10 分鐘重抓一次。
+// GOOGLE_CLIENT_ID：Google Cloud「OAuth 用戶端 ID（網頁應用程式）」，已授權的 JavaScript 來源要加 GitHub Pages 網址。
+//   留空＝不啟用登入（資料維持原本開放）。設定步驟見 開發說明.md「登入與權限」。
+const GOOGLE_CLIENT_ID='';
+const PROTECTED_KEY=/^(days\/|er\/list$)/;
+const PRIVATE_KEY=/^(user\/|sess)/;            // 只能經由登入 API 存取
+const SESSION_DAYS=30;
+const PAGES_URL='https://ttimcom-hue.github.io/Uro-OR/';
+function authOn(){return !!GOOGLE_CLIENT_ID}
+function sessHash_(t){return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(t)))}
+function sessEmail_(t){if(!t)return '';const h=sessHash_(t),C=CacheService.getScriptCache();let v=C.get('s:'+h);
+  if(!v){v=PropertiesService.getScriptProperties().getProperty('sess:'+h);if(v)try{C.put('s:'+h,v,600)}catch(e){}}
+  if(!v)return '';const s=JSON.parse(v);return s.exp>Date.now()?s.e:''}
+function allowList_(){const C=CacheService.getScriptCache(),c=C.get('allow');if(c)return JSON.parse(c);
+  const set={},add=e=>{e=String(e||'').trim().toLowerCase();if(/@/.test(e))set[e]=1};
+  try{const f=DriveApp.getFileById(hoDocId());try{add(f.getOwner().getEmail())}catch(e){}f.getEditors().forEach(u=>add(u.getEmail()));f.getViewers().forEach(u=>add(u.getEmail()))}catch(e){console.log('allowList',e)}
+  String(PropertiesService.getScriptProperties().getProperty('AUTH_EXTRA')||'').split(/[,;\s]+/).forEach(add);
+  const L=Object.keys(set);try{C.put('allow',JSON.stringify(L),600)}catch(e){}return L}
+function approved_(email){return !!email&&allowList_().indexOf(String(email).toLowerCase())>=0}
+// 這個請求能不能讀寫病人資料：沒啟用登入＝可以；有啟用＝要有效登入且是核可帳號
+function canPHI_(sess){return !authOn()||approved_(sessEmail_(sess))}
+function userGet_(email){try{return JSON.parse(apiGet('user/'+email)||'{}')||{}}catch(e){return{}}}
+function userPut_(email,u){apiSet('user/'+email,JSON.stringify(u))}
+function meFor_(email){const u=userGet_(email);return{email,name:u.name||'',pic:u.pic||'',ok:approved_(email),prefs:u.prefs||{},n:allowList_().length}}
+function sessClean_(P){const all=P.getProperties(),now=Date.now();Object.keys(all).forEach(k=>{if(/^sess:/.test(k)){try{if(JSON.parse(all[k]).exp<now)P.deleteProperty(k)}catch(e){P.deleteProperty(k)}}})}
+function sessNew_(email){const tok=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,''),s={e:email,exp:Date.now()+SESSION_DAYS*864e5};
+  const P=PropertiesService.getScriptProperties();sessClean_(P);P.setProperty('sess:'+sessHash_(tok),JSON.stringify(s));return{token:tok,exp:s.exp,me:meFor_(email)}}
+// 用 Google 登入回傳的 ID token 換一個 30 天的登入憑證
+function authLogin_(idToken){if(!authOn())throw new Error('off');
+  const r=UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token='+encodeURIComponent(String(idToken||'')),{muteHttpExceptions:true});
+  if(r.getResponseCode()!==200)throw new Error('token');const t=JSON.parse(r.getContentText());
+  if(t.aud!==GOOGLE_CLIENT_ID||String(t.email_verified)!=='true'||+t.exp*1000<Date.now()||!/accounts\.google\.com$/.test(String(t.iss)))throw new Error('token');
+  const email=String(t.email).toLowerCase(),u=userGet_(email);if(!u.name)u.name=t.name||'';u.gname=t.name||'';u.pic=t.picture||'';u.last=Date.now();userPut_(email,u);
+  return sessNew_(email)}
+function authLogout_(sess){if(!sess)return;const h=sessHash_(sess);PropertiesService.getScriptProperties().deleteProperty('sess:'+h);CacheService.getScriptCache().remove('s:'+h)}
+// 登入碼：已登入的瀏覽器產生 8 碼（10 分鐘、一次有效），在主畫面 App 等無法跳出 Google 登入的地方輸入
+function authCode_(sess){const e=sessEmail_(sess);if(!e)throw new Error('auth');const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';const b=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,Utilities.getUuid());for(let i=0;i<8;i++)c+=A[(b[i]+256)%A.length];
+  CacheService.getScriptCache().put('code:'+c,e,600);return c}
+function authClaim_(code){code=String(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');const C=CacheService.getScriptCache(),e=code.length===8&&C.get('code:'+code);if(!e)throw new Error('code');C.remove('code:'+code);return sessNew_(e)}
+function authPrefs_(sess,b){const e=sessEmail_(sess);if(!e)throw new Error('auth');const u=userGet_(e);
+  if(b.prefs&&typeof b.prefs==='object'){const s=JSON.stringify(b.prefs);if(s.length>4000)throw new Error('too big');u.prefs=b.prefs}
+  if(typeof b.name==='string')u.name=b.name.slice(0,40);u.ts=Date.now();userPut_(e,u);return meFor_(e)}
+// 讀取：私密鍵一律不給；病人資料鍵要核可
+function readKey_(k,sess){if(PRIVATE_KEY.test(k))return{deny:1};if(PROTECTED_KEY.test(k)&&!canPHI_(sess))return{deny:1};const v=apiGet(k);return{v:v?JSON.parse(v):null}}
 function doGet(e){const p=(e&&e.parameter)||{};
-  if(p.action==='cancerScan'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:cancerDriveScan()})}catch(x){return out({ok:false,err:String(x)})}}
-  if(p.action==='meetingScan'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:meetingScan()})}catch(x){return out({ok:false,err:String(x)})}}
-  if(p.action==='cancerStatus'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:cancerStatus()})}catch(x){return out({ok:false,err:String(x)})}}
-  // ?keys=a,b,c：一次讀多個鍵（入口網頁載入用，只讀一次 data 工作表，比逐鍵請求快很多）
-  if(p.keys){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});return out({ok:true,value:apiGetMany(String(p.keys).split(',').slice(0,40))})}
-  if(p.action==='handoff'){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});try{return out({ok:true,value:handoffFor(p.dates)})}catch(x){return out({ok:false,err:String(x)})}}
-  if(p.key){if(TOKEN&&p.token!==TOKEN)return out({ok:false,err:'token'});const v=apiGet(p.key);return out({ok:true,value:v?JSON.parse(v):null})}
-  return HtmlService.createHtmlOutputFromFile('index').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
-function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==TOKEN)return out({ok:false,err:'token'});if(b.action==='cancerImport'){try{return out({ok:true,value:cancerImport(b.text)})}catch(x){return out({ok:false,err:String(x)})}}apiSet(b.key,JSON.stringify(b.value));return out({ok:true})}
+  const tk=()=>TOKEN&&p.token!==TOKEN,run=f=>{try{return out({ok:true,value:f()})}catch(x){return out({ok:false,err:String(x&&x.message||x)})}},deny=()=>out({ok:false,err:'auth'});
+  if(p.action||p.key||p.keys){if(tk())return out({ok:false,err:'token'})}
+  if(p.action==='authcfg')return out({ok:true,value:{on:authOn(),client:GOOGLE_CLIENT_ID}});
+  if(p.action==='me')return run(()=>{const em=sessEmail_(p.sess);return em?meFor_(em):null});
+  if(p.action==='cancerScan'){if(!canPHI_(p.sess))return deny();return run(cancerDriveScan)}
+  if(p.action==='meetingScan')return run(meetingScan);
+  if(p.action==='cancerStatus')return run(cancerStatus);
+  if(p.action==='handoff'){if(!canPHI_(p.sess))return deny();return run(()=>handoffFor(p.dates))}
+  // ?keys=a,b,c：一次讀多個鍵（入口網頁載入用，只讀一次 data 工作表）；沒權限的鍵回 null 並列在 denied
+  if(p.keys){const ks=String(p.keys).split(',').slice(0,40),ok=canPHI_(p.sess),denied=ks.filter(k=>PRIVATE_KEY.test(k)||(PROTECTED_KEY.test(k)&&!ok));
+    const v=apiGetMany(ks.filter(k=>denied.indexOf(k)<0));denied.forEach(k=>v[k]=null);return out({ok:true,value:v,denied})}
+  if(p.key){const r=readKey_(p.key,p.sess);return r.deny?deny():out({ok:true,value:r.v})}
+  // 不再提供 Apps Script 版網頁：HtmlService 網頁可讓任何人呼叫所有伺服器函式（包含讀交班單原文），一律改用 GitHub Pages
+  return ContentService.createTextOutput('泌尿科刀房調度板已改用：'+PAGES_URL+'\n請用這個網址開啟（需要用 Google 帳號登入才看得到刀表）。')}
+function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==TOKEN)return out({ok:false,err:'token'});
+  const run=f=>{try{return out({ok:true,value:f()})}catch(x){return out({ok:false,err:String(x&&x.message||x)})}};
+  if(b.action==='login')return run(()=>authLogin_(b.id_token));
+  if(b.action==='claim')return run(()=>authClaim_(b.code));
+  if(b.action==='logout')return run(()=>{authLogout_(b.sess);return true});
+  if(b.action==='code')return run(()=>authCode_(b.sess));
+  if(b.action==='prefs')return run(()=>authPrefs_(b.sess,b));
+  if(b.action==='cancerImport'){if(!canPHI_(b.sess))return out({ok:false,err:'auth'});return run(()=>cancerImport(b.text))}
+  const k=String(b.key||'');if(!k||PRIVATE_KEY.test(k))return out({ok:false,err:'key'});
+  if(PROTECTED_KEY.test(k)&&!canPHI_(b.sess))return out({ok:false,err:'auth'});
+  apiSet(k,JSON.stringify(b.value));return out({ok:true})}
 // ===== 黃部長交班單 → 調度板術前資料（即時讀取，只回傳數值，不回傳姓名、病歷號、床號，也不存進同步資料） =====
 const HO_DOC_ID='1MUwbZVat96vpyil2ahjP6lIv-NzW_MHbOC99EXTx7Yk';
 function hoDocId(){try{const v=JSON.parse(apiGet('common/handoff')||'null');const m=v&&String(v.u||'').match(/document\/d\/([\w-]{20,})/);if(m)return m[1]}catch(e){}return HO_DOC_ID}

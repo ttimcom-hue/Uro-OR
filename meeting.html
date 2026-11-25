@@ -77,6 +77,7 @@ h3.mon{color:var(--ink);font-size:17px;margin:18px 2px 8px}
 <header><div class="hrow"><div><h1>🕣 泌尿科 晨會</h1><div class="sub" id="sub"></div></div><div class="hside"><span class="sub" id="sync"></span><span class="hside" id="tools"></span></div></div>
 <nav class="tabs" id="tabs"></nav></header>
 <main id="app"><p class="note">載入中…</p></main>
+<script src="auth.js?v=1"></script>
 <script>
 {
 /* 泌尿科晨會網站（meeting.html）。與刀房調度板、科務入口共用同一個 Apps Script 同步網址。
@@ -92,10 +93,11 @@ const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8f
 const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){return null}},set(k,v){try{localStorage.setItem('or:'+k,JSON.stringify(v))}catch(e){}}};
 let gs=LS.get('gsync');if(!gs||!gs.url)gs={url:SYNC_URL,token:'',on:true};
 const on=()=>gs.on&&gs.url;
-const q_=k=>gs.url+(gs.url.includes('?')?'&':'?')+k+'&token='+encodeURIComponent(gs.token||'');
+const AQ=()=>window.AUTH?AUTH.q():'',AB=o=>window.AUTH?AUTH.body(o):o,APREF=()=>window.AUTH?AUTH.prefs():{};
+const q_=k=>gs.url+(gs.url.includes('?')?'&':'?')+k+'&token='+encodeURIComponent(gs.token||'')+AQ();
 async function getMany(keys){try{const r=await fetch(q_('keys='+encodeURIComponent(keys.join(','))));const j=await r.json();if(j.ok&&j.value&&typeof j.value==='object'&&!Array.isArray(j.value))return keys.map(k=>({status:'fulfilled',value:j.value[k]??null}))}catch(e){}return Promise.allSettled(keys.map(get))}
 async function get(key){const r=await fetch(q_('key='+encodeURIComponent(key)));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
-async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token||'',key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
+async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token||'',key,value}))});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -326,7 +328,7 @@ function render(){const pg=page();
  const t=S.md&&S.md.ts?new Date(S.md.ts):null;
  $('#sync').textContent=S.loading?'讀取中…':S.err==='conn'?'無法連上同步':t?`議程更新 ${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}${S.md.left?`（還有 ${S.md.left} 週讀取中）`:''}`:'已同步';
  $('#tabs').innerHTML=TABS.map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a><a class="ext" href="hub.html?from=meeting#fb">💬 意見回饋</a>';
- $('#tools').innerHTML=`${edit?'<button class="hbtn" data-act="scan">🔄 從 Drive 更新</button>':''}<button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button><a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
+ $('#tools').innerHTML=`${window.AUTH?AUTH.badge():''}${edit?'<button class="hbtn" data-act="scan">🔄 從 Drive 更新</button>':''}<button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button><a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
  if(!on()){$('#app').innerHTML=setupCard();return}
  if(S.loading&&!S.mp&&!S.md){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  const y=scrollY;$('#app').innerHTML=pplList()+(pg==='plan'?planPage():pg==='next'?nextPage():pg==='log'?logPage():pg==='stat'?statPage():home())+`<p class="note foot">議程由每週主簡報的 OUTLINE 頁自動讀取，只有標題，不含簡報內容。請勿在這裡填病人姓名、病歷號。</p>`;scrollTo(0,y)}
@@ -375,6 +377,7 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.ch;if(!c)r
 addEventListener('hashchange',()=>{evForm=null;scrollTo(0,0);render()});
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
 load();setInterval(()=>{if(!document.hidden&&!saving&&!edit)load()},300000);
+if(window.AUTH){AUTH.init(gs.url,gs.token);addEventListener('auth:change',()=>render())}
 
 /* ===== 加到主畫面 ===== */
 let bip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});
