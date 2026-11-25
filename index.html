@@ -943,9 +943,10 @@ function sortRoom(room){const tl=timeline(day),r=tl.rooms.find(x=>x.id===room);i
 let mergeMsg=null,impStats={};
 /* 重新匯入同一天刀表：保留已排好的順序、房間、手動時間與備註，只更新 HIS 上的術式等資料 */
 function mergeCases(target,list){const old=target.cases.slice(),used=new Set(),out=[];let kept=0,added=0,changed=0;const pk=c=>c.procs.map(p=>p.replace(/\(.*?\)|（.*?）/g,'').trim().toLowerCase()).sort().join('+');
- const find=(nc)=>{const tests=[o=>o.hk&&o.hk===nc.hk,o=>o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&pk(o)===pk(nc),o=>o.surgeon===nc.surgeon&&pk(o)===pk(nc),o=>!o.hk&&o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&(o.time||'')===(nc.time||'')&&!!o.eve===!!nc.eve];for(const t of tests){const o=old.find(x=>!used.has(x)&&t(x));if(o)return o}return null};
+ const passes=[[(o,nc)=>o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&pk(o)===pk(nc),(o,nc)=>o.surgeon===nc.surgeon&&pk(o)===pk(nc)],[(o,nc)=>o.hk&&o.hk===nc.hk,(o,nc)=>!o.hk&&o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&(o.time||'')===(nc.time||'')&&!!o.eve===!!nc.eve]];
+ const L0=list.slice().sort((a,b)=>a.order-b.order),match=new Map();for(const P of passes)for(const nc of L0){if(match.has(nc))continue;for(const t of P){const o=old.find(x=>!used.has(x)&&t(x,nc));if(o){used.add(o);match.set(nc,o);break}}}
  const mx={};for(const o of old)mx[o.room]=Math.max(mx[o.room]||0,o.order||0);
- for(const nc of list.slice().sort((a,b)=>a.order-b.order)){const o=find(nc);if(o){used.add(o);const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
+ for(const nc of L0){const o=match.get(nc);if(o){const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
   else{const had=old.some(x=>x.room===nc.room&&!x.eve);nc.order=(mx[nc.room]=(mx[nc.room]||0)+1);if(had){nc.fixed=false;nc.wait=false}out.push(nc);added++}}
  const removed=old.filter(o=>!used.has(o)).length;target.cases=out;for(const room of new Set(out.map(c=>c.room)))out.filter(c=>c.room===room&&!c.eve).sort((a,b)=>a.order-b.order).forEach((c,j)=>c.order=j+1);
  return{n:out.length,kept,added,changed,removed}}
