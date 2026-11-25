@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>泌尿科刀房調度板（院內電腦）</title></head>
+<body style="font:16px/1.6 'Noto Sans TC','Microsoft JhengHei',sans-serif;padding:24px;color:#0f262b">
+<p id="m">正在載入最新版的刀房調度板…</p>
+<script>
+/* 院內電腦用：醫院擋 github.io 時，把這個檔存在桌面，點兩下打開。
+   會從醫院沒擋的位址抓最新版調度板（raw.githubusercontent.com → jsDelivr → 上次的備份），直接在這台電腦執行並打開「匯入刀表」。
+   資料一樣同步到科內 Google Apps Script；病人姓名、病歷號只在這台電腦解析時暫用，不會上傳。 */
+(function(){
+var SRC=['https://raw.githubusercontent.com/ttimcom-hue/Uro-OR/main/index.html','https://cdn.jsdelivr.net/gh/ttimcom-hue/Uro-OR@main/index.html'];
+var K='or:localHtml';
+function msg(t){var m=document.getElementById('m');if(m)m.innerHTML=t}
+function run(h){try{if(!location.hash)history.replaceState(null,'','#import')}catch(e){}document.open();document.write(h);document.close()}
+function next(i){
+ if(i>=SRC.length){var c=null;try{c=localStorage.getItem(K)}catch(e){}
+  if(c){run(c);return}
+  msg('<b>連不上下載來源</b><br>這台電腦連不到 raw.githubusercontent.com 與 cdn.jsdelivr.net。請改用個人裝置，或請資訊室開放其中一個網址。');return}
+ var x=new XMLHttpRequest();x.open('GET',SRC[i]+'?t='+Date.now(),true);x.timeout=10000;
+ x.onload=function(){if(x.status===200&&x.responseText.indexOf('泌尿科刀房調度板')>0){try{localStorage.setItem(K,x.responseText)}catch(e){}run(x.responseText)}else next(i+1)};
+ x.onerror=x.ontimeout=function(){next(i+1)};x.send()}
+next(0)})();
+</script>
+</body></html>
