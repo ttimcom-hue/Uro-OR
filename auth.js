@@ -2,7 +2,8 @@
    - 伺服器（Code.gs）決定是否啟用登入：?action=authcfg → {on, client}。沒啟用時一切照舊。
    - 登入：Google Identity Services 按鈕 → ID token → POST action=login → 30 天登入憑證（存本機 or:auth）。
    - 之後每個請求帶 sess（AUTH.q() 加在網址、AUTH.body() 加在 POST）。
-   - 核可帳號＝黃部長交班單的共用對象，才讀得到刀表、急診刀等病人資料。
+   - 刀表、急診刀任何人都能看；「編輯刀表」只給刀表編輯者（AUTH.canEdit()，名單由管理員在入口「👤 我的帳號」維護）。
+   - 核可帳號（黃部長交班單的共用對象）才看得到交班單、癌症討論會與術前數值（AUTH.need()）。
    - 偏好 prefs（主題、我是誰、入口預設分頁、調度板預設模式…）存在伺服器 user/<email>，本機也留一份。
    使用：AUTH.init(syncUrl, token).then(...)；監聽 window 'auth:change'。 */
 (function(){
@@ -14,18 +15,16 @@ const qs=()=>(url.includes('?')?'&':'?');
 const emit=()=>{applyTheme();window.dispatchEvent(new CustomEvent('auth:change'))};
 async function api(action,extra){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token:tok,action},extra||{}))});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
 function applyTheme(){const t=(AUTH.prefs().theme)||'';document.documentElement.style.colorScheme=t==='light'?'light':t==='dark'?'dark':''}
-/* 登出或失去權限時，清掉本機暫存的病人資料（刀表、急診刀、入口快取） */
-function wipePHI(){try{Object.keys(localStorage).forEach(k=>{if(/^or:(days\/|er\/list|hubcache)/.test(k))localStorage.removeItem(k)})}catch(e){}}
 let gisP=null;
 const loadGIS=()=>gisP||(gisP=new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=ok;s.onerror=()=>{gisP=null;no(new Error('gis'))};document.head.appendChild(s)}));
 const inApp=()=>/Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent);
 const extLink=()=>location.origin+location.pathname+'?openExternalBrowser=1'+location.hash;
-function done(v){S={token:v.token,exp:v.exp,me:v.me};lsSet(LSK,S);if(!v.me.ok)wipePHI();emit()}
+function done(v){S={token:v.token,exp:v.exp,me:v.me};lsSet(LSK,S);emit()}
 function modal(){const old=document.querySelector('.authm');if(old)old.remove();
  const m=document.createElement('div');m.className='authm';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10001;padding:12px';
  m.innerHTML=`<div style="background:var(--card,#fff);color:var(--ink,#0f262b);border-radius:16px;max-width:400px;width:100%;padding:18px 20px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)">
   <b style="font-size:18px">🔑 用 Google 帳號登入</b>
-  <p style="margin:6px 0 12px;color:var(--mut,#587076);font-size:13.5px">刀表、急診刀、交班單等含病人資料的內容，只開放<b>黃部長交班單有共用的 Google 帳號</b>。登入後也會記住你的偏好設定。</p>
+  <p style="margin:6px 0 12px;color:var(--mut,#587076);font-size:13.5px">登入後：刀表編輯者可以修改刀表；黃部長交班單有共用的帳號可以看交班單、癌症討論會；也會記住你的偏好設定。</p>
   ${inApp()?`<p><b>你現在在 LINE 裡面</b>，Google 不允許在這裡登入，請先改用手機瀏覽器開啟。</p><a href="${esc(extLink())}" style="display:inline-block;background:#0b5563;color:#fff;border-radius:10px;padding:8px 14px;text-decoration:none">用瀏覽器開啟</a>`:`<div id="gbtn" style="min-height:44px">載入 Google 登入中…</div>`}
   <details style="margin-top:12px"><summary style="cursor:pointer;font-size:13.5px">在主畫面 App 裡跳不出 Google 登入？用登入碼</summary>
    <p style="font-size:13px;color:var(--mut,#587076);margin:6px 0">先在瀏覽器登入，到科務入口「👤 我的帳號」按「產生登入碼」，再把 8 碼輸入這裡（10 分鐘內有效）。</p>
@@ -50,25 +49,30 @@ const AUTH=window.AUTH={
  known:()=>!!cfg,
  signedIn:()=>!!(S&&S.token),
  me:()=>(S&&S.me)||null,
- /* 需要登入／核可才能看病人資料：啟用登入且（沒登入或不是核可帳號） */
+ /* 需要登入／核可才能看交班單等病人資料：啟用登入且（沒登入或不是核可帳號） */
  need:()=>!!(cfg&&cfg.on)&&!(S&&S.me&&S.me.ok),
+ /* 能不能編輯刀表：沒啟用登入＝可以；有啟用＝刀表編輯者 */
+ canEdit:()=>!(cfg&&cfg.on)||!!(S&&S.me&&S.me.edit),
+ isAdmin:()=>!!(S&&S.me&&S.me.admin),
  q:()=>S&&S.token?'&sess='+encodeURIComponent(S.token):'',
  body:o=>(S&&S.token?Object.assign(o,{sess:S.token}):o),
  prefs:()=>(S&&S.me&&S.me.prefs)||lsGet('or:prefs')||{},
  name:()=>{const m=S&&S.me;return m?(m.name||m.email.split('@')[0]):''},
  login(){if(!cfg||!cfg.on){alert('登入功能尚未啟用');return}modal()},
- async logout(){if(!confirm('登出這個裝置？本機暫存的刀表與急診刀資料也會一起清除。'))return;const t=S&&S.token;S=null;lsSet(LSK,null);wipePHI();if(t)api('logout',{sess:t}).catch(()=>{});emit()},
+ async logout(){if(!confirm('登出這個裝置？'))return;const t=S&&S.token;S=null;lsSet(LSK,null);if(t)api('logout',{sess:t}).catch(()=>{});emit()},
  async refresh(){if(!S)return;try{const r=await fetch(url+qs()+'action=me&token='+encodeURIComponent(tok)+this.q());const j=await r.json();if(!j.ok)return;
-   if(!j.value){S=null;lsSet(LSK,null);wipePHI();emit();return}const was=S.me&&S.me.ok;S.me=j.value;lsSet(LSK,S);if(was&&!S.me.ok)wipePHI();emit()}catch(e){}},
+   if(!j.value){S=null;lsSet(LSK,null);emit();return}S.me=j.value;lsSet(LSK,S);emit()}catch(e){}},
  async savePrefs(p,name){lsSet('or:prefs',Object.assign({},this.prefs(),p));if(!S){applyTheme();return}const v=await api('prefs',{sess:S.token,prefs:Object.assign({},this.prefs(),p),name});S.me=v;lsSet(LSK,S);emit();return v},
  async code(){if(!S)throw new Error('auth');return api('code',{sess:S.token})},
+ /* 管理員：讀／改刀表編輯者名單 */
+ async editors(list){if(!S)throw new Error('auth');if(list)return api('editors',{sess:S.token,list});const r=await fetch(url+qs()+'action=editors&token='+encodeURIComponent(tok)+this.q());const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value},
  /* 伺服器回 err:'auth'（登入過期或權限被取消）時呼叫：清掉登入並請使用者重新登入 */
- expired(){if(S){S=null;lsSet(LSK,null)}wipePHI();emit();if(cfg&&cfg.on)modal()},
+ expired(){if(S){S=null;lsSet(LSK,null)}emit();if(cfg&&cfg.on)modal()},
  /* 標題列的小按鈕：已登入顯示頭像＋名字（連到我的帳號），沒登入顯示「登入」 */
  badge(hubHref){if(!cfg||!cfg.on)return '';const m=this.me();const st='display:inline-flex;align-items:center;gap:6px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:2px 10px 2px 3px;font-size:13px;text-decoration:none;white-space:nowrap';
   if(!m)return `<a href="#" data-alogin style="${st};padding:3px 12px">🔑 登入</a>`;
   const pic=m.pic?`<img src="${esc(m.pic)}" alt="" width="22" height="22" referrerpolicy="no-referrer" style="border-radius:50%">`:'<span style="width:22px;text-align:center">👤</span>';
-  return `<a href="${esc(hubHref||'hub.html#me')}" style="${st}" title="${esc(m.email)}">${pic}${esc(this.name())}${m.ok?'':' ⚠'}</a>`},
+  return `<a href="${esc(hubHref||'hub.html#me')}" style="${st}" title="${esc(m.email)}">${pic}${esc(this.name())}${m.edit?' ✏️':''}</a>`},
  /* 鎖住的內容：給頁面放在需要核可的區塊 */
  lockCard(what){const m=this.me();return `<section style="background:var(--card,#fff);border:1px solid var(--line,#d8e2e3);border-radius:14px;padding:18px;max-width:560px;margin:10px auto;text-align:center">
   <div style="font-size:36px">🔒</div><h2 style="margin:4px 0 8px;justify-content:center">${esc(what||'這裡有病人資料')}</h2>
@@ -76,6 +80,6 @@ const AUTH=window.AUTH={
    :`<p>請用<b>黃部長交班單有共用的 Google 帳號</b>登入後查看。</p><button data-alogin style="font:inherit;border:0;background:#0b5563;color:#fff;border-radius:10px;padding:10px 18px;margin-top:6px">🔑 用 Google 帳號登入</button>`}</section>`}
 };
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-alogin],[data-alogout],[data-arefresh]');if(!t)return;e.preventDefault();e.stopPropagation();
- if(t.hasAttribute('data-alogin'))AUTH.login();else if(t.hasAttribute('data-alogout')){const t0=S&&S.token;S=null;lsSet(LSK,null);wipePHI();if(t0)api('logout',{sess:t0}).catch(()=>{});emit();AUTH.login()}else AUTH.refresh()},true);
+ if(t.hasAttribute('data-alogin'))AUTH.login();else if(t.hasAttribute('data-alogout')){const t0=S&&S.token;S=null;lsSet(LSK,null);if(t0)api('logout',{sess:t0}).catch(()=>{});emit();AUTH.login()}else AUTH.refresh()},true);
 applyTheme();
 })();
