@@ -172,6 +172,7 @@ tr.fel td{background:var(--soft)}
 <body>
 <div id="app"><header><div class="hrow"><h1>泌尿科刀房調度板</h1></div></header><main><p>載入中…</p></main></div>
 <input type="file" id="file" accept="image/*" multiple hidden data-ch="file">
+<script src="auth.js?v=1"></script>
 <script>
 /* 開機保護：主程式沒跑起來時（舊瀏覽器、程式錯誤、本機暫存壞掉）顯示原因與修復按鈕，不要只剩空白。刻意用舊式 JS 寫，舊瀏覽器也能執行。 */
 (function(){var shown=false,errs=[];
@@ -532,14 +533,20 @@ cfg=fixCfg(LS.get('config/main')||defaultCfg());{const l=LS.get('er/list');if(l&
 day=LS.get('days/'+curDate)||(curDate==='2026-11-20'&&!LS.get('touched')?sampleDay():newDay(curDate));
 const timers={},writing={};
 const pendP=new Set();let lastSaved=null;const newer=(a,b)=>!a?b:!b?a:((+b.ts||0)>(+a.ts||0)?b:a);
-function persist(path,obj){if(obj&&typeof obj==='object')obj.ts=Date.now();LS.set(path,obj);LS.set('touched',1);pendP.add(path);const se=$('#sync');if(se)se.textContent=syncTxt();if(!db&&!gsOn()){pendP.delete(path);lastSaved=new Date()}if(!db&&gsOn()){clearTimeout(timers[path]);timers[path]=setTimeout(()=>gsFlush(path,JSON.parse(JSON.stringify(obj))),900);return}if(!db)return;clearTimeout(timers[path]);timers[path]=setTimeout(()=>flush(path,JSON.parse(JSON.stringify(obj))),700)}
+function persist(path,obj){if(/^days\//.test(path)&&NOEDIT()){noEdit();return}if(obj&&typeof obj==='object')obj.ts=Date.now();LS.set(path,obj);LS.set('touched',1);pendP.add(path);const se=$('#sync');if(se)se.textContent=syncTxt();if(!db&&!gsOn()){pendP.delete(path);lastSaved=new Date()}if(!db&&gsOn()){clearTimeout(timers[path]);timers[path]=setTimeout(()=>gsFlush(path,JSON.parse(JSON.stringify(obj))),900);return}if(!db)return;clearTimeout(timers[path]);timers[path]=setTimeout(()=>flush(path,JSON.parse(JSON.stringify(obj))),700)}
 async function flush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await db.doc(path).set(obj);syncState='cloud';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){syncState='err'}const nx=writing[path].next;delete writing[path];if(nx)flush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
 const gsOn=()=>!IN_CLAUDE&&(GAS||(gs.on&&gs.url));
+/* 登入（auth.js）：請求帶 sess。刀表、急診刀任何人都能看；只有刀表編輯者（AUTH.canEdit()）能儲存刀表（days/）的修改 */
+const AQ=()=>window.AUTH?AUTH.q():'',AB=o=>window.AUTH?AUTH.body(o):o,APREF=()=>window.AUTH?AUTH.prefs():{};
+const NOEDIT=()=>!!(window.AUTH&&!IN_CLAUDE&&!GAS&&!AUTH.canEdit());
+/* 不是編輯者時的提示（載入後 3 秒內的自動存檔不提示；8 秒內只提示一次） */
+const bootAt=Date.now();let noEditAt=0;function noEdit(){if(Date.now()-bootAt<3000||Date.now()-noEditAt<8000)return;noEditAt=Date.now();const m=window.AUTH&&AUTH.me();
+ toast(m?'你的帳號沒有編輯刀表的權限，修改不會儲存（請總醫師在科務入口加入編輯者）':'要先登入刀表編輯者的 Google 帳號，修改才會儲存')}
 const gasCall=(fn,...a)=>new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn](...a));
 /* ===== 黃部長交班單 → 術前資料：每次即時向 Apps Script 讀，只放記憶體，不存進同步資料或本機 ===== */
 let hoD={};
 async function hoCall(dates){if(GAS)return JSON.parse(await gasCall('apiHandoff',dates.join(',')));
- const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=handoff&dates='+encodeURIComponent(dates.join(','))+'&token='+encodeURIComponent(gs.token||''));let j;try{j=await r.json()}catch(e){throw new Error('old')}if(!j.ok)throw new Error(j.err||'fail');if(j.value==null)throw new Error('old');return j.value}
+ const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=handoff&dates='+encodeURIComponent(dates.join(','))+'&token='+encodeURIComponent(gs.token||'')+AQ());let j;try{j=await r.json()}catch(e){throw new Error('old')}if(!j.ok)throw new Error(j.err||'fail');if(j.value==null)throw new Error('old');return j.value}
 const isHo=c=>!c.eve&&topS().includes(c.surgeon);
 function hoLoad(date,force){const h=hoD[date];if(h&&(h.busy||!force))return;hoD[date]={...(h||{}),busy:1};
  hoCall([date]).then(v=>{hoD[date]={list:v.list||[],at:Date.now()};render()},e=>{hoD[date]={err:/old/.test(e.message)?'old':e.message,at:Date.now()};render()})}
@@ -567,9 +574,9 @@ function hoCard(D){const h=hoNeed(D);if(!h)return'';const T0='<b>📋 黃部長�
  const rest=h.list.filter(e=>!used.has(e));
  return `<section class="card"><div class="row" style="gap:8px">${T0}<button class="btn s" data-horeload="${D.date}">重新讀取</button></div>${cs.map(one).join('')}${rest.length?`<p class="note" style="margin-top:6px">交班單上這天還有：${rest.map(e=>esc(e.op+(e.slot!=null?(e.slot===0?' 08:30':' TF'+e.slot):''))).join('、')}（刀表沒對到）</p>`:''}</section>`}
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-horeload]');if(!t)return;e.stopPropagation();e.preventDefault();hoLoad(t.dataset.horeload,1);render()},true);
-async function gsGet(key){if(GAS){const v=await gasCall('apiGet',key);return v?JSON.parse(v):null}const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&token='+encodeURIComponent(gs.token));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
-async function gsSet(key,value,keep){if(GAS){await gasCall('apiSet',key,JSON.stringify(value));return}const r=await fetch(gs.url,{method:'POST',keepalive:!!keep,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token,key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
-async function gsFlush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await gsSet(path,obj);syncState='gs';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){syncState='err';setTimeout(()=>{if(pendP.has(path)){const v=LS.get(path);if(v)gsFlush(path,v)}},15000)}const nx=writing[path].next;delete writing[path];if(nx)gsFlush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
+async function gsGet(key){if(GAS){const v=await gasCall('apiGet',key);return v?JSON.parse(v):null}const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&token='+encodeURIComponent(gs.token)+AQ());const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
+async function gsSet(key,value,keep){if(GAS){await gasCall('apiSet',key,JSON.stringify(value));return}const r=await fetch(gs.url,{method:'POST',keepalive:!!keep,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token,key,value}))});const j=await r.json();if(!j.ok){if(j.err==='auth'&&window.AUTH)AUTH.expired();throw new Error(j.err||'fail')}}
+async function gsFlush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await gsSet(path,obj);syncState='gs';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){if(e.message==='edit'){pendP.delete(path);syncState='gs';noEdit()}else{syncState='err';setTimeout(()=>{if(pendP.has(path)){const v=LS.get(path);if(v)gsFlush(path,v)}},15000)}}const nx=writing[path].next;delete writing[path];if(nx)gsFlush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
 async function gsBoot(){if(!gsOn())return loadNext();try{const c0=await gsGet('config/main'),cl=LS.get('config/main'),c=newer(c0,cl);if(c&&c.cfg)cfg=fixCfg(c.cfg);if(c&&c===cl&&c0&&(+cl.ts||0)>(+c0.ts||0))persist('config/main',{cfg});const d0=await gsGet('days/'+curDate);const loc=LS.get('days/'+curDate);const d=newer(d0,loc);if(d&&d===loc&&d0&&(+loc.ts||0)>(+d0.ts||0))persist('days/'+curDate,loc);if(d){day=d;for(const k of Object.keys(newDay(curDate)))if(day[k]==null)day[k]=newDay(curDate)[k]}syncState='gs'}catch(e){syncState='err'}render();rosterSync()}
 const saveCfg=()=>persist('config/main',{cfg});
 const saveDay=()=>{delete day.demo;persist('days/'+day.date,day)};
@@ -584,7 +591,7 @@ async function loadDay(date){setTimeout(()=>{if(day&&Array.isArray(day.er)&&day.
 function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=planMoves(day,tl),L=advise(day,tl,asg,pl);cache={asg};
  const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
  const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
- $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a><a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
+ $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
  <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn edonly" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
  <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
@@ -1090,6 +1097,10 @@ document.addEventListener('pointermove',e=>{if(pend&&!drag){if(pend.el&&Math.hyp
 document.addEventListener('pointerup',e=>{if(pend&&!drag){const id=pend.id,click=pend.click||pend.el&&(pend.el.classList.contains('bar')||pend.el.classList.contains('vb'));pend=null;if(click){selId=id;render();const p=document.querySelector('.selp');if(p&&p.scrollIntoView)p.scrollIntoView({block:'nearest',behavior:'smooth'})}return}pend=null;endDrag(true)});document.addEventListener('pointercancel',()=>endDrag(false));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(drag)endDrag(false);else if(selId){selId=null;render()}}});
 let rzT=null;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{const a=document.activeElement;if(!drag&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))render()},250)});
+if(window.AUTH&&!IN_CLAUDE&&!GAS){AUTH.init(gs.url,gs.token);{const pm=AUTH.prefs().orMode;if(pm)edMode=pm==='edit'}if(NOEDIT())edMode=false;
+ addEventListener('auth:change',()=>{if(NOEDIT())edMode=false;render()});
+ /* 不是刀表編輯者：按「✏️ 排刀模式」改成提示登入／沒有權限（window capture 先於調度板自己的監聽器） */
+ addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-edmode],[data-imp]');if(!t||!NOEDIT()||edMode&&t.dataset.edmode)return;e.stopPropagation();e.preventDefault();if(AUTH.me())toast('你的帳號沒有編輯刀表的權限，請總醫師在科務入口「👤 我的帳號」把你加入刀表編輯者');else AUTH.login()},true)}
 render();gsBoot().then(loadNext);
 if(/^#(line|today)$/.test(location.hash))setTimeout(()=>{const e=$('#line-sec');if(e)e.scrollIntoView()},300);
 (async()=>{const C=typeof window.claude!=='undefined'&&window.claude&&window.claude.use?window.claude:null;if(!C)return;
@@ -1252,7 +1263,7 @@ document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.
 
 /* ===== 癌症討論會追蹤表連動（透過同一個 Apps Script，病人資料只寫進那份試算表，不存在調度板） ===== */
 async function cancerCall(action,text){if(GAS)return JSON.parse(await gasCall('apiCancer',action==='import'?'import':'status',text||''));
- if(action==='import'){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token,action:'cancerImport',text})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
+ if(action==='import'){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token,action:'cancerImport',text}))});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
  const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'action=cancerStatus&token='+encodeURIComponent(gs.token||''));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');if(j.value==null)throw new Error('old');return j.value}
 async function cancerSend(text){const m=$('#cmsg');if(m)m.textContent='送出中…';try{cst=await cancerCall('import',text);cst.at=new Date();busy=(busy?busy+'；':'')+`已送到癌症討論會表（${cst.newN?cst.newN+' 台新個案待加入追蹤':'個案都已在追蹤表'}）`;render()}catch(e){if($('#cmsg'))$('#cmsg').textContent=/old|key/.test(e.message)?'需先更新 Apps Script（見說明）':'送出失敗：'+e.message}}
 async function cancerLoad(){if(cBusy||!gsOn())return;cBusy=true;try{cst=await cancerCall('status');cst.at=new Date()}catch(e){cst={err:/old|key/.test(e.message)?'old':e.message}}cBusy=false;render()}

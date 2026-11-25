@@ -128,6 +128,7 @@ td.cl{cursor:pointer}td.cl:hover .st{outline:2px solid var(--scrub)}
 <header><div class="hrow"><div><h1>📆 泌尿科 科內行事曆</h1><div class="sub" id="sub"></div></div><div class="hside"><span class="sub" id="sync"></span><span class="hside" id="tools"></span></div></div>
 <nav class="tabs" id="tabs"></nav></header>
 <main id="app"><p class="note">載入中…</p></main>
+<script src="auth.js?v=1"></script>
 <script>
 {
 /* 泌尿科科內行事曆（calendar.html）。與刀房調度板、科務入口、晨會共用同一個 Apps Script 同步網址。
@@ -145,10 +146,11 @@ const KEY='calendar/events';
 const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){return null}},set(k,v){try{localStorage.setItem('or:'+k,JSON.stringify(v))}catch(e){}}};
 let gs=LS.get('gsync');if(!gs||!gs.url)gs={url:SYNC_URL,token:'',on:true};
 const on=()=>gs.on&&gs.url;
-const q_=k=>gs.url+(gs.url.includes('?')?'&':'?')+k+'&token='+encodeURIComponent(gs.token||'');
+const AQ=()=>window.AUTH?AUTH.q():'',AB=o=>window.AUTH?AUTH.body(o):o,APREF=()=>window.AUTH?AUTH.prefs():{};
+const q_=k=>gs.url+(gs.url.includes('?')?'&':'?')+k+'&token='+encodeURIComponent(gs.token||'')+AQ();
 async function get(key){const r=await fetch(q_('key='+encodeURIComponent(key)));const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
 async function getMany(keys){try{const r=await fetch(q_('keys='+encodeURIComponent(keys.join(','))));const j=await r.json();if(j.ok&&j.value&&typeof j.value==='object'&&!Array.isArray(j.value))return keys.map(k=>({status:'fulfilled',value:j.value[k]??null}))}catch(e){}return Promise.allSettled(keys.map(get))}
-async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:gs.token||'',key,value})});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
+async function set(key,value){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token||'',key,value}))});const j=await r.json();if(!j.ok)throw new Error(j.err||'fail')}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -175,7 +177,7 @@ const DEF_RULES=[{id:'r_mtg',title:'科部晨會',cat:'mtg',freq:'w',dow:2,from:
 
 /* ---------- 狀態 ---------- */
 let S={people:null,cfg:null,mp:null,md:null,cal:null,err:'',loading:true},saving=0;
-let edit=!!LS.get('calEdit'),me=LS.get('calMe')||'',hideCats=LS.get('calHide')||[],noRoutine=!!LS.get('calNoRoutine');
+let edit=!!LS.get('calEdit'),me=LS.get('calMe')||(window.AUTH?AUTH.prefs().me:'')||'',hideCats=LS.get('calHide')||[],noRoutine=!!LS.get('calNoRoutine');
 let cur=today,sel=today,openKey='',form=null,imp=null;
 const page=()=>{const h=location.hash.slice(1);return ['month','week','list','att','setup'].includes(h)?h:'month'};
 const CAL=()=>{const c=S.cal||(S.cal={});c.events=c.events||[];if(!c.rules)c.rules=DEF_RULES.map(x=>({...x}));c.skip=c.skip||{};c.att=c.att||{};c.mcat=c.mcat||{};c.hideM=c.hideM||{};c.hideO=c.hideO||{};
@@ -390,7 +392,7 @@ function render(){let pg=page();if(pg==='setup'&&!edit)pg='month';
  $('#sync').textContent=S.loading?'讀取中…':saving?'儲存中…':S.err==='conn'?'無法連上同步':'已同步';
  $('#tabs').innerHTML=TABS.concat(edit?[['setup','⚙ 例行與匯入']]:[]).map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a><a class="ext" href="meeting.html">🕣 晨會</a><a class="ext" href="hub.html?from=cal#fb">💬 意見回饋</a>';
  const L=PPL();
- $('#tools').innerHTML=`<label class="sub" style="display:flex;gap:4px;align-items:center">我是<select data-ch="me" aria-label="我是"><option value="">（選擇）</option>${GRP.map(([r,n])=>{const G=L.filter(p=>p.role===r);return G.length?`<optgroup label="${n}">${G.map(p=>`<option value="${esc(p.id)}" ${p.id===me?'selected':''}>${esc(pname(p))}</option>`).join('')}</optgroup>`:''}).join('')}</select></label><button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button><a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
+ $('#tools').innerHTML=`${window.AUTH?AUTH.badge():''}<label class="sub" style="display:flex;gap:4px;align-items:center">我是<select data-ch="me" aria-label="我是"><option value="">（選擇）</option>${GRP.map(([r,n])=>{const G=L.filter(p=>p.role===r);return G.length?`<optgroup label="${n}">${G.map(p=>`<option value="${esc(p.id)}" ${p.id===me?'selected':''}>${esc(pname(p))}</option>`).join('')}</optgroup>`:''}).join('')}</select></label><button class="hbtn ${edit?'on':''}" data-act="edit">${edit?'✓ 完成編輯':'✏️ 編輯'}</button><a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
  if(!on()){$('#app').innerHTML=setupCard();return}
  if(S.loading&&!S.cal&&!S.people){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  const y=scrollY,ae=document.activeElement,aid=ae&&ae.id;const txt=$('#imptxt')?$('#imptxt').value:null;
@@ -445,7 +447,7 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset&&el.datase
  if(el.id==='icsf'&&el.files&&el.files[0]){const fr=new FileReader();fr.onload=()=>{imp=markDup(parseIcs(fr.result));render()};fr.readAsText(el.files[0]);return}
  if(el.id==='faud'){$('#fppl').hidden=el.value!=='pick';return}
  if(!c)return;
- if(c==='me'){me=el.value;LS.set('calMe',me);render()}
+ if(c==='me'){me=el.value;LS.set('calMe',me);if(window.AUTH&&AUTH.me())AUTH.savePrefs({me}).catch(()=>{});render()}
  else if(c==='noRoutine'){noRoutine=el.checked;LS.set('calNoRoutine',noRoutine);render()}
  else if(c==='ron'){const id=el.dataset.id,v=el.checked;saveCal(C=>{const r=C.rules.find(x=>x.id===id);if(r){r.on=v;r.ts=Date.now()}})}
  else if(c==='mcat'){const id=el.dataset.id,v=el.value;saveCal(C=>{C.mcat[id]=v})}
@@ -464,6 +466,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(openKey||form)){op
 addEventListener('hashchange',()=>{openKey='';form=null;render()});
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
 load();setInterval(()=>{if(!document.hidden&&!saving&&!form&&!openKey)load()},300000);
+if(window.AUTH){AUTH.init(gs.url,gs.token);addEventListener('auth:change',()=>{const pm=AUTH.prefs().me;if(pm&&!LS.get('calMe'))me=pm;render()})}
 
 /* ===== 加到主畫面 ===== */
 let bip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});
