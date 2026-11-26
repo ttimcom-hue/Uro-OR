@@ -267,7 +267,11 @@ window.__clean=clean;})();
 // ===== Google 網址版調度板（?page=board）：醫院電腦擋 github.io 時用。內容就是 index.html，
 //       但和 GitHub Pages 版一樣只走公開的 HTTP 資料管道（不用 google.script.run，不多開伺服器函式）；
 //       auth.js 由這裡內嵌（Google 登入按鈕在這裡不能用，要登入請用科務入口「👤 我的帳號」產生的登入碼）。調度板本身不用登入。
-function boardPage_(){let html=HtmlService.createHtmlOutputFromFile('index').getContent(),auth='';
+// 調度板內容直接抓 GitHub main 的 index.html（快取 10 分鐘，分段存），不依賴專案裡的 index 檔（曾發生專案裡的 index 停在舊版）；抓不到才用專案裡的
+function indexHtml_(){const C=CacheService.getScriptCache();try{const n=+C.get('idx:n')||0;if(n){const ks=[];for(let i=0;i<n;i++)ks.push('idx:'+i);const g=C.getAll(ks);let s='';for(const k of ks){if(g[k]==null){s='';break}s+=g[k]}if(s)return s}}catch(e){}
+  try{const r=UrlFetchApp.fetch(GH_RAW+'index.html?t='+Date.now(),{muteHttpExceptions:true});if(r.getResponseCode()===200){const s=r.getContentText('UTF-8');if(s.indexOf('泌尿科刀房調度板')>0){try{const SZ=25000,o={};let k=0;for(let i=0;i<s.length;i+=SZ)o['idx:'+(k++)]=s.slice(i,i+SZ);o['idx:n']=String(k);C.putAll(o,600)}catch(e){}return s}}}catch(e){}
+  return HtmlService.createHtmlOutputFromFile('index').getContent()}
+function boardPage_(){let html=indexHtml_(),auth='';
   try{const C=CacheService.getScriptCache();auth=C.get('authjs')||'';if(!auth){const r=UrlFetchApp.fetch(GH_RAW+'auth.js',{muteHttpExceptions:true});if(r.getResponseCode()===200){auth=r.getContentText();if(auth.length<95000)C.put('authjs',auth,3600)}}}catch(e){}
   html=html.replace(/<script src="auth\.js[^"]*"><\/script>/,auth?'<script>'+auth.replace(/<\/script/gi,'<\\/script')+'</script>':'');
   html=html.replace('<head>','<head><script>window.OR_HOST="gas";window.OR_EXEC='+JSON.stringify(ScriptApp.getService().getUrl())+';</script>');

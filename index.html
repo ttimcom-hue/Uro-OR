@@ -56,6 +56,13 @@ h2 small{font-weight:400;color:var(--mut);font-size:13px}
 .c-minor{background:#6f9bb6}.c-urs{background:#2f7fb5}.c-tur{background:#4f5bd5}.c-laser{background:#8c45b8}.c-pcnl{background:#c4621d}.c-lap{background:#0f8b8d}.c-robot{background:#c2185b}.c-sp{background:#e04f8a}.c-open{background:#5f7224}.c-bx{background:#9c7a12}.c-eswl{background:#6b6b6b}.c-tx{background:#8a3b3b}
 .ro .edonly,.ro .gsort,.ro .gswap,.ro [data-act=optimize]{display:none!important}
 .tabs .gear{opacity:.7;font-size:14px}
+.tut .card{margin-bottom:14px}.tut h2 small{font-weight:400}.tutnav{gap:6px;margin:0 0 12px}
+.tstep{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}.tstep:first-of-type{border-top:0}
+.tn{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--scrub,#0b5563);color:#fff;font-weight:800;flex:none}
+.tshot{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}.tshot.narrow{max-width:390px}.tutimg{display:block;width:100%;height:auto}.tutimg+.tutimg{border-top:1px solid var(--line)}
+.his-zoom{display:none!important}@media(max-width:700px){.his-full{display:none!important}.his-zoom{display:block!important}}
+.thl{background:#ffe9a8;color:#3a2a00;border-radius:4px;padding:0 3px}.turl{overflow-wrap:anywhere;font-size:13.5px;background:var(--soft);border-radius:8px;padding:6px 10px}.tfaq dt{font-weight:700;margin-top:8px}.tfaq dd{margin:2px 0 0}
+@media(max-width:700px){.tstep{grid-template-columns:minmax(0,1fr)}.tpic{order:-1}}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12.5px;color:var(--mut);margin-top:8px}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
@@ -204,7 +211,7 @@ const LOCAL=location.protocol==='file:'||window.OR_HOST==='gas';
 let lastImp=null,inboxBusy=false;
 let resAdv=false,gearOpen=false,erDoneOpen=false,erToast=null;
 let edMode=(()=>{try{return localStorage.getItem('or:edit')==='true'}catch(e){return false}})();
-const GEAR=[['res','人力與能力'],['set','術式與房間設定'],['help','❓ 怎麼用']];
+const GEAR=[['res','人力與能力'],['set','術式與房間設定']];
 /* 意見回饋集中在科務入口 hub.html#fb（Apps Script 版用 GitHub Pages 網址） */
 const fbUrl=()=>(GAS||LOCAL?'https://ttimcom-hue.github.io/Uro-OR/':'')+'hub.html?from=or#fb';
 const caseCol=x=>colMode()==='vs'?vsCol(x.c.surgeon):(CATC[x.cat]||'#6f9bb6');
@@ -604,7 +611,7 @@ function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=
  $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${window.OR_HOST==='gas'&&window.OR_EXEC?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a target="_top" href="${esc(OR_EXEC)}?page=upload">📥 上傳刀表</a><a target="_top" href="${esc(OR_EXEC)}">☰ 選單</a>${window.AUTH?AUTH.badge('#'):''}</div>`:''}${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
  <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
- <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
+ <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],['help','📖 教學'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
  <main>${tab==='plan'?planView(tl,asg,L):tab==='er'?erNight()+erSlotCard()+erCard():tab==='prep'?prepView():tab==='res'?resView():tab==='fb'?fbMoved():tab==='help'?helpView():setView()}</main>`;$('#app').classList.toggle('ro',!edMode);titleize($('#app'))}
 
 function planView(tl,asg,L){const S=cfg.set,dl=T(S.deadline),ot=T(S.nurseOT);
@@ -1143,19 +1150,58 @@ async function rosterPush(){if(!gsOn())return;try{const R=(await gsGet('common/p
 async function rosterSync(){if(!gsOn())return;try{const R=await gsGet('common/people');if(!R||!Array.isArray(R.people)){await gsSet('common/people',rosterFromCfg());return}
   if(applyRoster(R)){saveCfg();render()}if(cfg.res.some(r=>!R.people.some(p=>p.id===r.id)))rosterPush()}catch(e){}}
 
-function helpView(){const go=(k,t)=>`<button class="btn s" data-act="tab" data-k="${k}">${t} →</button>`;return `<section><h2>怎麼用 <small>四件事就夠了</small></h2><div class="hstep">
- <div class="card"><h3>① 匯入刀表</h3><ol><li>上方日期選要排的那天（可提前匯入）</li><li>HIS 開「手術工作表」，<kbd>Ctrl</kbd>+<kbd>A</kbd> 全選、<kbd>Ctrl</kbd>+<kbd>C</kbd> 複製</li><li>貼到「今日排程 → 匯入刀表」框，按「解析並加入」</li></ol><p class="note">刀序、時間軸、住院醫師人力會自動排好。</p>${go('plan','去匯入')}</div>
- <div class="card"><h3>② 調整、發公告</h3><ol><li>時間軸上<b>拖曳色塊</b>換順序或換房；點色塊可改時間、刪除</li><li>人力表可把人改成 OPD、pm 或固定某房</li><li>拉到最下面「LINE 群組公告」按「複製文字」貼到群組</li></ol>${go('plan','去排程')}</div>
- <div class="card"><h3>③ 急診刀</h3><ol><li>「急診刀」分頁按「新增急診刀」，填主治、術式、類別（床號勿填姓名）<br><span class="note">或 HIS「科別查詢」→「轉檔」→ 複製表格內容（不含標題）→ 貼到「匯入急診刀表」</span></li><li>病人開始禁食就按 NPO 旁的「現在」</li><li>看到全院順位時，<b>只要更新最前面那台</b>（＋／−），其他自動推估</li><li>要調順序：按住 ☰ 上下拖；接完改「完成」</li></ol><p class="note">全科共用、自動同步。</p>${go('er','去急診刀')}</div>
- <div class="card"><h3>④ 術前準備</h3><ol><li>「術前準備」分頁會列出明天要做的事：自費同意書、IIEF、灌腸＋DRE、MR fusion 畫圖、影像確認…</li><li>做完打勾，LINE 公告會自動拿掉</li></ol>${go('prep','去術前準備')}</div>
- </div><p class="note" style="margin-top:10px">手機：用瀏覽器開網址 →「分享／⋮」→「加入主畫面」，就像 App 一樣。有問題或建議請寫在<a href="${fbUrl()}"${GAS?' target="_blank" rel="noopener"':''}>💬 意見回饋</a>。</p></section>`}
+/* 📖 教學分頁（取代舊的「怎麼用」）。圖片放在 img/tut/（假資料截圖）；Google 版／本機檔案開啟時改用 GitHub raw，再不行用 jsDelivr */
+const tutImg=(n,alt)=>{const rel='img/tut/'+n+'.jpg',raw='https://raw.githubusercontent.com/ttimcom-hue/Uro-OR/main/'+rel,cdn='https://cdn.jsdelivr.net/gh/ttimcom-hue/Uro-OR@main/'+rel;
+ return `<img class="tutimg" src="${LOCAL?raw:rel}" alt="${alt}" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='${LOCAL?cdn:raw}'}">`};
+/* HIS「瀏覽」視窗示意圖：全部假資料，紅框標出「轉檔」 */
+function hisSvg(vb,cls){const cols=[['病歷號',8],['姓名',94],['床號',158],['手術日',220],['時',300],['手術師',350],['手術位置',420],['手術名稱',520]];
+ const rows=[['90000001','測試甲','6021A','1151127','08:30','謝昆霖','3F R06','Circumcision'],['90000002','測試乙','6020B','1151127','08:30','謝育哲','3F 達文西1','(全)(廠) Davinci'],['90000003','測試丙','','1151127','08:30','林才揚','3F R16','Removal of DJ'],['90000004','測試丁','6023A','1151127','TF:1','謝昆霖','3F R06','LSC Reposition'],['90000005','測試戊','','1151127','TF:2','林才揚','3F R16','URS-SM'],['90000006','測試己','','1151127','09:00','黃冠華','2F門診 R29','Cystoscopy']];
+ const btn=['手術計價','Pre-op','OP Note','Post-op','檢驗檢查','照片調閱','病歷彙總','會診查詢','手術狀態','麻醉計劃書','癌症治療','轉檔','列印','查詢','離開'];
+ const bw=52,bx0=6;let s=`<svg class="${cls||''}" viewBox="${vb||'0 0 800 300'}" role="img" aria-label="HIS 手術查詢的瀏覽視窗，右下角的「轉檔」按鈕用紅框標出（示意圖，假資料）" style="width:100%;height:auto;display:block;font-family:'Microsoft JhengHei','Noto Sans TC',sans-serif">`;
+ s+=`<rect x="0" y="0" width="800" height="300" fill="#f0f0f0" stroke="#888"/><rect x="0" y="0" width="800" height="24" fill="#fff"/><text x="10" y="17" font-size="13" fill="#222">瀏覽</text>`;
+ s+=`<rect x="6" y="30" width="788" height="196" fill="#fff" stroke="#999"/><rect x="6" y="30" width="788" height="20" fill="#e8e8e8"/>`;
+ cols.forEach(([t,x])=>{s+=`<text x="${x+6}" y="45" font-size="12.5" fill="#222">${t}</text><line x1="${x+4}" y1="30" x2="${x+4}" y2="226" stroke="#ddd"/>`});
+ rows.forEach((r,i)=>{const y=50+i*24;s+=`<rect x="7" y="${y}" width="786" height="24" fill="${i===0?'#2f6fb5':i%2?'#f3e9f0':'#fff'}"/>`;r.forEach((v,j)=>{s+=`<text x="${cols[j][1]+6}" y="${y+17}" font-size="12.5" fill="${i===0?'#fff':'#00008b'}">${v}</text>`})});
+ btn.forEach((t,i)=>{const x=bx0+i*bw,on=t==='轉檔';s+=`<rect x="${x}" y="236" width="${bw-4}" height="40" rx="3" fill="#f7f7f7" stroke="#999"/><text x="${x+(bw-4)/2}" y="${t.length>4?254:261}" font-size="${t.length>4?10:12}" font-weight="700" text-anchor="middle" fill="#111">${t.length>4?t.slice(0,4):t}</text>${t.length>4?`<text x="${x+(bw-4)/2}" y="268" font-size="10" font-weight="700" text-anchor="middle" fill="#111">${t.slice(4)}</text>`:''}`;
+  if(on)s+=`<rect x="${x-3}" y="233" width="${bw+2}" height="46" rx="4" fill="none" stroke="#e5484d" stroke-width="4"/><text x="${x+(bw-4)/2}" y="296" font-size="12" font-weight="800" text-anchor="middle" fill="#e5484d">按這裡</text>`});
+ return s+`</svg>`}
+function helpView(){const up=(SYNC_URL||'')+'?page=upload',bd=(SYNC_URL||'')+'?page=board';
+ const step=(n,t,body,pic)=>`<div class="tstep"><div><div class="row" style="gap:10px;align-items:center;margin-bottom:6px"><span class="tn">${n}</span><h3 style="margin:0">${t}</h3></div>${body}</div>${pic?`<div class="tpic">${pic}</div>`:''}</div>`;
+ return `<section class="tut"><h2>📖 教學 <small>照著圖做就好；圖中都是假資料</small></h2>
+ <nav class="row tutnav"><a class="btn s" href="#t-up">上傳刀表</a><a class="btn s" href="#t-view">看刀表</a><a class="btn s" href="#t-edit">排刀</a><a class="btn s" href="#t-er">急診刀</a><a class="btn s" href="#t-faq">常見問題</a></nav>
+
+ <div class="card" id="t-up"><h2>① 上傳刀表 <small>在醫院電腦做，約 10 秒</small></h2>
+ ${step(1,'HIS 查好日期，按右下角「轉檔」',`<p>打開 HIS 手術查詢，選好日期（可以一次查好幾天），出現「瀏覽」清單後，按右下角的<b class="thl">「轉檔」</b>。</p>`,`<div class="tshot">${hisSvg('0 0 800 300','his-full')}${hisSvg('372 140 428 160','his-zoom')}</div><p class="note">示意圖，資料是假的。</p>`)}
+ ${step(2,'在轉檔出來的表格全選、複製',`<p>按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 全選，再按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 複製。選到標題列也沒關係。</p>`,'')}
+ ${step(3,'打開上傳頁，按 Ctrl+V 就自動上傳',`<p>醫院電腦用這個網址（請存成書籤）：</p><p class="turl"><a href="${esc(up)}" target="_top">${esc(up)}</a></p><p>點框、按 <kbd>Ctrl</kbd>+<kbd>V</kbd>，看到<b class="thl">綠色「✓ 已上傳」</b>就完成。病歷號、姓名會先在醫院電腦去掉，不會上傳。</p><p class="note">也可以在調度板按「✏️ 排刀模式」→「📥 匯入刀表」→「📋 從剪貼簿匯入」。</p>`,`<div class="tshot">${tutImg('up2m','上傳頁貼上後顯示綠色的已上傳')}</div>`)}
+ <p class="ok-box">上傳後大家打開調度板就會自動更新：已排好的順序不變、只更新術式、新刀排最後、刀表上刪除的刀會移除。</p></div>
+
+ <div class="card" id="t-view"><h2>② 看刀表 <small>手機、電腦都可以</small></h2>
+ ${step(1,'先看「📥 刀表最後更新」',`<p>在「今日排程」上方，寫著最後一次上傳的時間和上傳的人。時間太舊就請在醫院的人上傳一次。</p><p>時間軸的顏色＝主治醫師；可以切換「手機清單／直式／橫式」。</p><p>手機用瀏覽器打開後，「分享／⋮」→「加入主畫面」，就像 App 一樣。</p>`,`<div class="tshot narrow">${tutImg('b1','手機上的刀房調度板，顯示刀表最後更新')}</div>`)}</div>
+
+ <div class="card" id="t-edit"><h2>③ 排刀 <small>不用登入，大家都可以排</small></h2>
+ ${step(1,'按「✏️ 排刀模式」',`<p>按下去才會出現排刀工具：拖曳色塊換順序或換房、點色塊改時間／難度／攝護腺體積、一鍵排序、加班與跳台評估、人力調整、LINE 公告。排完按「✓ 完成排刀」回到一般畫面。</p>
+ <p><b>在醫院電腦排刀</b>：醫院打不開 github.io，請用 Google 版（請存成書籤）：</p><p class="turl"><a href="${esc(bd)}" target="_top">${esc(bd)}</a></p>`,'')}</div>
+
+ <div class="card" id="t-er"><h2>④ 急診刀 <small>在「急診刀」分頁，全科共用</small></h2>
+ ${step(1,'新增急診刀',`<p>按最下面的「新增急診刀」，填主治、術式、類別。床號欄只填床號或代稱，<b>不要填姓名、病歷號</b>。刀表上標「急」的刀，上傳時會自動加進來。</p>`,`<div class="tshot narrow">${tutImg('er5','新增急診刀按鈕')}</div>`)}
+ ${step(2,'更新全院等待台數',`<p>看到全院急診刀的最新狀況時，填全院等待的<b class="thl">插刀、緊急刀、一般急</b>各幾台，和<b class="thl">本科最前面那台排第幾台</b>。其他台的順位和預估接刀時間會自動算。</p>`,`<div class="tshot narrow">${tutImg('er1','全院等待：插刀 1、緊急刀 2、一般急 4，本科最前面排第 3 台')}</div>`)}
+ ${step(3,'每一台：NPO 和狀態',`<p>病人開始禁食，按 NPO 旁的<b class="thl">「現在」</b>；已插管就勾「已插管」。進房按<b class="thl">「已排房」</b>，開完按<b class="thl">「完成」</b>。</p>`,`<div class="tshot narrow">${tutImg('er2','一台急診刀的卡片')}</div>`)}
+ ${step(4,'按錯「完成」可以復原',`<p>完成的刀會收起來。按完成後下方提示約 8 秒，按<b class="thl">「↩ 復原」</b>；錯過了就點開「✓ 已完成」，按「回復未完成」。</p>`,`<div class="tshot narrow">${tutImg('er3','已標為完成的提示與復原按鈕')}${tutImg('er4','已完成區塊與回復未完成按鈕')}</div>`)}</div>
+
+ <div class="card" id="t-faq"><h2>常見問題</h2><dl class="tfaq">
+ <dt>醫院電腦打不開調度板</dt><dd>醫院網路擋了 github.io。上傳用上傳頁，看刀表、排刀用 Google 版（網址在上面）。</dd>
+ <dt>重新上傳會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；刪除的刀會移除。</dd>
+ <dt>會傳出病人資料嗎？</dt><dd>不會。病歷號、姓名在醫院電腦就先去掉；只有勾選時，原始刀表照舊送到黃部長的癌症討論會追蹤表。</dd>
+ <dt>有問題或建議</dt><dd>寫在<a href="${fbUrl()}" target="_blank" rel="noopener">💬 意見回饋</a>。</dd></dl></div>
+ </section>`}
 
 /* 顯示用職稱（例如 黃冠華 → 黃冠華部長）；資料本身仍用原名比對刀表 */
 function titleize(root){const T=(cfg.sur||[]).filter(x=>x.t&&x.n);if(!T.length||!root)return;const re=new RegExp('('+T.map(x=>x.n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')(?!'+T.map(x=>x.t).join('|')+')','g');const mp=Object.fromEntries(T.map(x=>[x.n,x.n+x.t]));
  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{const p=n.parentNode&&n.parentNode.nodeName;return p==='OPTION'||p==='SCRIPT'||p==='STYLE'||p==='DATALIST'?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}});const ns=[];while(w.nextNode())ns.push(w.currentNode);
  for(const n of ns){re.lastIndex=0;if(re.test(n.nodeValue)){re.lastIndex=0;n.nodeValue=n.nodeValue.replace(re,m=>mp[m]||m)}}}
 
-/* 網址 #plan #er #prep #res #set #fb #help 直接開對應分頁 */
+/* 網址 #plan #er #prep #res #set #fb #help（教學）直接開對應分頁 */
 const TABK=['plan','er','prep','res','set','fb','help'];
 const hashTab=()=>{const h=(location.hash||'').slice(1);if(TABK.includes(h)&&h!==tab){tab=h;if(tab==='er')loadER();render()}};
 addEventListener('hashchange',hashTab);setTimeout(hashTab,0);
