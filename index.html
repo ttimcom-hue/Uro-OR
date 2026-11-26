@@ -201,6 +201,7 @@ const colMode=()=>{try{return localStorage.getItem('or:colBy')==='"cat"'?'cat':'
 const vsCol=n=>{const L=(cfg&&cfg.sur)||[];n=String(n||'').replace(/部長$/,'');let i=L.findIndex(s=>s.n===n);if(i<0){i=L.length;for(const ch of n)i=(i*31+ch.charCodeAt(0))%9973}return VSPAL[i%VSPAL.length]};
 const dispN=n=>{const x=(cfg.sur||[]).find(y=>y.n===n);return x&&x.t?n+x.t:n};
 const LOCAL=location.protocol==='file:';
+let lastImp=null,inboxBusy=false;
 let resAdv=false,gearOpen=false,erDoneOpen=false,erToast=null;
 let edMode=(()=>{try{return localStorage.getItem('or:edit')==='true'}catch(e){return false}})();
 const GEAR=[['res','人力與能力'],['set','術式與房間設定'],['help','❓ 怎麼用']];
@@ -278,7 +279,7 @@ function erAddRows(use,auto){const G=new Map();for(const r of use){const key=[r.
  return n}
 function rowsToCases(rows){const st=T(cfg.set.start),G=new Map();lastDel=0;rows.forEach((r,i)=>{const t=String(r.time||'').trim();{const mm=t.match(/^\d{1,2}:(\d{2})$/);if(mm&&+mm[1]%10!==0)r.del=true}if(r.del){lastDel++;return}let slot,kind='';
  if(/夜/.test(t)){slot=999;kind='eve'}else if(/TF/i.test(t)){slot=+((t.match(/\d+/)||[1])[0])}else if(/\d{1,2}:\d{2}/.test(t)){if(T(t)<=st)slot=0;else{slot=T(t)/10000;kind='clock'}}else slot=60;
- const key=[r.date,r.room,r.surgeon,slot,kind==='clock'?t:'',r.pid||''].join('|');let g=G.get(key);if(!g){g={id:nid(),date:r.date,room:r.room,hisRoom:r.room,hk:[r.room,r.surgeon,t].join('|'),surgeon:r.surgeon,slot,seq:i,procs:[],spec:[],time:kind==='clock'?t:'',eve:kind==='eve',clock:kind==='clock',opd:kind==='clock',fixed:slot===0&&!kind,sq:r.sq||undefined,raw:r.raw||undefined,md:null};G.set(key,g)}
+ const key=[r.date,r.room,r.surgeon,slot,kind==='clock'?t:'',r.pid||''].join('|');let g=G.get(key);if(!g){g={id:nid(),date:r.date,room:r.room,hisRoom:r.room,pt:ptag(r.pid),hk:[r.room,r.surgeon,t].join('|'),surgeon:r.surgeon,slot,seq:i,procs:[],spec:[],time:kind==='clock'?t:'',eve:kind==='eve',clock:kind==='clock',opd:kind==='clock',fixed:slot===0&&!kind,sq:r.sq||undefined,raw:r.raw||undefined,md:null};G.set(key,g)}
  if(r.anes&&!g.anes)g.anes=r.anes;if(r.ca==='Y')g.cancer=true;if(r.src){g.src=r.src;if(r.src==='徑')g.sd=true;if(r.src==='門')g.opd=true;if(/急/.test(r.src))g.er=true}const hr=String(r.special||'').match(/>\s*(\d+(?:\.\d+)?)\s*hr/i);if(hr)g.minDur=Math.max(g.minDur||0,Math.round(+hr[1]*60));g.procs.push(r.name);if(r.special&&!/^[\/\s]*$/.test(r.special))g.spec.push(r.special);if(/(^|[\/\s])ER\b|急/.test(r.special||''))g.er=true});
  const out={};for(const g of G.values())(out[g.date]=out[g.date]||[]).push(g);
  for(const d in out){const byR={};out[d].sort((a,b)=>a.slot-b.slot||a.seq-b.seq).forEach(c=>{if(!c.eve)(byR[c.room]=byR[c.room]||[]).push(c)});
@@ -288,7 +289,7 @@ function fuzzySur(raw,date,room){const s=String(raw||'').trim(),known=cfg.sur.ma
 function normRow(o,fallbackDate){const date=rocDate(o.d||o.date)||fallbackDate;const room=roomOf(o.loc||o.room);const fz=fuzzySur(o.s||o.surgeon,date,room);return{sq:fz.sq,raw:fz.raw,date,time:String(o.t||o.time||''),surgeon:fz.s,room,name:String(o.n||o.name||'').trim(),special:String(o.x||o.special||'').trim()}}
 function parseHIS(txt,fallbackDate){const a=String(txt).split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],TM=/^(\d{1,2}:\d{2}|TF\s*:?\s*\d+|[小大]夜:?)$/i;const starts=[];for(let i=0;i<a.length-1;i++)if(/^\d{7}$/.test(a[i])&&TM.test(a[i+1]))starts.push(i);
  starts.forEach((j,n)=>{const end=n+1<starts.length?starts[n+1]-2:a.length;let k=j+3;const s=a[j+2];let ca='';if(/^[YN]$/.test(a[k])){ca=a[k];k++}const loc=a[k],name=a[k+1];let q=k+2,spec=[];while(q<end&&q<k+5&&!/^(住|門|徑|急|急診)$/.test(a[q])){spec.push(a[q]);q++}
-  const seg=a.slice(q,end);const anes=(seg.find(x=>/^(GA|IVGA|LA|Sed|Spinal|EA|SA|MAC)/i.test(x))||'').split(' ')[0];const del=seg.some(x=>/已刪|刪除|取消/.test(x));const pid=/^\d{6,10}$/.test(a[j-2]||'')?a[j-2]:'';
+  const seg=a.slice(q,end);const anes=(seg.find(x=>/^(GA|IVGA|LA|Sed|Spinal|EA|SA|MAC)/i.test(x))||'').split(' ')[0];const del=seg.some(x=>/已刪|刪除|取消/.test(x));const pid=[a[j-2],a[j-3]].find(x=>/^\d{6,10}$/.test(x||''))||'';
   const r=normRow({d:a[j],t:a[j+1].replace(/\s/g,''),s,loc,n:name,x:spec.filter(x=>x!=='/').join(' ')},fallbackDate);r.src=/^(住|門|徑|急|急診)$/.test(a[q]||'')?a[q]:'';r.ca=ca;{const st=(a[q+2]||'').match(/^(\d{2})(\d{2})\d{2}$/);if(st&&/^\d{7}$/.test(a[q+1]||'')){r.sent=st[1]+':'+st[2];r.sentD=rocDate(a[q+1])}r.kind=(seg.find(x=>/常規|急診|緊急|插刀|一般急/.test(x))||'')}r.anes=anes;r.del=del;r.pid=pid;rows.push(r)});return rows}
 function parseText(txt,fallbackDate){const his=parseHIS(txt,fallbackDate);if(his.length)return his;txt=String(txt).replace(/：/g,':').replace(/[”“"'`]/g,' ').replace(/\bT\s*[EF]{1,2}\s*[:;.,]*\s*(\d)/g,'TF:$1 ').replace(/\bO(\d:\d\d)/g,'0$1').replace(/(3F|2F門診|門診|碎石)\s*R\s*([0-9OoQSsDl]{1,3})/g,(m,a,d)=>a+' R'+d.replace(/[OoQD]/g,'0').replace(/[Ss]/g,'5').replace(/l/g,'1'));const rows=[];for(let ln of String(txt).split(/\r?\n/)){ln=ln.trim();if(!ln||/手術日|手術師/.test(ln))continue;let p;
  if(ln.split('\t').length>=5){p=ln.split('\t').map(s=>s.trim());const di=p.findIndex((c,i)=>/^\d{7}$/.test(c)&&/^(\d{1,2}:\d{2}|TF\s*:?\s*\d+|[小大]夜:?)$/i.test(p[i+1]||''));if(di>=0){const sur=p[di+2];const caC=p.slice(di+3,di+5).find(x=>/^[YN]$/.test(x))||'';let li=p.findIndex((c,i)=>i>di+2&&/R\s*\d|達文西|碎石|門診/.test(c));if(li<0)li=di+4;const nm=p[li+1]||'';let si=p.findIndex((c,i)=>i>li+1&&/^(住|門|徑|急|急診)$/.test(c));const spec=si>0?p.slice(li+2,si).filter(x=>x&&x!=='/').join(' '):(p[li+2]||'').replace(/^\/$/,'');const tail=si>0?p.slice(si):[];const r=normRow({d:p[di],t:p[di+1].replace(/\s/g,''),s:sur,loc:p[li],n:nm,x:spec},fallbackDate);r.src=si>0?p[si]:'';r.ca=caC;{const st=(p[si+2]||'').match(/^(\d{2})(\d{2})\d{2}$/);if(si>0&&st){r.sent=st[1]+':'+st[2];r.sentD=rocDate(p[si+1])||''}r.kind=(tail.find(x=>/常規|急診|緊急|插刀|一般急/.test(x))||'')}r.anes=(tail.find(x=>/^(GA|IVGA|LA|Sed|Spinal|EA|SA|MAC)/i.test(x))||'').split(' ')[0];r.del=tail.some(x=>/已刪|刪除|取消/.test(x));r.pid=(p.slice(0,di).find(x=>/^\d{6,10}$/.test(x)))||'';r.bed=(p.slice(0,di).find(x=>/^[0-9]{3,5}[A-Za-z]{0,2}$/.test(x)&&!/^\d{6,}$/.test(x)))||'';rows.push(r);continue}const hasC=p.length>=7||/^[YN]?$/.test(p[3]);const [d,t,s]=p;const off=hasC?4:3;rows.push(normRow({d,t,s,loc:p[off],n:p[off+1],x:p.slice(off+2).join(' ')},fallbackDate));continue}
@@ -346,6 +347,8 @@ const anesOf=(c,room,cat)=>c.anesSel||normAnes(c.anes)||(roomCfg(room).opd?'LA':
 const anesMin=(c,room,cat)=>+((cfg.anes||{})[anesOf(c,room,cat)]||0);
 const LVR={R1:1,R2:2,R3:3,R4:4,R5:5,CR:5,Fellow:6};const lvOf=r=>LVR[(r||{}).lv]||0;
 const ptxt=c=>(c.procs.join(' ')+' '+(c.spec||[]).join(' '));
+/* 病人代碼：病歷號算出的 3 字元短碼（約 4 千種，無法回推病歷號），只用來在重新匯入時對照同一位病人。院內上傳頁已先把病歷號換成 99xxxx（xxxx＝同一個代碼） */
+const ptag=pid=>{pid=String(pid||'').trim();if(!pid)return'';const m=pid.match(/^99(\d{4})$/);let v;if(m)v=+m[1]%4096;else{let h=2166136261;for(let i=0;i<pid.length;i++){h^=pid.charCodeAt(i);h=Math.imul(h,16777619)>>>0}v=h%4096}return v.toString(16).padStart(3,'0')};
 const DIFF={easy:['簡單',.8],norm:['一般',1],hard:['困難',1.3],vhard:['很困難',1.6]};
 const DIFF_KW=/staghorn|鹿角|redo|re-do|complex|複雜|困難|difficult/i;
 const diffOf=c=>c.diff||(DIFF_KW.test(ptxt(c))?'hard':'norm');
@@ -584,7 +587,18 @@ const syncTxt=()=>(pendP.size?'儲存中…・':lastSaved?`已自動儲存 ${Str
 let nextDay=null;const nextWork=ds=>{let d=addDays(ds,1);if(dowOf(d)===0)d=addDays(d,1);return d};
 async function fetchDay(date){let d=null;if(gsOn()){try{d=await gsGet('days/'+date)}catch(e){}}else if(db){try{const x=await db.doc('days/'+date).get();if(x.exists)d=JSON.parse(JSON.stringify(x.data()))}catch(e){}}return newer(d,LS.get('days/'+date))||null}
 async function loadNext(){loadER();return loadUp()}
-setInterval(()=>{try{const a=document.activeElement;if(tab==='er'&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))loadER()}catch(e){}},45000);
+/* 院內上傳（Apps Script ?page=upload）：上傳頁已把病歷號、姓名去掉，存在 inbox/or。任何能編輯的裝置打開調度板時自動套用（跟一般匯入同樣保留手動刀序），套用後清掉內容 */
+async function inboxCheck(){if(inboxBusy||!gsOn()||NOEDIT())return;inboxBusy=true;try{
+ try{const mi=await gsGet('meta/import');if(mi&&mi.ts&&(!lastImp||mi.ts>lastImp.ts)){lastImp=mi;if(tab==='plan')render()}}catch(e){}
+ const ib=await gsGet('inbox/or');if(!ib||!ib.txt||ib.done)return;
+ const ds=Object.keys(rowsToCases(parseText(ib.txt,day.date)));
+ for(const d of ds){try{const c=await gsGet('days/'+d),l=d===day.date?day:LS.get('days/'+d),n=newer(c,l);if(n&&n!==l){LS.set('days/'+d,n);if(d===day.date){day=n;for(const k of Object.keys(newDay(d)))if(day[k]==null)day[k]=newDay(d)[k]}}}catch(e){}}
+ const R=importAll(ib.txt);
+ for(const d of R.dates){const v=d===day.date?day:LS.get('days/'+d);if(v){clearTimeout(timers['days/'+d]);await gsSet('days/'+d,v);pendP.delete('days/'+d)}}
+ await gsSet('inbox/or',{ts:ib.ts,by:ib.by||'',dates:R.dates,done:Date.now(),txt:''});
+ if(R.dates.length)toast(`已套用院內上傳的刀表：${R.dates.map(d=>(+d.slice(5,7))+'/'+(+d.slice(8))).join('、')}`);render()
+}catch(e){}finally{inboxBusy=false}}
+setInterval(()=>{try{inboxCheck();const a=document.activeElement;if(tab==='er'&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))loadER()}catch(e){}},45000);
 async function loadDay(date){setTimeout(()=>{if(day&&Array.isArray(day.er)&&day.er.length)loadER()},50);curDate=date;LS.set('last',date);let d=null;if(gsOn()){try{d=await gsGet('days/'+date)}catch(e){syncState='err'}}if(db){try{const s=await db.doc('days/'+date).get();if(s.exists)d=JSON.parse(JSON.stringify(s.data()))}catch(e){}}
  const loc=LS.get('days/'+date);day=newer(d,loc)||newDay(date);if(loc&&day===loc&&d&&(+loc.ts||0)>(+d.ts||0))persist('days/'+date,day);for(const k of Object.keys(newDay(date)))if(day[k]==null)day[k]=newDay(date)[k]}
 
@@ -739,7 +753,7 @@ function fbView(){if(fb===null){setTimeout(loadFb,0);return '<p class="card note
  <section class="card"><h2>待處理（${open.length}）<button class="btn s" data-act="fbReload">重新整理</button></h2>${open.length?`<ul class="fbl">${open.map(item).join('')}</ul>`:'<p class="note">沒有待處理的回饋。</p>'}<p class="note">處理完把左邊打勾，就會移到「已解決」。</p></section>
  ${done.length?`<details class="card"><summary>已解決（${done.length}）</summary><ul class="fbl">${done.map(item).join('')}</ul></details>`:''}`}
 function quickLinks(){const er=(ERS.items||[]).filter(e=>!e.del&&e.st!=='done'),ins=er.filter(e=>e.t==='insert').length,topNo=er.filter(e=>topS().includes((e.s||'').trim())&&!e.by).length;const nd=Object.keys(upDays).filter(x=>x>localISO()&&dowOf(x)!==0).sort()[0];const ndD=nd&&(nd===day.date?day:upDays[nd]);const it=ndD?prepItems(ndD):[];const chk=ndD?(ndD.chk||{}):{};const done=it.filter(x=>x.need.every(([k])=>(chk[x.c.id]||{})[k])).length;
- return `<div class="row" style="margin:-8px 0 18px"><button class="btn s ${er.length?'tg on':''}" data-act="tab" data-k="er">急診刀：${er.length?`待處理 ${er.length} 台${ins?`（插刀 ${ins}）`:''}${topNo?`・★ ${topNo} 台未填代開`:''}${(()=>{try{const n=erPlan().out.filter(x=>!x.none).length;return n?`・${n} 台可接空檔`:''}catch(e){return''}})()}`:'無'}</button><button class="btn s ${it.length&&done<it.length?'tg on':''}" data-act="tab" data-k="prep">明天術前準備：${nd?`${done}/${it.length} 完成`:'讀取中'}</button></div>`}
+ return `<div class="row" style="margin:-8px 0 18px"><button class="btn s ${er.length?'tg on':''}" data-act="tab" data-k="er">急診刀：${er.length?`待處理 ${er.length} 台${ins?`（插刀 ${ins}）`:''}${topNo?`・★ ${topNo} 台未填代開`:''}${(()=>{try{const n=erPlan().out.filter(x=>!x.none).length;return n?`・${n} 台可接空檔`:''}catch(e){return''}})()}`:'無'}</button><button class="btn s ${it.length&&done<it.length?'tg on':''}" data-act="tab" data-k="prep">明天術前準備：${nd?`${done}/${it.length} 完成`:'讀取中'}</button>${lastImp&&lastImp.ts?`<span class="note" style="align-self:center">📥 刀表最後更新 ${(()=>{const d=new Date(lastImp.ts);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`})()}${lastImp.src?'（'+esc(lastImp.src)+(lastImp.by?'・'+esc(lastImp.by):'')+'）':''}</span>`:''}</div>`}
 const erWaitH=e=>{if(!e.ad&&!e.at)return null;const d=new Date(`${e.ad||localISO()}T${e.at||'00:00'}:00`);return Math.floor((Date.now()-d.getTime())/36e5)};
 function erSorted(){const er=(ERS.items||[]).filter(e=>!e.del);const rk=t=>ER_T.findIndex(x=>x[0]===t);const auto=(a,b)=>rk(a.t)-rk(b.t)||`${a.ad||'9'} ${a.at||''}`.localeCompare(`${b.ad||'9'} ${b.at||''}`);
  const act=er.filter(e=>e.st!=='done'),done=er.filter(e=>e.st==='done').sort(auto);const act2=act.slice().sort((a,b)=>rk(a.t)-rk(b.t)||((a.ord!=null?0:1)-(b.ord!=null?0:1))||(a.ord!=null&&b.ord!=null?a.ord-b.ord:0)||auto(a,b));return[...act2,...done]}
@@ -950,10 +964,10 @@ function sortRoom(room){const tl=timeline(day),r=tl.rooms.find(x=>x.id===room);i
 let mergeMsg=null,impStats={};
 /* 重新匯入同一天刀表：保留已排好的順序、房間、手動時間與備註，只更新 HIS 上的術式等資料 */
 function mergeCases(target,list){const old=target.cases.slice(),used=new Set(),out=[];let kept=0,added=0,changed=0;const pk=c=>c.procs.map(p=>p.replace(/\(.*?\)|（.*?）/g,'').trim().toLowerCase()).sort().join('+');
- const passes=[[(o,nc)=>o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&pk(o)===pk(nc),(o,nc)=>o.surgeon===nc.surgeon&&pk(o)===pk(nc)],[(o,nc)=>o.hk&&o.hk===nc.hk,(o,nc)=>!o.hk&&o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&(o.time||'')===(nc.time||'')&&!!o.eve===!!nc.eve]];
+ const passes=[[(o,nc)=>o.pt&&nc.pt&&o.pt===nc.pt&&o.surgeon===nc.surgeon],[(o,nc)=>o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&pk(o)===pk(nc),(o,nc)=>o.surgeon===nc.surgeon&&pk(o)===pk(nc)],[(o,nc)=>o.hk&&o.hk===nc.hk,(o,nc)=>!o.hk&&o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&(o.time||'')===(nc.time||'')&&!!o.eve===!!nc.eve]];
  const L0=list.slice().sort((a,b)=>a.order-b.order),match=new Map();for(const P of passes)for(const nc of L0){if(match.has(nc))continue;for(const t of P){const o=old.find(x=>!used.has(x)&&t(x,nc));if(o){used.add(o);match.set(nc,o);break}}}
  const mx={};for(const o of old)mx[o.room]=Math.max(mx[o.room]||0,o.order||0);
- for(const nc of L0){const o=match.get(nc);if(o){const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
+ for(const nc of L0){const o=match.get(nc);if(o){const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom,pt:nc.pt||o.pt};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
   else{const had=old.some(x=>x.room===nc.room&&!x.eve);nc.order=(mx[nc.room]=(mx[nc.room]||0)+1);if(had){nc.fixed=false;nc.wait=false}out.push(nc);added++}}
  const removed=old.filter(o=>!used.has(o)).length;target.cases=out;for(const room of new Set(out.map(c=>c.room)))out.filter(c=>c.room===room&&!c.eve).sort((a,b)=>a.order-b.order).forEach((c,j)=>c.order=j+1);
  return{n:out.length,kept,added,changed,removed}}
@@ -1101,7 +1115,7 @@ if(window.AUTH&&!IN_CLAUDE&&!GAS){AUTH.init(gs.url,gs.token);{const pm=AUTH.pref
  addEventListener('auth:change',()=>{if(NOEDIT())edMode=false;render()});
  /* 不是刀表編輯者：按「✏️ 排刀模式」改成提示登入／沒有權限（window capture 先於調度板自己的監聽器） */
  addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-edmode],[data-imp]');if(!t||!NOEDIT()||edMode&&t.dataset.edmode)return;e.stopPropagation();e.preventDefault();if(AUTH.me())toast('你的帳號沒有編輯刀表的權限，請總醫師在科務入口「👤 我的帳號」把你加入刀表編輯者');else AUTH.login()},true)}
-render();gsBoot().then(loadNext);
+render();gsBoot().then(loadNext).then(inboxCheck);
 if(/^#(line|today)$/.test(location.hash))setTimeout(()=>{const e=$('#line-sec');if(e)e.scrollIntoView()},300);
 (async()=>{const C=typeof window.claude!=='undefined'&&window.claude&&window.claude.use?window.claude:null;if(!C)return;
  try{db=await C.use('db')}catch(e){db=null}
@@ -1289,7 +1303,7 @@ function impModal(){const m=document.createElement('div');m.className='imodal im
  document.body.appendChild(m);setTimeout(()=>{const t=m.querySelector('#impT');if(t)t.focus()},50);
  m.addEventListener('click',async e=>{if(e.target===m||e.target.closest('[data-impclose]')){m.remove();return}
   if(e.target.closest('[data-impgo]')){const txt=m.querySelector('#impT').value;if(!txt.trim())return;const cb=m.querySelector('#impC');if(cb){cfg.set.cancerAuto=cb.checked;saveCfg()}
-   const R=importAll(txt);const res=m.querySelector('#impR');
+   const R=importAll(txt);const res=m.querySelector('#impR');if(R.dates.length){lastImp={ts:Date.now(),src:LOCAL?'院內電腦':'調度板'};if(gsOn())gsSet('meta/import',lastImp).catch(()=>{})}
    const dl=R.dates.map(d=>{const st=R.stats[d]||{};return `<li><b>${+d.slice(5,7)}/${+d.slice(8)}（${DOW[dowOf(d)]}）</b> ${st.fresh?`新匯入 ${st.n} 台`:`更新 ${st.n} 台（保留順序 ${st.kept}${st.changed?`，術式變更 ${st.changed}`:''}${st.added?`，新增 ${st.added}`:''}${st.removed?`，移除 ${st.removed}`:''}）`}</li>`}).join('');
    res.innerHTML=R.dates.length||R.emg?`<div class="ok-box"><b>✓ 匯入完成</b><ul style="margin:4px 0;padding-left:20px">${dl}${R.emg?`<li>急診刀 ${R.emg} 筆 → 急診刀分頁${R.ne?`（新增 ${R.ne} 台）`:'（都已存在）'}</li>`:''}<li>術前準備、機器調度已依新刀表更新</li>${R.sendC?'<li id="impCan">癌症討論會表：送出中…</li>':''}</ul>${R.del?`<span class="inote">略過 ${R.del} 筆已刪除的刀</span>`:''}</div>`:'<p style="color:var(--red)">讀不到刀單，請確認是 HIS 手術工作表整頁複製。</p>';
    m.querySelector('#impT').value='';
