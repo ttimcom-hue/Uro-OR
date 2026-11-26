@@ -2,7 +2,7 @@
    - 伺服器（Code.gs）決定是否啟用登入：?action=authcfg → {on, client}。沒啟用時一切照舊。
    - 登入：Google Identity Services 按鈕 → ID token → POST action=login → 30 天登入憑證（存本機 or:auth）。
    - 之後每個請求帶 sess（AUTH.q() 加在網址、AUTH.body() 加在 POST）。
-   - 刀表、急診刀任何人都能看；「編輯刀表」只給刀表編輯者（AUTH.canEdit()，名單由管理員在入口「👤 我的帳號」維護）。
+   - 刀房調度板所有功能都不用登入。
    - 核可帳號（黃部長交班單的共用對象）才看得到交班單、癌症討論會與術前數值（AUTH.need()）。
    - 偏好 prefs（主題、我是誰、入口預設分頁、調度板預設模式…）存在伺服器 user/<email>，本機也留一份。
    使用：AUTH.init(syncUrl, token).then(...)；監聽 window 'auth:change'。 */
@@ -24,7 +24,7 @@ function modal(){const old=document.querySelector('.authm');if(old)old.remove();
  const m=document.createElement('div');m.className='authm';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10001;padding:12px';
  m.innerHTML=`<div style="background:var(--card,#fff);color:var(--ink,#0f262b);border-radius:16px;max-width:400px;width:100%;padding:18px 20px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)">
   <b style="font-size:18px">🔑 用 Google 帳號登入</b>
-  <p style="margin:6px 0 12px;color:var(--mut,#587076);font-size:13.5px">登入後：刀表編輯者可以修改刀表；黃部長交班單有共用的帳號可以看交班單、癌症討論會；也會記住你的偏好設定。</p>
+  <p style="margin:6px 0 12px;color:var(--mut,#587076);font-size:13.5px">登入後：黃部長交班單有共用的帳號可以看交班單、癌症討論會；也會記住你的偏好設定。</p>
   ${inApp()?`<p><b>你現在在 LINE 裡面</b>，Google 不允許在這裡登入，請先改用手機瀏覽器開啟。</p><a href="${esc(extLink())}" style="display:inline-block;background:#0b5563;color:#fff;border-radius:10px;padding:8px 14px;text-decoration:none">用瀏覽器開啟</a>`:`<div id="gbtn" style="min-height:44px">載入 Google 登入中…</div>`}
   <details style="margin-top:12px"><summary style="cursor:pointer;font-size:13.5px">在主畫面 App 裡跳不出 Google 登入？用登入碼</summary>
    <p style="font-size:13px;color:var(--mut,#587076);margin:6px 0">先在瀏覽器登入，到科務入口「👤 我的帳號」按「產生登入碼」，再把 8 碼輸入這裡（10 分鐘內有效）。</p>
@@ -51,7 +51,7 @@ const AUTH=window.AUTH={
  me:()=>(S&&S.me)||null,
  /* 需要登入／核可才能看交班單等病人資料：啟用登入且（沒登入或不是核可帳號） */
  need:()=>!!(cfg&&cfg.on)&&!(S&&S.me&&S.me.ok),
- /* 能不能編輯刀表：沒啟用登入＝可以；有啟用＝刀表編輯者 */
+ /* 能不能用排刀模式：沒啟用登入＝可以；有啟用＝刀表編輯者 */
  canEdit:()=>!(cfg&&cfg.on)||!!(S&&S.me&&S.me.edit),
  isAdmin:()=>!!(S&&S.me&&S.me.admin),
  q:()=>S&&S.token?'&sess='+encodeURIComponent(S.token):'',
@@ -72,7 +72,7 @@ const AUTH=window.AUTH={
  badge(hubHref){if(!cfg||!cfg.on)return '';const m=this.me();const st='display:inline-flex;align-items:center;gap:6px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:2px 10px 2px 3px;font-size:13px;text-decoration:none;white-space:nowrap';
   if(!m)return `<a href="#" data-alogin style="${st};padding:3px 12px">🔑 登入</a>`;
   const pic=m.pic?`<img src="${esc(m.pic)}" alt="" width="22" height="22" referrerpolicy="no-referrer" style="border-radius:50%">`:'<span style="width:22px;text-align:center">👤</span>';
-  return `<a href="${esc(hubHref||'hub.html#me')}" style="${st}" title="${esc(m.email)}">${pic}${esc(this.name())}${m.edit?' ✏️':''}</a>`},
+  return `<a href="${esc(hubHref||'hub.html#me')}" style="${st}" title="${esc(m.email)}">${pic}${esc(this.name())}</a>`},
  /* 鎖住的內容：給頁面放在需要核可的區塊 */
  lockCard(what){const m=this.me();return `<section style="background:var(--card,#fff);border:1px solid var(--line,#d8e2e3);border-radius:14px;padding:18px;max-width:560px;margin:10px auto;text-align:center">
   <div style="font-size:36px">🔒</div><h2 style="margin:4px 0 8px;justify-content:center">${esc(what||'這裡有病人資料')}</h2>
