@@ -2,9 +2,19 @@
 const TOKEN = '';  // 想加密碼再填，例如 'uro2026'；留空＝不用密碼
 function sh(){const ss=SpreadsheetApp.getActiveSpreadsheet();return ss.getSheetByName('data')||ss.insertSheet('data')}
 function row(s,k){const n=s.getLastRow();if(!n)return 0;const v=s.getRange(1,1,n,1).getValues();for(let i=0;i<n;i++)if(v[i][0]===k)return i+1;return 0}
-function dataGet_(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());const s=sh(),r=row(s,k);return r?String(s.getRange(r,2).getValue()||''):''}
-function dataSet_(k,v){const L=LockService.getScriptLock();L.waitLock(15000);try{const s=sh();let r=row(s,k);if(!r){r=s.getLastRow()+1;s.getRange(r,1).setValue(k)}s.getRange(r,2).setValue(v);s.getRange(r,3).setValue(new Date())}finally{L.releaseLock()}return true}
-function dataGetMany_(keys){const s=sh(),n=s.getLastRow(),m={};if(n)s.getRange(1,1,n,2).getValues().forEach(r=>{if(r[0])m[r[0]]=r[1]});
+// data 工作表：A＝鍵、B＝值、C＝時間。一格最多 5 萬字，所以超過 45000 字的值切段：B 放第一段，D、E…放後面（每段前面加 ~，避免被當成公式或數字），讀的時候接回去
+const CHUNK_=45000;
+function joinRow_(r){let v=String(r[0]==null?'':r[0]);for(let i=2;i<r.length;i++){const x=String(r[i]==null?'':r[i]);if(!x)break;v+=x.charAt(0)==='~'?x.slice(1):x}return v}
+function dataGet_(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());const s=sh(),r=row(s,k);if(!r)return'';const w=Math.max(2,s.getLastColumn()-1);return joinRow_(s.getRange(r,2,1,w).getValues()[0])}
+function dataSet_(k,v){return dataSetMany_([[k,v]])}
+// 一次寫多個鍵（同一把鎖、只讀一次鍵欄），匯入很多天的刀表時用
+function dataSetMany_(pairs){const L=LockService.getScriptLock();L.waitLock(28000);try{const s=sh();const n=s.getLastRow(),idx={};if(n)s.getRange(1,1,n,1).getValues().forEach((x,i)=>{if(x[0])idx[x[0]]=i+1});
+  let last=n;const now=new Date(),lc=s.getLastColumn();
+  for(const [k,v0] of pairs){const v=String(v0==null?'':v0);let r=idx[k];if(!r){r=++last;idx[k]=r;s.getRange(r,1).setValue(k)}
+   const parts=[];for(let i=0;i<v.length||i===0;i+=CHUNK_)parts.push(v.slice(i,i+CHUNK_));
+   const vals=[parts[0],now].concat(parts.slice(1).map(x=>'~'+x));const w=Math.max(vals.length,lc-1);while(vals.length<w)vals.push('');
+   const rg=s.getRange(r,2,1,w);if(parts.length>1)rg.setNumberFormat('@');rg.setValues([vals])}}finally{L.releaseLock()}return true}
+function dataGetMany_(keys){const s=sh(),n=s.getLastRow(),m={};if(n)s.getRange(1,1,n,Math.max(3,s.getLastColumn())).getValues().forEach(r=>{if(r[0])m[r[0]]=joinRow_(r.slice(1))});
   const v={};keys.forEach(k=>{try{const x=k==='meeting/drive'?JSON.stringify(meetingRead()):m[k];v[k]=x?JSON.parse(String(x)):null}catch(e){v[k]=null}});return v}
 function out(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
 // ===== 癌症討論會追蹤表連動 =====
@@ -314,6 +324,7 @@ function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==T
   if(b.action==='prefs')return run(()=>authPrefs_(b.sess,b));
   if(b.action==='editors')return run(()=>authEditors_(b.sess,b.list));
   if(b.action==='cancerImport'){return run(()=>cancerImport_(b.text))}
+  if(b.action==='setMany'){const it=(b.items||[]).slice(0,30).filter(x=>x&&x.key&&!PRIVATE_KEY.test(String(x.key)));return run(()=>{dataSetMany_(it.map(x=>[String(x.key),JSON.stringify(x.value)]));return it.length})}
   const k=String(b.key||'');if(!k||PRIVATE_KEY.test(k))return out({ok:false,err:'key'});
   dataSet_(k,JSON.stringify(b.value));return out({ok:true})}
 // ===== 黃部長交班單 → 調度板術前資料（即時讀取，只回傳數值，不回傳姓名、病歷號、床號，也不存進同步資料） =====

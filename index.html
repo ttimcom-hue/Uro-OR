@@ -208,7 +208,7 @@ const colMode=()=>{try{return localStorage.getItem('or:colBy')==='"cat"'?'cat':'
 const vsCol=n=>{const L=(cfg&&cfg.sur)||[];n=String(n||'').replace(/部長$/,'');let i=L.findIndex(s=>s.n===n);if(i<0){i=L.length;for(const ch of n)i=(i*31+ch.charCodeAt(0))%9973}return VSPAL[i%VSPAL.length]};
 const dispN=n=>{const x=(cfg.sur||[]).find(y=>y.n===n);return x&&x.t?n+x.t:n};
 const LOCAL=location.protocol==='file:'||window.OR_HOST==='gas';
-let lastImp=null,inboxBusy=false;
+let lastImp=null,inboxBusy=false,impNoFlush=false;
 let resAdv=false,gearOpen=false,erDoneOpen=false,erToast=null;
 let edMode=(()=>{try{return localStorage.getItem('or:edit')==='true'}catch(e){return false}})();
 const GEAR=[['res','人力與能力'],['set','術式與房間設定']];
@@ -505,7 +505,7 @@ function opnList(day,tl){const rk=tl.rooms.filter(r=>r.cases.length&&+roomCfg(r.
  return(day.opn||[]).filter(onOf).map(o=>{let room=o.room;if(!room){room=rk.find(x=>!taken.has(x))||'';if(room)taken.add(room)}return{n:o.who?o.who:o.n,room,tower:room?((day.tower||{})[room]||roomCfg(room).tower):'',auto:isA(o)}})}
 function tok(a){if(!a||a.k==='fel'||a.k==='off')return'—';return a.k==='room'?(a.room==='ESWL'?'碎石':a.room):a.k==='OPD'?'OPD':a.k==='pm'?'pm':a.k==='class'?'上課':a.k==='leave'?'請假':a.k==='ward'?'病房':'機動'}
 function instOf(day,asg,h){const v=(day.inst||{})[h];if(v)return v;const E=Object.entries(asg[h]||{}),jr=id=>{const r=cfg.res.find(x=>x.id===id);return r&&isJr(r)};const other=h==='pm'?((day.inst||{}).am||instOf(day,asg,'am')):((day.inst||{}).pm||'');
- const ok=a=>a.k!=='leave'&&a.k!=='pm'&&a.k!=='off';const tt=[2,4].includes(dowOf(day.date));const tiers=[...(tt?[([id,a])=>ok(a)&&a.k!=='room'&&a.k!=='OPD'&&jr(id),([id,a])=>ok(a)&&a.k!=='OPD'&&jr(id),([,a])=>ok(a)&&a.k!=='room'&&a.k!=='OPD',([,a])=>ok(a)&&a.k!=='OPD']:[]),([id,a])=>a.k==='OPD'&&jr(id),([id,a])=>ok(a)&&a.k!=='room'&&jr(id),([id,a])=>ok(a)&&jr(id),([,a])=>a.k==='OPD',([,a])=>ok(a)&&a.k!=='room'];
+ const ok=a=>a.k!=='leave'&&a.k!=='pm'&&a.k!=='off';const tt=true;/* 每天：OPD 的人盡量不排灌藥（原本只有週二週四） */const tiers=[...(tt?[([id,a])=>ok(a)&&a.k!=='room'&&a.k!=='OPD'&&jr(id),([id,a])=>ok(a)&&a.k!=='OPD'&&jr(id),([,a])=>ok(a)&&a.k!=='room'&&a.k!=='OPD',([,a])=>ok(a)&&a.k!=='OPD']:[]),([id,a])=>a.k==='OPD'&&jr(id),([id,a])=>ok(a)&&a.k!=='room'&&jr(id),([id,a])=>ok(a)&&jr(id),([,a])=>a.k==='OPD',([,a])=>ok(a)&&a.k!=='room'];
  for(const t of tiers){const e=E.find(x=>t(x)&&x[0]!==other);if(e)return e[0]}for(const t of tiers){const e=E.find(t);if(e)return e[0]}return''}
 function lineText(day,tl,asg,L){const[,m,d]=day.date.split('-');const nm=id=>(cfg.res.find(r=>r.id===id)||{}).n||'';let s=`${+m}/${+d}（${DOW[dowOf(day.date)]}）\n`;
  const isSat=dowOf(day.date)===6,SP=satPlan(day.date);for(const r of cfg.res.filter(r=>r.on&&(!isFel(r)||[asg.am[r.id],asg.pm[r.id]].some(a=>a&&a.k==='room'))&&!(isSat&&['off','fel','leave'].includes((asg.am[r.id]||{}).k)&&['off','fel','leave'].includes((asg.pm[r.id]||{}).k)))){const a=asg.am[r.id],p=asg.pm[r.id],lv=leaveOf(r.id,day.date,'am')||leaveOf(r.id,day.date,'pm'),note=(day.notes||{})[r.id]||(lv?leaveTxt(lv):'');let v;
@@ -583,7 +583,16 @@ function hoCard(D){const h=hoNeed(D);if(!h)return'';const T0='<b>📋 黃部長�
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-horeload]');if(!t)return;e.stopPropagation();e.preventDefault();hoLoad(t.dataset.horeload,1);render()},true);
 async function gsGet(key){if(GAS){const v=await gasCall('apiGet',key);return v?JSON.parse(v):null}const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&token='+encodeURIComponent(gs.token)+AQ());const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
 async function gsSet(key,value,keep){if(GAS){await gasCall('apiSet',key,JSON.stringify(value));return}const r=await fetch(gs.url,{method:'POST',keepalive:!!keep,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token,key,value}))});const j=await r.json();if(!j.ok){if(j.err==='auth'&&window.AUTH)AUTH.expired();throw new Error(j.err||'fail')}}
-async function gsFlush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await gsSet(path,obj);syncState='gs';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){{syncState='err';setTimeout(()=>{if(pendP.has(path)){const v=LS.get(path);if(v)gsFlush(path,v)}},15000)}}const nx=writing[path].next;delete writing[path];if(nx)gsFlush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
+/* 同時最多 2 個寫入（Apps Script 一次只讓一個寫入進來，等太久會失敗）；匯入很多天時改用 setMany 一次送 10 天 */
+let gsInFlight=0;const gsWaitQ=[];const gsSlot=()=>new Promise(r=>{if(gsInFlight<2){gsInFlight++;r()}else gsWaitQ.push(r)});const gsFree=()=>{const n=gsWaitQ.shift();if(n)n();else gsInFlight--};
+async function gsSetMany(items){if(GAS){for(const it of items)await gsSet(it.key,it.value);return}
+ await gsSlot();try{const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token,action:'setMany',items}))});const j=await r.json();
+  if(!j.ok){if(j.err==='key'){gsFree();for(const it of items){await gsSlot();try{await gsSet(it.key,it.value)}finally{gsFree()}}await gsSlot();return}throw new Error(j.err||'fail')}}finally{gsFree()}}
+async function flushDays(dates){if(!gsOn()||!dates||!dates.length)return;const ks=dates.map(d=>'days/'+d);for(const k of ks)clearTimeout(timers[k]);
+ for(let i=0;i<ks.length;i+=10){const part=ks.slice(i,i+10).map(k=>({key:k,value:k==='days/'+day.date?day:LS.get(k)})).filter(x=>x.value);if(!part.length)continue;
+  try{await gsSetMany(part);part.forEach(x=>pendP.delete(x.key));syncState='gs';lastSaved=new Date()}catch(e){syncState='err';part.forEach((x,k)=>setTimeout(()=>{if(pendP.has(x.key)){const v=LS.get(x.key);if(v)gsFlush(x.key,v)}},15000+k*1500+Math.random()*4000))}
+  const el=$('#sync');if(el)el.textContent=syncTxt()}}
+async function gsFlush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await gsSlot();try{await gsSet(path,obj)}finally{gsFree()}syncState='gs';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){{syncState='err';setTimeout(()=>{if(pendP.has(path)){const v=LS.get(path);if(v)gsFlush(path,v)}},15000+Math.random()*15000)}}const nx=writing[path].next;delete writing[path];if(nx)gsFlush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
 async function gsBoot(){if(!gsOn())return loadNext();try{const c0=await gsGet('config/main'),cl=LS.get('config/main'),c=newer(c0,cl);if(c&&c.cfg)cfg=fixCfg(c.cfg);if(c&&c===cl&&c0&&(+cl.ts||0)>(+c0.ts||0))persist('config/main',{cfg});const d0=await gsGet('days/'+curDate);const loc=LS.get('days/'+curDate);const d=newer(d0,loc);if(d&&d===loc&&d0&&(+loc.ts||0)>(+d0.ts||0))persist('days/'+curDate,loc);if(d){day=d;for(const k of Object.keys(newDay(curDate)))if(day[k]==null)day[k]=newDay(curDate)[k]}syncState='gs'}catch(e){syncState='err'}render();rosterSync()}
 const saveCfg=()=>persist('config/main',{cfg});
 const saveDay=()=>{delete day.demo;persist('days/'+day.date,day)};
@@ -597,8 +606,8 @@ async function inboxCheck(){if(inboxBusy||!gsOn())return;inboxBusy=true;try{
  const ib=await gsGet('inbox/or');if(!ib||!ib.txt||ib.done)return;
  const ds=Object.keys(rowsToCases(parseText(ib.txt,day.date)));
  for(const d of ds){try{const c=await gsGet('days/'+d),l=d===day.date?day:LS.get('days/'+d),n=newer(c,l);if(n&&n!==l){LS.set('days/'+d,n);if(d===day.date){day=n;for(const k of Object.keys(newDay(d)))if(day[k]==null)day[k]=newDay(d)[k]}}}catch(e){}}
- const R=importAll(ib.txt);
- for(const d of R.dates){const v=d===day.date?day:LS.get('days/'+d);if(v){clearTimeout(timers['days/'+d]);await gsSet('days/'+d,v);pendP.delete('days/'+d)}}
+ impNoFlush=true;let R;try{R=importAll(ib.txt)}finally{impNoFlush=false}
+ await flushDays(R.dates);if(R.dates.some(d=>pendP.has('days/'+d)))return;
  await gsSet('inbox/or',{ts:ib.ts,by:ib.by||'',dates:R.dates,done:Date.now(),txt:''});
  if(R.dates.length)toast(`已套用院內上傳的刀表：${R.dates.map(d=>(+d.slice(5,7))+'/'+(+d.slice(8))).join('、')}`);render()
 }catch(e){}finally{inboxBusy=false}}
@@ -1332,7 +1341,7 @@ document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.
 function importAll(txt){mergeMsg=null;impStats={};const rows0=parseText(txt,day.date);const okT=r=>{const mm=String(r.time||'').match(/^\d{1,2}:(\d{2})$/);return !r.del&&!(mm&&+mm[1]%10)};
  const emg=rows0.filter(r=>okT(r)&&r.surgeon&&r.name&&isEmgRow(r));const ne=emg.length?erAddRows(emg,true):0;if(emg.length)saveER();
  const by=rowsToCases(rows0.filter(r=>!isEmgRow(r)||emgOnBoard(r)));const n=addCases(by);const dates=Object.keys(by).sort();lastRaw=txt;
- if(dates.includes(day.date))saveDay();const sendC=cfg.set.cancerAuto!==false&&gsOn()&&/手術工作表|病歷號/.test(txt);
+ if(dates.includes(day.date))saveDay();if(dates.length>1&&!impNoFlush)flushDays(dates);const sendC=cfg.set.cancerAuto!==false&&gsOn()&&/手術工作表|病歷號/.test(txt);
  return{n,ne,emg:emg.length,dates,stats:{...impStats},del:lastDel,sendC}}
 function impModal(){const m=document.createElement('div');m.className='imodal impm';const cOK=gsOn();
  m.innerHTML=`<div class="ibox" style="max-width:640px"><div class="ihead"><b style="font-size:18px">📥 匯入刀表（一次更新全部）</b></div>
