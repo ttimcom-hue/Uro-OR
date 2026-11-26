@@ -323,6 +323,7 @@ function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==T
   if(b.action==='code')return run(()=>authCode_(b.sess));
   if(b.action==='prefs')return run(()=>authPrefs_(b.sess,b));
   if(b.action==='editors')return run(()=>authEditors_(b.sess,b.list));
+  if(b.action==='ho')return run(()=>hoApi_(b));
   if(b.action==='cancerImport'){return run(()=>cancerImport_(b.text))}
   if(b.action==='setMany'){const it=(b.items||[]).slice(0,30).filter(x=>x&&x.key&&!PRIVATE_KEY.test(String(x.key)));return run(()=>{dataSetMany_(it.map(x=>[String(x.key),JSON.stringify(x.value)]));return it.length})}
   const k=String(b.key||'');if(!k||PRIVATE_KEY.test(k))return out({ok:false,err:'key'});
@@ -335,34 +336,38 @@ function hoRows_(){const doc=DocumentApp.openById(hoDocId());const bodies=[];
   const walk=tabs=>(tabs||[]).forEach(t=>{try{bodies.push(t.asDocumentTab().getBody())}catch(e){}walk(t.getChildTabs&&t.getChildTabs())});
   if(doc.getTabs)walk(doc.getTabs());if(!bodies.length)bodies.push(doc.getBody());const rows=[];
   bodies.forEach(b=>b.getTables().forEach(tb=>{for(let i=0;i<tb.getNumRows();i++){const r=tb.getRow(i);if(r.getNumCells()<7)continue;const c=[];for(let j=0;j<7;j++)c.push(r.getCell(j).getText());rows.push(c)}}));return rows}
-// 純文字解析（node 可測）：rows 同上；dates＝['YYYY-MM-DD',…]
+// 純文字解析（node 可測）：c＝一列 7 格文字
+const hoL=s=>String(s||'').replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
+// Treatment 欄 → [{md:'11/24', op, slot(TF n；08:30＝0), time, note}]
+function hoOps(c){const ops=[];hoL(c[4]).forEach(l=>{const m=l.match(/^(\d{1,2})\/(\d{1,2})\s*(.*)$/);const sl=l.match(/\bTF\s*:?\s*(\d+)/i),tm=l.match(/\b(\d{1,2}:\d{2})\b/);
+    if(m){ops.push({md:+m[1]+'/'+(+m[2]),op:m[3].replace(/\bTF\s*:?\s*\d+/i,'').replace(/\b\d{1,2}:\d{2}\b/,'').trim(),slot:sl?+sl[1]:tm?(tm[1].replace(/^0/,'')==='8:30'?0:null):null,time:tm?tm[1]:''})}
+    else if(ops.length){const o=ops[ops.length-1];if(sl&&o.slot==null)o.slot=+sl[1];else if(tm&&!o.time){o.time=tm[1];if(o.slot==null&&tm[1].replace(/^0/,'')==='8:30')o.slot=0}else if(!sl&&!tm)o.note=(o.note?o.note+'；':'')+l}});
+  return ops}
+// 重要數值：取最後出現的那筆；沒寫日期的續行沿用上一行日期
+function hoF(c){const last=(re,txt)=>{let m,r=null;const g=new RegExp(re.source,re.flags.includes('g')?re.flags:re.flags+'g');while((m=g.exec(txt)))r=m;return r};
+  const dated=(lines,re)=>{let r=null,cd='';lines.forEach(l=>{const d=l.match(/^(\d{1,2}\/\d{1,2})\b/);if(d)cd=d[1];const m=l.match(re);if(m)r={m,d:cd}});return r};
+  const pi=hoL(c[2]),ex=hoL(c[5]),all=[...pi,...ex],txt=all.join('\n'),ph=String(c[1]||''),plan=String(c[6]||''),f={};
+  const v=(re,k,fmt)=>{const r=dated(all,re);if(r)f[k]=fmt(r.m)+(r.d?' ('+r.d+')':'')};
+  v(/PSA\s*:?\s*(\d+(?:\.\d+)?)/i,'psa',m=>m[1]);
+  v(/TPV\s*[=:]?\s*(\d+(?:\.\d+)?)/i,'tpv',m=>m[1]+'cc');
+  v(/(?:PC|GS)\s*(?:GS)?\s*(\d\s*\+\s*\d)/i,'gs',m=>m[1].replace(/\s/g,''));
+  v(/\bPR-?\s*(\d)\b|PI-?RADS\s*(\d)/i,'pirads',m=>m[1]||m[2]);
+  v(/\bcT\d[a-c]?(?:N\d)?(?:M\d)?/,'ct',m=>m[0]);
+  const lab=dated(ex.length?ex:all,/\bW\s*(\d+(?:\.\d+)?)\s+H\s*(\d+(?:\.\d+)?)\s+C\s*(\d+(?:\.\d+)?)/);
+  if(lab){f.wbc=lab.m[1];f.hb=lab.m[2];f.cr=lab.m[3];if(lab.d)f.lab=lab.d}else v(/\bC\s?(\d\.\d+)\b/,'cr',m=>m[1]);
+  v(/\bUA\s+(R\S*\s+W\S*\s+B\S*)/,'ua',m=>m[1]);
+  v(/\bU\/C\s*:?\s*(.+)/i,'uc',m=>m[1]);
+  v(/(?:心超|echo\s*cardio|\bEF\b)\s*:?\s*(.+)/i,'echo',m=>m[1].replace(/^EF\s*/i,'EF '));
+  v(/肺功\s*:?\s*(.+)/,'pft',m=>m[1]);
+  const iief=last(/IIEF\s*:?\s*(\d+)/i,plan+'\n'+txt);if(iief)f.iief=iief[1];
+  const AC=/aspirin|plavix|clopidogrel|warfarin|coumadin|eliquis|apixaban|xarelto|rivaroxaban|lixiana|edoxaban|pradaxa|dabigatran|brilinta|ticagrelor|NOAC|efient|pletaal|cilostazol/gi;
+  const ac=[...new Set(((ph+'\n'+plan+'\n'+txt).match(AC)||[]).map(x=>x[0].toUpperCase()+x.slice(1).toLowerCase()))];if(ac.length)f.ac=ac.join('、');
+  const hold=last(/hold\s+[A-Za-z]+/i,plan);if(hold)f.hold=hold[0].replace(/^hold/i,'Hold');
+  if(String(c[3]||'').trim())f.drain=hoL(c[3]).join('；');
+  return f}
+// 調度板用：dates＝['YYYY-MM-DD',…] → 當天的手術與數值（不含姓名、病歷號、床號）
 function hoParse(rows,dates){const want={};(dates||[]).forEach(d=>{want[+d.slice(5,7)+'/'+(+d.slice(8))]=d});const out=[];
-  const L=s=>String(s||'').replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
-  const last=(re,txt)=>{let m,r=null;const g=new RegExp(re.source,re.flags.includes('g')?re.flags:re.flags+'g');while((m=g.exec(txt)))r=m;return r};
-  const dated=(lines,re)=>{let r=null,cd='';lines.forEach(l=>{const d=l.match(/^(\d{1,2}\/\d{1,2})\b/);if(d)cd=d[1];const m=l.match(re);if(m)r={m,d:cd}});return r};  // 沒寫日期的續行沿用上一行日期
-  rows.forEach(c=>{if(/past history/i.test(c[1]||''))return;
-    const tr=L(c[4]),ops=[];tr.forEach(l=>{const m=l.match(/^(\d{1,2})\/(\d{1,2})\s*(.*)$/);const sl=l.match(/\bTF\s*:?\s*(\d+)/i),tm=l.match(/\b(\d{1,2}:\d{2})\b/);
-      if(m){ops.push({md:+m[1]+'/'+(+m[2]),op:m[3].replace(/\bTF\s*:?\s*\d+/i,'').replace(/\b\d{1,2}:\d{2}\b/,'').trim(),slot:sl?+sl[1]:tm?(tm[1].replace(/^0/,'')==='8:30'?0:null):null,time:tm?tm[1]:''})}
-      else if(ops.length){const o=ops[ops.length-1];if(sl&&o.slot==null)o.slot=+sl[1];else if(tm&&!o.time){o.time=tm[1];if(o.slot==null&&tm[1].replace(/^0/,'')==='8:30')o.slot=0}else if(!sl&&!tm)o.note=(o.note?o.note+'；':'')+l}});
-    const hit=ops.filter(o=>want[o.md]);if(!hit.length)return;
-    const pi=L(c[2]),ex=L(c[5]),all=[...pi,...ex],txt=all.join('\n'),ph=String(c[1]||''),plan=String(c[6]||''),f={};
-    const v=(re,k,fmt)=>{const r=dated(all,re);if(r)f[k]=fmt(r.m)+(r.d?' ('+r.d+')':'')};
-    v(/PSA\s*:?\s*(\d+(?:\.\d+)?)/i,'psa',m=>m[1]);
-    v(/TPV\s*[=:]?\s*(\d+(?:\.\d+)?)/i,'tpv',m=>m[1]+'cc');
-    v(/(?:PC|GS)\s*(?:GS)?\s*(\d\s*\+\s*\d)/i,'gs',m=>m[1].replace(/\s/g,''));
-    v(/\bPR-?\s*(\d)\b|PI-?RADS\s*(\d)/i,'pirads',m=>m[1]||m[2]);
-    v(/\bcT\d[a-c]?(?:N\d)?(?:M\d)?/,'ct',m=>m[0]);
-    const lab=dated(ex.length?ex:all,/\bW\s*(\d+(?:\.\d+)?)\s+H\s*(\d+(?:\.\d+)?)\s+C\s*(\d+(?:\.\d+)?)/);
-    if(lab){f.wbc=lab.m[1];f.hb=lab.m[2];f.cr=lab.m[3];if(lab.d)f.lab=lab.d}else v(/\bC\s?(\d\.\d+)\b/,'cr',m=>m[1]);
-    v(/\bUA\s+(R\S*\s+W\S*\s+B\S*)/,'ua',m=>m[1]);
-    v(/\bU\/C\s*:?\s*(.+)/i,'uc',m=>m[1]);
-    v(/(?:心超|echo\s*cardio|\bEF\b)\s*:?\s*(.+)/i,'echo',m=>m[1].replace(/^EF\s*/i,'EF '));
-    v(/肺功\s*:?\s*(.+)/,'pft',m=>m[1]);
-    const iief=last(/IIEF\s*:?\s*(\d+)/i,plan+'\n'+txt);if(iief)f.iief=iief[1];
-    const AC=/aspirin|plavix|clopidogrel|warfarin|coumadin|eliquis|apixaban|xarelto|rivaroxaban|lixiana|edoxaban|pradaxa|dabigatran|brilinta|ticagrelor|NOAC|efient|pletaal|cilostazol/gi;
-    const ac=[...new Set(((ph+'\n'+plan+'\n'+txt).match(AC)||[]).map(x=>x[0].toUpperCase()+x.slice(1).toLowerCase()))];if(ac.length)f.ac=ac.join('、');
-    const hold=last(/hold\s+[A-Za-z]+/i,plan);if(hold)f.hold=hold[0].replace(/^hold/i,'Hold');
-    if(String(c[3]||'').trim())f.drain=L(c[3]).join('；');
+  rows.forEach(c=>{if(/past history/i.test(c[1]||''))return;const hit=hoOps(c).filter(o=>want[o.md]);if(!hit.length)return;const f=hoF(c);
     hit.forEach(o=>out.push({date:want[o.md],slot:o.slot,time:o.time||'',op:o.op,note:o.note||'',f}))});
   return out}
 function handoffFor_(dates){dates=String(dates||'').split(',').filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0,7);
@@ -371,3 +376,46 @@ function handoffFor_(dates){dates=String(dates||'').split(',').filter(d=>/^\d{4}
 function apiHandoff_(dates){return JSON.stringify(handoffFor_(dates))}
 // 在編輯器手動執行一次：授權讀 Google 文件並確認讀得到（只記錄筆數）
 function hoTest(){const rows=hoRows_();const d=new Date(),iso=x=>Utilities.formatDate(x,Session.getScriptTimeZone(),'yyyy-MM-dd');const ds=[0,1,2,3].map(i=>iso(new Date(d.getTime()+i*864e5)));Logger.log('交班單表格列數 '+rows.length+'；今天起 4 天對到 '+hoParse(rows,ds).length+' 筆手術')}
+// ===== 泌尿科交班網站（handoff.html）=====
+// 病人姓名、病歷號、病情只經過這裡：要 Google 登入且是核可帳號（canPHI_，＝黃部長交班單的共用對象），
+// 其他主治交班／出院／特殊個案存在試算表的「交班資料」工作表（隱藏），不進 data 工作表。
+function hoTabsOf_(doc){const out=[];const walk=tabs=>(tabs||[]).forEach(t=>{try{out.push({title:t.getTitle(),body:t.asDocumentTab().getBody()})}catch(e){}walk(t.getChildTabs&&t.getChildTabs())});
+  if(doc.getTabs)walk(doc.getTabs());if(!out.length)out.push({title:'',body:doc.getBody()});return out}
+function hoTbl_(b){if(!b)return null;const ts=b.getTables();for(let i=0;i<ts.length;i++)if(ts[i].getNumRows()&&ts[i].getRow(0).getNumCells()>=7)return ts[i];return null}
+function hoCells_(r){const c=[];for(let j=0;j<7;j++)c.push(j<r.getNumCells()?r.getCell(j).getText():'');return c}
+function hoParas_(b){const o=[];if(!b)return o;const E=DocumentApp.ElementType;for(let i=0;i<b.getNumChildren();i++){const e=b.getChild(i),t=e.getType();if(t===E.PARAGRAPH||t===E.LIST_ITEM){const s=e.asText().getText().trim();if(s&&!/歡迎大家共同編輯/.test(s))o.push(s)}}return o}
+function hoCurTab_(T){return T.find(t=>/住院中/.test(t.title))||T[0]}
+function hoDocRead_(){const id=hoDocId(),doc=DocumentApp.openById(id),T=hoTabsOf_(doc);
+  const cur=hoCurTab_(T),up=T.find(t=>t!==cur&&/入院/.test(t.title)&&!/出院/.test(t.title)),dc=T.find(t=>/出院/.test(t.title));
+  const rows=t=>{const o=[];if(!t)return o;for(let i=0;i<t.getNumRows();i++)o.push(hoCells_(t.getRow(i)));if(o.length&&/past history/i.test(o[0][1]))o.shift();return o.filter(c=>c.some(x=>String(x).trim()))};
+  return{url:'https://docs.google.com/document/d/'+id+'/edit',
+    cur:rows(hoTbl_(cur.body)).map(c=>({c,f:hoF(c),ops:hoOps(c)})),notes:hoParas_(cur.body),
+    up:up?rows(hoTbl_(up.body)).map(c=>({c,f:hoF(c),ops:hoOps(c)})):[],upNotes:up?hoParas_(up.body):[],
+    dcNotes:dc?hoParas_(dc.body):[],at:Date.now()}}
+function hoSheet_(){const ss=SpreadsheetApp.getActiveSpreadsheet();let s=ss.getSheetByName('交班資料');if(!s){s=ss.insertSheet('交班資料');s.getRange(1,1,1,4).setValues([['id','kind','json','ts']]);try{s.hideSheet()}catch(e){}}return s}
+function hoItems_(){const s=hoSheet_(),n=s.getLastRow();if(n<2)return[];return s.getRange(2,1,n-1,3).getValues().filter(r=>r[0]).map(r=>{try{return JSON.parse(r[2])}catch(e){return null}}).filter(Boolean)}
+function hoItemPut_(it){if(!it||!it.id||!/^(vs|dc|sp)$/.test(it.kind))throw new Error('bad item');it.ts=Date.now();const s=hoSheet_(),n=s.getLastRow();
+  const ids=n>1?s.getRange(2,1,n-1,1).getValues().map(r=>String(r[0])):[];const i=ids.indexOf(String(it.id));const row=i<0?n+1:i+2;
+  s.getRange(row,1,1,4).setValues([[it.id,it.kind,JSON.stringify(it),new Date()]]);return it}
+function hoItemDel_(id){const s=hoSheet_(),n=s.getLastRow();if(n<2)return;const ids=s.getRange(2,1,n-1,1).getValues().map(r=>String(r[0]));const i=ids.indexOf(String(id));if(i>=0)s.deleteRow(i+2)}
+function hoSiteLoad_(force){const C=CacheService.getScriptCache();let doc=null,err='';
+  if(!force){const h=C.get('hoSite');if(h)try{doc=JSON.parse(h)}catch(e){}}
+  if(!doc){try{doc=hoDocRead_();try{C.put('hoSite',JSON.stringify(doc),60)}catch(e){}}catch(e){err=String(e.message||e)}}
+  return{doc,docErr:err,items:hoItems_(),at:Date.now()}}
+// 改交班單「目前住院中」表格：用整列原文找到那一列（別人先改過就回 conflict），edit／add／dc（出院＝存一份到出院名單再刪列）
+function hoRowOp_(b,who){const L=LockService.getScriptLock();L.waitLock(20000);try{
+  const doc=DocumentApp.openById(hoDocId()),t=hoTbl_(hoCurTab_(hoTabsOf_(doc)).body);if(!t)throw new Error('交班單找不到 7 欄的表格');
+  const nx=j=>String((b.next||[])[j]==null?'':b.next[j]);
+  if(b.op==='add'){const r=t.appendTableRow();for(let j=0;j<7;j++)r.appendTableCell(nx(j))}
+  else{let idx=-1;for(let i=0;i<t.getNumRows()&&idx<0;i++){const c=hoCells_(t.getRow(i));if(c.every((x,j)=>x===String((b.orig||[])[j]||'')))idx=i}
+    if(idx<0)throw new Error('conflict');const r=t.getRow(idx);
+    if(b.op==='edit'){for(let j=0;j<7&&j<r.getNumCells();j++)if(r.getCell(j).getText()!==nx(j))r.getCell(j).setText(nx(j))}
+    else if(b.op==='dc'){const m=b.meta||{};hoItemPut_({id:'dc'+Date.now().toString(36),kind:'dc',src:'黃冠華',c:hoCells_(r),dcd:m.dcd||'',note:m.note||'',by:m.by||who||''});t.removeRow(idx)}
+    else throw new Error('bad op')}
+  doc.saveAndClose();CacheService.getScriptCache().remove('hoSite')}finally{L.releaseLock()}
+  return hoSiteLoad_(true)}
+function hoApi_(b){if(!canPHI_(b.sess))throw new Error('auth');const em=authOn()?sessEmail_(b.sess):'';const me=em?meFor_(em):null,who=me?(me.name||em.split('@')[0]):'';
+  if(b.op==='load'){const r=hoSiteLoad_(!!b.force);r.me={who,email:em};return r}
+  if(b.op==='row')return hoRowOp_(b.row||{},who);
+  const L=LockService.getScriptLock();L.waitLock(15000);try{if(b.op==='put'){const it=b.item||{};if(who)it.by=it.by||who;hoItemPut_(it)}else if(b.op==='del')hoItemDel_(b.id);else throw new Error('bad op')}finally{L.releaseLock()}
+  return{items:hoItems_(),at:Date.now()}}
