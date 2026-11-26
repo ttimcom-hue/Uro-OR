@@ -2,9 +2,9 @@
 const TOKEN = '';  // 想加密碼再填，例如 'uro2026'；留空＝不用密碼
 function sh(){const ss=SpreadsheetApp.getActiveSpreadsheet();return ss.getSheetByName('data')||ss.insertSheet('data')}
 function row(s,k){const n=s.getLastRow();if(!n)return 0;const v=s.getRange(1,1,n,1).getValues();for(let i=0;i<n;i++)if(v[i][0]===k)return i+1;return 0}
-function apiGet(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());const s=sh(),r=row(s,k);return r?String(s.getRange(r,2).getValue()||''):''}
-function apiSet(k,v){const L=LockService.getScriptLock();L.waitLock(15000);try{const s=sh();let r=row(s,k);if(!r){r=s.getLastRow()+1;s.getRange(r,1).setValue(k)}s.getRange(r,2).setValue(v);s.getRange(r,3).setValue(new Date())}finally{L.releaseLock()}return true}
-function apiGetMany(keys){const s=sh(),n=s.getLastRow(),m={};if(n)s.getRange(1,1,n,2).getValues().forEach(r=>{if(r[0])m[r[0]]=r[1]});
+function dataGet_(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());const s=sh(),r=row(s,k);return r?String(s.getRange(r,2).getValue()||''):''}
+function dataSet_(k,v){const L=LockService.getScriptLock();L.waitLock(15000);try{const s=sh();let r=row(s,k);if(!r){r=s.getLastRow()+1;s.getRange(r,1).setValue(k)}s.getRange(r,2).setValue(v);s.getRange(r,3).setValue(new Date())}finally{L.releaseLock()}return true}
+function dataGetMany_(keys){const s=sh(),n=s.getLastRow(),m={};if(n)s.getRange(1,1,n,2).getValues().forEach(r=>{if(r[0])m[r[0]]=r[1]});
   const v={};keys.forEach(k=>{try{const x=k==='meeting/drive'?JSON.stringify(meetingRead()):m[k];v[k]=x?JSON.parse(String(x)):null}catch(e){v[k]=null}});return v}
 function out(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
 // ===== 癌症討論會追蹤表連動 =====
@@ -17,9 +17,9 @@ function cancerStatus(){const ss=SpreadsheetApp.openById(CANCER_ID);
   // gid：入口網頁「癌症討論會」分頁用來直接開到各分頁（只回傳人數、日期與分頁編號，不含病人資料）
   const gid={};[['next','下次討論會'],['todo','注意事項'],['dv','達文西術前'],['trk','個案追蹤'],['stat','統計']].forEach(([k,n])=>{const s=ss.getSheetByName(n);if(s)gid[k]=s.getSheetId()});
   return{newN,warn,late,cnt,mtg:d,listed,url:ss.getUrl(),gid}}
-function cancerImport(text){const ss=SpreadsheetApp.openById(CANCER_ID);const sh=ss.getSheetByName('刀表匯入');const last=sh.getLastRow();if(last>1)sh.getRange(2,1,last-1,2).clearContent();
+function cancerImport_(text){const ss=SpreadsheetApp.openById(CANCER_ID);const sh=ss.getSheetByName('刀表匯入');const last=sh.getLastRow();if(last>1)sh.getRange(2,1,last-1,2).clearContent();
   const lines=String(text||'').replace(/\r/g,'').split('\n').slice(0,5990);if(lines.length)sh.getRange(2,1,lines.length,1).setValues(lines.map(x=>[x]));SpreadsheetApp.flush();try{cancerSync()}catch(x){console.log(x)}return cancerStatus()}
-function apiCancer(action,text){return JSON.stringify(action==='import'?cancerImport(text):cancerStatus())}
+function apiCancer_(action,text){return JSON.stringify(action==='import'?cancerImport_(text):cancerStatus())}
 // ===== 晨會（Google Drive「W2 科部晨會」資料夾）=====
 // 每週一個子資料夾（名稱 MMDD），主簡報 YYYYMMDD.pptx 的 OUTLINE 頁＝當週議程。
 // 只存議程標題與檔名（不讀各頁內文，避免存到病人姓名；不存 Drive 連結，入口不提供進入 Drive 的連結），存在「meeting」工作表，用同步鍵 meeting/drive 讀出給科務入口「晨會」分頁用。
@@ -150,7 +150,7 @@ function mtgOutline_(blob){
 //    管理員＝交班單的擁有者與編輯者，加上指令碼屬性 AUTH_ADMIN（逗號分隔 email）。
 // GOOGLE_CLIENT_ID：Google Cloud「OAuth 用戶端 ID（網頁應用程式）」，已授權的 JavaScript 來源要加 GitHub Pages 網址。
 //   留空＝不啟用登入（資料維持原本開放）。設定步驟見 開發說明.md「登入與權限」。
-const GOOGLE_CLIENT_ID='';
+const GOOGLE_CLIENT_ID='271644198276-u9n58etp9ie1mu0o6f0i59c3tu763p6f.apps.googleusercontent.com';
 const EDIT_KEY=/^days\//;                       // 寫入要刀表編輯者
 const PRIVATE_KEY=/^(user\/|sess)/;            // 只能經由登入 API 存取
 const SESSION_DAYS=30;
@@ -182,8 +182,8 @@ function authEditors_(sess,list){const e=sessEmail_(sess);if(!admin_(e))throw ne
   return{editors:editorsGet_(),admins:shareList_().admins}}
 // 這個請求能不能讀寫病人資料：沒啟用登入＝可以；有啟用＝要有效登入且是核可帳號
 function canPHI_(sess){return !authOn()||approved_(sessEmail_(sess))}
-function userGet_(email){try{return JSON.parse(apiGet('user/'+email)||'{}')||{}}catch(e){return{}}}
-function userPut_(email,u){apiSet('user/'+email,JSON.stringify(u))}
+function userGet_(email){try{return JSON.parse(dataGet_('user/'+email)||'{}')||{}}catch(e){return{}}}
+function userPut_(email,u){dataSet_('user/'+email,JSON.stringify(u))}
 function meFor_(email){const u=userGet_(email);return{email,name:u.name||'',pic:u.pic||'',ok:approved_(email),edit:editor_(email),admin:admin_(email),prefs:u.prefs||{}}}
 function sessClean_(P){const all=P.getProperties(),now=Date.now();Object.keys(all).forEach(k=>{if(/^sess:/.test(k)){try{if(JSON.parse(all[k]).exp<now)P.deleteProperty(k)}catch(e){P.deleteProperty(k)}}})}
 function sessNew_(email){const tok=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,''),s={e:email,exp:Date.now()+SESSION_DAYS*864e5};
@@ -204,16 +204,19 @@ function authPrefs_(sess,b){const e=sessEmail_(sess);if(!e)throw new Error('auth
   if(b.prefs&&typeof b.prefs==='object'){const s=JSON.stringify(b.prefs);if(s.length>4000)throw new Error('too big');u.prefs=b.prefs}
   if(typeof b.name==='string')u.name=b.name.slice(0,40);u.ts=Date.now();userPut_(e,u);return meFor_(e)}
 // 讀取：私密鍵一律不給，其他都開放
-function readKey_(k,sess){if(PRIVATE_KEY.test(k))return{deny:1};const v=apiGet(k);return{v:v?JSON.parse(v):null}}
+function readKey_(k,sess){if(PRIVATE_KEY.test(k))return{deny:1};const v=dataGet_(k);return{v:v?JSON.parse(v):null}}
+// 【注意】只要有 HtmlService 網頁（這個上傳頁），任何人都能用 google.script.run 呼叫「名稱不以 _ 結尾」的伺服器函式。
+//   所以讀資料、寫刀表、讀交班單的函式一律以 _ 結尾（dataGet_、dataSet_、hoRows_、handoffFor_、cancerImport_…），
+//   新增的伺服器函式也要照做；只有網頁真的要叫的（apiUpload）、觸發器與選單用的才不加 _。
 // ===== 院內刀表上傳頁（?page=upload）：醫院電腦擋 github.io 時用。病歷號、姓名在瀏覽器就先去掉（病歷號換成 3 字元病人代碼 99xxxx），
 //       只存去識別化的文字到 inbox/or；調度板打開時自動套用。原始全文只在勾選時送到癌症討論會試算表（跟調度板匯入相同）。
 function apiUpload(txt,raw,by){txt=String(txt||'');if(!txt.trim()||txt.length>800000)throw new Error('內容是空的或太大');
   const now=Date.now(),who=String(by||'').slice(0,20);
-  apiSet('inbox/or',JSON.stringify({txt,ts:now,by:who,done:0}));
-  apiSet('meta/import',JSON.stringify({ts:now,src:'院內上傳',by:who}));
-  let can=null;if(raw){try{can=cancerImport(String(raw))}catch(e){can={err:String(e&&e.message||e)}}}
+  dataSet_('inbox/or',JSON.stringify({txt,ts:now,by:who,done:0}));
+  dataSet_('meta/import',JSON.stringify({ts:now,src:'院內上傳',by:who}));
+  let can=null;if(raw){try{can=cancerImport_(String(raw))}catch(e){can={err:String(e&&e.message||e)}}}
   return{last:Utilities.formatDate(new Date(now),'Asia/Taipei','M/d HH:mm'),can}}
-function uploadPage_(){let mi=null;try{mi=JSON.parse(apiGet('meta/import')||'null')}catch(e){}
+function uploadPage_(){let mi=null;try{mi=JSON.parse(dataGet_('meta/import')||'null')}catch(e){}
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const last=mi&&mi.ts?esc(Utilities.formatDate(new Date(mi.ts),'Asia/Taipei','M/d HH:mm')+(mi.src?'（'+mi.src+(mi.by?'・'+mi.by:'')+'）':'')):'尚無紀錄';
   return HtmlService.createHtmlOutput(UPLOAD_HTML.replace('{{LAST}}',last)).setTitle('刀表上傳（院內）').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
@@ -274,10 +277,10 @@ function doGet(e){const p=(e&&e.parameter)||{};
   if(p.action==='cancerScan'){if(!canPHI_(p.sess))return deny();return run(cancerDriveScan)}
   if(p.action==='meetingScan')return run(meetingScan);
   if(p.action==='cancerStatus')return run(cancerStatus);
-  if(p.action==='handoff'){if(!canPHI_(p.sess))return deny();return run(()=>handoffFor(p.dates))}
+  if(p.action==='handoff'){if(!canPHI_(p.sess))return deny();return run(()=>handoffFor_(p.dates))}
   // ?keys=a,b,c：一次讀多個鍵（入口網頁載入用，只讀一次 data 工作表）；沒權限的鍵回 null 並列在 denied
   if(p.keys){const ks=String(p.keys).split(',').slice(0,40),denied=ks.filter(k=>PRIVATE_KEY.test(k));
-    const v=apiGetMany(ks.filter(k=>denied.indexOf(k)<0));denied.forEach(k=>v[k]=null);return out({ok:true,value:v,denied})}
+    const v=dataGetMany_(ks.filter(k=>denied.indexOf(k)<0));denied.forEach(k=>v[k]=null);return out({ok:true,value:v,denied})}
   if(p.key){const r=readKey_(p.key,p.sess);return r.deny?deny():out({ok:true,value:r.v})}
   // 不再提供 Apps Script 版網頁：HtmlService 網頁可讓任何人呼叫所有伺服器函式（包含讀交班單原文），一律改用 GitHub Pages
   return ContentService.createTextOutput('泌尿科刀房調度板已改用：'+PAGES_URL+'\n請用這個網址開啟。')}
@@ -289,15 +292,15 @@ function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==T
   if(b.action==='code')return run(()=>authCode_(b.sess));
   if(b.action==='prefs')return run(()=>authPrefs_(b.sess,b));
   if(b.action==='editors')return run(()=>authEditors_(b.sess,b.list));
-  if(b.action==='cancerImport'){if(!canEdit_(b.sess))return out({ok:false,err:'edit'});return run(()=>cancerImport(b.text))}
+  if(b.action==='cancerImport'){if(!canEdit_(b.sess))return out({ok:false,err:'edit'});return run(()=>cancerImport_(b.text))}
   const k=String(b.key||'');if(!k||PRIVATE_KEY.test(k))return out({ok:false,err:'key'});
   if(EDIT_KEY.test(k)&&!canEdit_(b.sess))return out({ok:false,err:'edit'});
-  apiSet(k,JSON.stringify(b.value));return out({ok:true})}
+  dataSet_(k,JSON.stringify(b.value));return out({ok:true})}
 // ===== 黃部長交班單 → 調度板術前資料（即時讀取，只回傳數值，不回傳姓名、病歷號、床號，也不存進同步資料） =====
 const HO_DOC_ID='1MUwbZVat96vpyil2ahjP6lIv-NzW_MHbOC99EXTx7Yk';
-function hoDocId(){try{const v=JSON.parse(apiGet('common/handoff')||'null');const m=v&&String(v.u||'').match(/document\/d\/([\w-]{20,})/);if(m)return m[1]}catch(e){}return HO_DOC_ID}
+function hoDocId(){try{const v=JSON.parse(dataGet_('common/handoff')||'null');const m=v&&String(v.u||'').match(/document\/d\/([\w-]{20,})/);if(m)return m[1]}catch(e){}return HO_DOC_ID}
 // 讀交班單所有分頁裡 7 欄的表格 → [[床號姓名病歷號, PH, PI, Drain, Treatment, Exam/lab, Plan], …]
-function hoRows(){const doc=DocumentApp.openById(hoDocId());const bodies=[];
+function hoRows_(){const doc=DocumentApp.openById(hoDocId());const bodies=[];
   const walk=tabs=>(tabs||[]).forEach(t=>{try{bodies.push(t.asDocumentTab().getBody())}catch(e){}walk(t.getChildTabs&&t.getChildTabs())});
   if(doc.getTabs)walk(doc.getTabs());if(!bodies.length)bodies.push(doc.getBody());const rows=[];
   bodies.forEach(b=>b.getTables().forEach(tb=>{for(let i=0;i<tb.getNumRows();i++){const r=tb.getRow(i);if(r.getNumCells()<7)continue;const c=[];for(let j=0;j<7;j++)c.push(r.getCell(j).getText());rows.push(c)}}));return rows}
@@ -331,9 +334,9 @@ function hoParse(rows,dates){const want={};(dates||[]).forEach(d=>{want[+d.slice
     if(String(c[3]||'').trim())f.drain=L(c[3]).join('；');
     hit.forEach(o=>out.push({date:want[o.md],slot:o.slot,time:o.time||'',op:o.op,note:o.note||'',f}))});
   return out}
-function handoffFor(dates){dates=String(dates||'').split(',').filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0,7);
+function handoffFor_(dates){dates=String(dates||'').split(',').filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0,7);
   const C=CacheService.getScriptCache(),k='ho:'+dates.join(',');const h=C.get(k);if(h)return JSON.parse(h);
-  const r={at:Date.now(),list:hoParse(hoRows(),dates)};try{C.put(k,JSON.stringify(r),300)}catch(e){}return r}
-function apiHandoff(dates){return JSON.stringify(handoffFor(dates))}
+  const r={at:Date.now(),list:hoParse(hoRows_(),dates)};try{C.put(k,JSON.stringify(r),300)}catch(e){}return r}
+function apiHandoff_(dates){return JSON.stringify(handoffFor_(dates))}
 // 在編輯器手動執行一次：授權讀 Google 文件並確認讀得到（只記錄筆數）
-function hoTest(){const rows=hoRows();const d=new Date(),iso=x=>Utilities.formatDate(x,Session.getScriptTimeZone(),'yyyy-MM-dd');const ds=[0,1,2,3].map(i=>iso(new Date(d.getTime()+i*864e5)));Logger.log('交班單表格列數 '+rows.length+'；今天起 4 天對到 '+hoParse(rows,ds).length+' 筆手術')}
+function hoTest(){const rows=hoRows_();const d=new Date(),iso=x=>Utilities.formatDate(x,Session.getScriptTimeZone(),'yyyy-MM-dd');const ds=[0,1,2,3].map(i=>iso(new Date(d.getTime()+i*864e5)));Logger.log('交班單表格列數 '+rows.length+'；今天起 4 天對到 '+hoParse(rows,ds).length+' 筆手術')}
