@@ -102,10 +102,11 @@ details>summary{cursor:pointer;min-height:32px}
 <header><div class="hrow"><div><h1>📝 泌尿科交班</h1><div class="sub" id="sub"></div></div><div class="hside"><span class="sub" id="sync"></span><span class="hside" id="tools"></span></div></div>
 <nav class="tabs" id="tabs"></nav></header>
 <main id="app"><p class="note">載入中…</p></main>
+<script src="auth.js?v=1"></script>
 <script>
 {
 /* 泌尿科交班網站（handoff.html）。
-   病人資料（姓名、病歷號、病情）只透過 Apps Script 的 action:'ho' 讀寫，每次都要交班密碼（指令碼屬性 HO_PASS）；
+   病人資料（姓名、病歷號、病情）只透過 Apps Script 的 action:'ho' 讀寫，要用 Google 登入（auth.js）且是核可帳號（＝黃部長交班單的共用對象）；
    這一頁不把病人資料存進 localStorage／同步資料，只放記憶體。
    - 黃部長住院：讀寫 Google 文件交班單「目前住院中」表格（7 欄），出院＝存一份到出院名單再刪列
    - 其他主治／出院／特殊個案：存在試算表隱藏的「交班資料」工作表（kind: vs／dc／sp）
@@ -127,19 +128,16 @@ const TOP='黃冠華';
 const TAGS=['Critical','術後','待手術','會診','其他'];
 const COLS=['床號／姓名／病歷號','Past history','Present illness','Drain','Treatment','Exam, lab','Plan'];
 
-let pass=sessionStorage.getItem('hopass')||LS.get('hopass')||'';
 let me=LS.get('home')||'';
-/* 個人邀請連結 handoff.html#k=金鑰：點一次就記在這台裝置，之後直接打開（網址列會把金鑰拿掉） */
-function takeKey(){const m=location.hash.match(/[#&]k=([\w-]{16,})/);if(!m)return false;pass=m[1];LS.set('hopass',pass);sessionStorage.setItem('hopass',pass);history.replaceState(null,'',location.pathname+location.search+'#huang');return true}
-takeKey();
+const ok=()=>!!(window.AUTH&&AUTH.known()&&!AUTH.need());
 let S={doc:null,docErr:'',items:[],at:0,err:'',loading:false,vs:[]},busy=0;
 const OPEN=new Set(),EDIT=new Set();let allOpen=false,vsCrit=false,dcAll=false,addHo=false;
 const page=()=>{const p=(location.hash||'#huang').slice(1);return ['huang','vs','dc','sp'].includes(p)?p:'huang'};
 
-async function api(op,extra){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'ho',pass,op,...(extra||{})})});
+async function api(op,extra){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AUTH.body({token:gs.token||'',action:'ho',op,...(extra||{})}))});
  let j;try{j=await r.json()}catch(e){throw new Error('old')}if(!j.ok)throw new Error(j.err||'fail');if(j.value==null)throw new Error('old');return j.value}
 const apply=v=>{if(v.me){S.me=v.me;if(v.me.who&&v.me.who!==me){me=v.me.who;LS.set('home',me)}}if('doc' in v&&v.doc)S.doc=v.doc;if('docErr' in v)S.docErr=v.docErr;if(v.items)S.items=v.items;S.at=v.at||Date.now()};
-async function load(force){if(!pass){render();return}S.loading=true;hdr();try{apply(await api('load',{force:!!force}));S.err=''}catch(e){S.err=e.message;if(e.message==='badpass'){pass='';sessionStorage.removeItem('hopass');LS.del('hopass')}}S.loading=false;render()}
+async function load(force){if(!ok()){render();return}S.loading=true;hdr();try{apply(await api('load',{force:!!force}));S.err=''}catch(e){S.err=e.message;if(e.message==='auth')AUTH.expired()}S.loading=false;render()}
 async function loadVS(){try{const q=gs.url+(gs.url.includes('?')?'&':'?')+'keys='+encodeURIComponent('common/people,config/main')+'&token='+encodeURIComponent(gs.token||'');const j=await (await fetch(q)).json();const v=(j&&j.value)||{};
  const P=((v['common/people']||{}).people||[]).filter(p=>p.role==='VS'&&p.on!==false).map(p=>p.n);const C=(((v['config/main']||{}).cfg||{}).sur||[]).map(x=>x.n);
  S.vs=[...new Set([...(P.length?P:C)])].filter(n=>n&&n!==TOP);render()}catch(e){}}
@@ -159,13 +157,8 @@ function fval(box){const o={};box.querySelectorAll('[name]').forEach(el=>o[el.na
 const vsOpts=(sel,blank)=>`${blank?`<option value="">${blank}</option>`:''}${[TOP,...S.vs,'其他／會診'].map(n=>`<option ${n===sel?'selected':''}>${esc(n)}</option>`).join('')}`;
 const nm=n=>n===TOP?'黃冠華部長':n;
 
-/* ---------- 登入 ---------- */
-function login(){const e=S.err;return `<section class="card" style="max-width:460px;margin:20px auto"><h2>🔒 輸入交班密碼</h2>
- <p class="note">交班有病人姓名與病歷號，第一次使用要密碼或個人邀請連結。</p>
- ${e==='badpass'?'<p class="warn">密碼不對，請再試一次。</p>':''}${e==='nopass'?'<p class="warn">管理者還沒設定交班密碼：Apps Script →「專案設定」→「指令碼屬性」新增 <b>HO_PASS</b>。</p>':''}${e==='old'?'<p class="warn">Apps Script 還沒更新到有交班功能的版本，請稍後再試。</p>':''}
- <div class="row"><input type="password" id="pw" autocomplete="current-password" placeholder="交班密碼" style="flex:1"><button class="btn p" data-act="login">進入</button></div>
- <label class="row" style="margin-top:8px;gap:6px"><input type="checkbox" id="pwr" checked style="min-height:0"> 記住這台裝置，下次直接打開（公用電腦請取消）</label>
- <p class="note" style="margin-top:10px">更簡單：請總醫師傳給你<b>個人邀請連結</b>，點一下就進來，之後不用再輸入。</p></section>`}
+/* ---------- 登入（auth.js：Google 帳號，交班單共用對象才有權限） ---------- */
+function gate(){if(!window.AUTH||!AUTH.known())return '<p class="note">讀取中…</p>';return AUTH.lockCard('泌尿科交班')+'<p class="note" style="text-align:center">登入一次可以用 30 天；iPhone 主畫面 App 跳不出 Google 登入時，可在科務入口「👤 我的帳號」產生登入碼。</p>'}
 
 /* ---------- 黃部長住院 ---------- */
 function hoForm(c,k){return `<div class="fgrid" data-form="${esc(k)}">${COLS.map((t,j)=>`<label class="f">${t}<textarea name="c${j}" rows="${j===0?3:j===4||j===5||j===2?5:3}">${esc(c[j]||'')}</textarea></label>`).join('')}</div>`}
@@ -259,34 +252,18 @@ function spPage(){const all=its('sp').sort((a,b)=>String(b.d||'').localeCompare(
 
 /* ---------- 版面 ---------- */
 function hdr(){$('#sub').textContent=`${md(today)}・${me?'我是 '+me:'還沒設定姓名'}`;
- $('#sync').textContent=busy?'儲存中…':S.loading?'讀取中…':S.err&&pass?'連線失敗：'+S.err:S.at?'已更新 '+hm(S.at).split(' ')[1]:'';
- $('#tools').innerHTML=`<a class="hbtn" href="${esc((S.doc&&S.doc.url)||DOC_URL)}" target="_blank" rel="noopener">📄 黃部長交班單 ↗</a><button class="hbtn" data-act="me">👤 ${me?esc(me):'設定姓名'}</button>${pass&&S.me&&S.me.admin?'<button class="hbtn" data-act="keys">👥 邀請連結</button>':''}${pass&&!isStand()?'<button class="hbtn" data-act="inst">📲 加到主畫面</button>':''}${pass?'<button class="hbtn" data-act="reload">↻</button><button class="hbtn" data-act="logout">登出</button>':''}`}
+ $('#sync').textContent=busy?'儲存中…':S.loading?'讀取中…':S.err&&ok()?'連線失敗：'+S.err:S.at?'已更新 '+hm(S.at).split(' ')[1]:'';
+ $('#tools').innerHTML=`<a class="hbtn" href="${esc((S.doc&&S.doc.url)||DOC_URL)}" target="_blank" rel="noopener">📄 黃部長交班單 ↗</a>${window.AUTH?AUTH.badge('hub.html#me'):''}${!isStand()?'<button class="hbtn" data-act="inst">📲 加到主畫面</button>':''}${ok()?'<button class="hbtn" data-act="reload">↻</button>':''}`}
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
-const keyLink=t=>location.origin+location.pathname+'#k='+t;
-async function shareLink(url,title){const t=`${title}\n${url}`;try{if(navigator.share&&/iPhone|iPad|Android/i.test(navigator.userAgent)){await navigator.share({title,text:title,url});return}}catch(e){if(e.name==='AbortError')return}
- try{await navigator.clipboard.writeText(t);toast('已複製連結，貼給對方即可')}catch(e){prompt('複製這個連結',url)}}
-async function keysModal(){const m=document.createElement('div');m.className='imodal';document.body.appendChild(m);let K=null,err='';
- const draw=()=>{m.innerHTML=`<div class="ibox" style="max-width:520px"><b style="font-size:17px">👥 個人邀請連結</b>
-  <p class="note">每人一條，對方點一下就能用、之後不用再輸入；會自動帶出填寫人姓名。離職或連結外流時按「停用」即可，不影響別人。請私訊給本人，不要貼在群組。</p>
-  <div class="row"><input id="kn" placeholder="同事姓名（例：林才揚）" style="flex:1"><button class="btn p" data-kadd>產生連結</button></div>
-  ${err?`<p class="warn">${esc(err)}</p>`:''}
-  <div style="max-height:46vh;overflow:auto;margin-top:8px">${K==null?'<p class="note">讀取中…</p>':K.length?K.slice().reverse().map(k=>`<div class="row" style="border-top:1px solid var(--line);padding:6px 0"><b style="flex:1">${esc(k.n)}</b><button class="btn s p" data-ksh="${esc(k.t)}" data-kn="${esc(k.n)}">傳送連結</button><button class="btn s" data-kdel="${esc(k.t)}" data-kn="${esc(k.n)}">停用</button></div>`).join(''):'<p class="note">還沒有邀請連結。</p>'}</div>
-  <div class="row" style="margin-top:10px"><button class="btn" data-x>關閉</button></div></div>`};
- const run=async(op,x)=>{try{K=(await api(op,x)).keys;err=''}catch(e){err=e.message}draw()};draw();run('keys');
- m.addEventListener('click',async e=>{const t=e.target;if(t===m||t.closest('[data-x]')){m.remove();return}
-  if(t.closest('[data-kadd]')){const n=m.querySelector('#kn').value.trim();if(!n)return;await run('keyadd',{n});const k=(K||[]).filter(z=>z.n===n).pop();if(k)shareLink(keyLink(k.t),`泌尿科交班（${n} 專用，點開即可使用，請勿轉傳）`)}
-  const sh=t.closest('[data-ksh]');if(sh)shareLink(keyLink(sh.dataset.ksh),`泌尿科交班（${sh.dataset.kn} 專用，點開即可使用，請勿轉傳）`);
-  const dl=t.closest('[data-kdel]');if(dl&&confirm(`停用 ${dl.dataset.kn} 的連結？對方需要新連結才能再使用。`))run('keydel',{t:dl.dataset.kdel})})}
 function instModal(){const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1),inApp=/Line\/|FBAN|FBAV|Instagram/i.test(navigator.userAgent);
- if(ios&&!inApp)history.replaceState(null,'',location.pathname+'#k='+encodeURIComponent(pass));  // iPhone 主畫面圖示用當下網址，帶著金鑰才不用再登入
  const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><b style="font-size:17px">📲 加到主畫面</b>
- ${inApp?'<p>你現在在 LINE 裡開啟，請先點右下角「⋯」→「用預設瀏覽器開啟」，再按一次「加到主畫面」。</p>':ios?'<ol><li>點 Safari 下方的<b>分享</b> ⬆︎</li><li>點<b>「加入主畫面」</b></li><li>右上角<b>「新增」</b></li></ol><p class="note">完成後點主畫面的「交班」圖示，直接打開不用密碼。</p>':'<ol><li>點 Chrome 右上角 ⋮</li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li></ol>'}
+ ${inApp?'<p>你現在在 LINE 裡開啟，請先點右下角「⋯」→「用預設瀏覽器開啟」，再按一次「加到主畫面」。</p>':ios?'<ol><li>點 Safari 下方的<b>分享</b> ⬆︎</li><li>點<b>「加入主畫面」</b></li><li>右上角<b>「新增」</b></li></ol><p class="note">主畫面 App 第一次要再登入一次；跳不出 Google 登入時，用科務入口「👤 我的帳號」的登入碼。</p>':'<ol><li>點 Chrome 右上角 ⋮</li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li></ol>'}
  <div class="row" style="margin-top:10px"><button class="btn" data-x>完成</button></div></div>`;document.body.appendChild(m);
- m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-x]')){m.remove();if(/#k=/.test(location.hash))history.replaceState(null,'',location.pathname+'#huang')}})}
+ m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-x]'))m.remove()})}
 function render(){hdr();const pg=page(),n=k=>its(k).length;
  $('#tabs').innerHTML=[['huang','黃部長住院',S.doc?(S.doc.cur||[]).length:''],['vs','其他主治',n('vs')||''],['dc','出院',''],['sp','特殊個案',n('sp')||'']].map(([k,v,c])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}${c!==''?` <span class="cnt">${c}</span>`:''}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a>';
  const keep=captureForms();
- $('#app').innerHTML=!pass?login():(!S.at&&S.loading)?'<p class="note">讀取中…</p>':pg==='vs'?vsPage():pg==='dc'?dcPage():pg==='sp'?spPage():huang();
+ $('#app').innerHTML=!ok()?gate():(!S.at&&S.loading)?'<p class="note">讀取中…</p>':pg==='vs'?vsPage():pg==='dc'?dcPage():pg==='sp'?spPage():huang();
  restoreForms(keep);applySearch()}
 /* 重新整理畫面時保留還沒送出的空格內容與搜尋字 */
 let Q={};
@@ -311,10 +288,7 @@ function dcModal(title,cb){const m=document.createElement('div');m.className='im
  m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-x]'))m.remove();if(e.target.closest('[data-ok]')){const v={dcd:m.querySelector('#dcd').value,note:m.querySelector('#dcn').value.trim()};m.remove();cb(v)}})}
 
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,k=b.dataset.k,id=b.dataset.id;
- if(a==='login'){const v=$('#pw').value.trim();if(!v)return;pass=v;sessionStorage.setItem('hopass',v);if($('#pwr').checked)LS.set('hopass',v);S.err='';await load(true);if(pass)loadVS();return}
- if(a==='logout'){if(!confirm('登出後要重新輸入密碼'))return;pass='';sessionStorage.removeItem('hopass');LS.del('hopass');S={doc:null,docErr:'',items:[],at:0,err:'',loading:false,vs:S.vs};render();return}
  if(a==='reload'){load(true);return}
- if(a==='keys'){keysModal();return}
  if(a==='inst'){instModal();return}
  if(a==='me'){askMe();return}
  if(a==='copy'){try{await navigator.clipboard.writeText(b.dataset.v);toast('已複製 '+b.dataset.v)}catch(x){prompt('複製病歷號',b.dataset.v)}return}
@@ -340,13 +314,14 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-act]
  if(a==='spsave'){const box=document.querySelector(`[data-form="${CSS.escape(b.dataset.f)}"]`);const v=fval(box);if(!v.mrn){alert('請填病歷號');return}const old=id?itemOf(id):null;if(!old&&its('sp').some(x=>x.mrn===v.mrn)&&!confirm('這個病歷號已經收錄過，還要再新增一筆嗎？'))return;
   const it={...(old||{id:nid('sp'),kind:'sp'}),...v,by:(old&&old.by)||me};EDIT.delete(id);if(!id)box.querySelectorAll('input:not([type=date]),textarea').forEach(x=>x.value='');await putItem(it,'已收錄')}
  if(a==='itdel')delItem(id)});
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='pw'){e.preventDefault();$('[data-act=login]').click()}});
-addEventListener('hashchange',()=>{if(takeKey()){S.err='';load(true);loadVS()}else render()});
+addEventListener('hashchange',render);
 const typing=()=>{const a=document.activeElement;return a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)&&!a.dataset.q};
-setInterval(()=>{if(!document.hidden&&pass&&!busy&&!EDIT.size&&!addHo&&!typing()&&!$('.imodal'))load()},60000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&pass&&S.at&&Date.now()-S.at>60000&&!EDIT.size&&!typing())load()});
+setInterval(()=>{if(!document.hidden&&ok()&&!busy&&!EDIT.size&&!addHo&&!typing()&&!$('.imodal'))load()},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ok()&&S.at&&Date.now()-S.at>60000&&!EDIT.size&&!typing())load()});
 try{if('serviceWorker' in navigator&&/^https:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
-render();if(pass){load();loadVS()}else loadVS();
+AUTH.init(gs.url,gs.token);let wasOk=false;
+addEventListener('auth:change',()=>{const o=ok();if(o&&!wasOk)load(true);if(!o){S.doc=null;S.items=[];S.at=0}wasOk=o;render()});
+AUTH.ready.then(()=>{wasOk=ok();if(wasOk)load();render()});render();loadVS();
 }
 </script>
 </body>
