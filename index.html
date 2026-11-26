@@ -539,12 +539,8 @@ const pendP=new Set();let lastSaved=null;const newer=(a,b)=>!a?b:!b?a:((+b.ts||0
 function persist(path,obj){if(obj&&typeof obj==='object')obj.ts=Date.now();LS.set(path,obj);LS.set('touched',1);pendP.add(path);const se=$('#sync');if(se)se.textContent=syncTxt();if(!db&&!gsOn()){pendP.delete(path);lastSaved=new Date()}if(!db&&gsOn()){clearTimeout(timers[path]);timers[path]=setTimeout(()=>gsFlush(path,JSON.parse(JSON.stringify(obj))),900);return}if(!db)return;clearTimeout(timers[path]);timers[path]=setTimeout(()=>flush(path,JSON.parse(JSON.stringify(obj))),700)}
 async function flush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await db.doc(path).set(obj);syncState='cloud';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){syncState='err'}const nx=writing[path].next;delete writing[path];if(nx)flush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
 const gsOn=()=>!IN_CLAUDE&&(GAS||(gs.on&&gs.url));
-/* 登入（auth.js）：請求帶 sess。看刀表、匯入／上傳刀表、急診刀、術前勾選都不用登入；只有「✏️ 排刀模式」（總醫師業務）要刀表編輯者（AUTH.canEdit()） */
+/* 登入（auth.js）：請求帶 sess。調度板所有功能（看刀表、排刀模式、匯入、急診刀）都不用登入；登入只用在個人偏好與交班單術前數值 */
 const AQ=()=>window.AUTH?AUTH.q():'',AB=o=>window.AUTH?AUTH.body(o):o,APREF=()=>window.AUTH?AUTH.prefs():{};
-const NOEDIT=()=>!!(window.AUTH&&!IN_CLAUDE&&!GAS&&!AUTH.canEdit());
-/* 不是編輯者時的提示（載入後 3 秒內的自動存檔不提示；8 秒內只提示一次） */
-const bootAt=Date.now();let noEditAt=0;function noEdit(){if(Date.now()-bootAt<3000||Date.now()-noEditAt<8000)return;noEditAt=Date.now();const m=window.AUTH&&AUTH.me();
- toast(m?'你的帳號沒有排刀權限（請總醫師在科務入口加入刀表編輯者）':'排刀模式要先登入刀表編輯者的 Google 帳號')}
 const gasCall=(fn,...a)=>new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn](...a));
 /* ===== 黃部長交班單 → 術前資料：每次即時向 Apps Script 讀，只放記憶體，不存進同步資料或本機 ===== */
 let hoD={};
@@ -579,7 +575,7 @@ function hoCard(D){const h=hoNeed(D);if(!h)return'';const T0='<b>📋 黃部長�
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-horeload]');if(!t)return;e.stopPropagation();e.preventDefault();hoLoad(t.dataset.horeload,1);render()},true);
 async function gsGet(key){if(GAS){const v=await gasCall('apiGet',key);return v?JSON.parse(v):null}const r=await fetch(gs.url+(gs.url.includes('?')?'&':'?')+'key='+encodeURIComponent(key)+'&token='+encodeURIComponent(gs.token)+AQ());const j=await r.json();if(!j.ok)throw new Error(j.err||'fail');return j.value}
 async function gsSet(key,value,keep){if(GAS){await gasCall('apiSet',key,JSON.stringify(value));return}const r=await fetch(gs.url,{method:'POST',keepalive:!!keep,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token,key,value}))});const j=await r.json();if(!j.ok){if(j.err==='auth'&&window.AUTH)AUTH.expired();throw new Error(j.err||'fail')}}
-async function gsFlush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await gsSet(path,obj);syncState='gs';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){if(e.message==='edit'){pendP.delete(path);syncState='gs';noEdit()}else{syncState='err';setTimeout(()=>{if(pendP.has(path)){const v=LS.get(path);if(v)gsFlush(path,v)}},15000)}}const nx=writing[path].next;delete writing[path];if(nx)gsFlush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
+async function gsFlush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await gsSet(path,obj);syncState='gs';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){{syncState='err';setTimeout(()=>{if(pendP.has(path)){const v=LS.get(path);if(v)gsFlush(path,v)}},15000)}}const nx=writing[path].next;delete writing[path];if(nx)gsFlush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
 async function gsBoot(){if(!gsOn())return loadNext();try{const c0=await gsGet('config/main'),cl=LS.get('config/main'),c=newer(c0,cl);if(c&&c.cfg)cfg=fixCfg(c.cfg);if(c&&c===cl&&c0&&(+cl.ts||0)>(+c0.ts||0))persist('config/main',{cfg});const d0=await gsGet('days/'+curDate);const loc=LS.get('days/'+curDate);const d=newer(d0,loc);if(d&&d===loc&&d0&&(+loc.ts||0)>(+d0.ts||0))persist('days/'+curDate,loc);if(d){day=d;for(const k of Object.keys(newDay(curDate)))if(day[k]==null)day[k]=newDay(curDate)[k]}syncState='gs'}catch(e){syncState='err'}render();rosterSync()}
 const saveCfg=()=>persist('config/main',{cfg});
 const saveDay=()=>{delete day.demo;persist('days/'+day.date,day)};
@@ -1111,10 +1107,7 @@ document.addEventListener('pointermove',e=>{if(pend&&!drag){if(pend.el&&Math.hyp
 document.addEventListener('pointerup',e=>{if(pend&&!drag){const id=pend.id,click=pend.click||pend.el&&(pend.el.classList.contains('bar')||pend.el.classList.contains('vb'));pend=null;if(click){selId=id;render();const p=document.querySelector('.selp');if(p&&p.scrollIntoView)p.scrollIntoView({block:'nearest',behavior:'smooth'})}return}pend=null;endDrag(true)});document.addEventListener('pointercancel',()=>endDrag(false));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(drag)endDrag(false);else if(selId){selId=null;render()}}});
 let rzT=null;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{const a=document.activeElement;if(!drag&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))render()},250)});
-if(window.AUTH&&!IN_CLAUDE&&!GAS){AUTH.init(gs.url,gs.token);{const pm=AUTH.prefs().orMode;if(pm)edMode=pm==='edit'}if(NOEDIT())edMode=false;
- addEventListener('auth:change',()=>{if(NOEDIT())edMode=false;render()});
- /* 不是刀表編輯者：按「✏️ 排刀模式」改成提示登入／沒有權限（window capture 先於調度板自己的監聽器） */
- addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-edmode]');if(!t||!NOEDIT()||edMode&&t.dataset.edmode)return;e.stopPropagation();e.preventDefault();if(AUTH.me())toast('「✏️ 排刀模式」只給刀表編輯者。請總醫師在科務入口「👤 我的帳號」把你加入；匯入刀表、急診刀不用權限');else AUTH.login()},true)}
+if(window.AUTH&&!IN_CLAUDE&&!GAS){AUTH.init(gs.url,gs.token);{const pm=AUTH.prefs().orMode;if(pm)edMode=pm==='edit'}addEventListener('auth:change',()=>render())}
 render();gsBoot().then(loadNext).then(inboxCheck);
 if(/^#(line|today)$/.test(location.hash))setTimeout(()=>{const e=$('#line-sec');if(e)e.scrollIntoView()},300);
 (async()=>{const C=typeof window.claude!=='undefined'&&window.claude&&window.claude.use?window.claude:null;if(!C)return;

@@ -145,9 +145,8 @@ function mtgOutline_(blob){
 // ===== 登入與權限（Google 帳號）=====
 // 1) 病人相關資料（交班單術前數值 handoff、Drive 討論會掃描 cancerScan）只給「核可帳號」：
 //    ＝黃部長交班單（hoDocId()）的擁有者、編輯者、檢視者／加註者，加上指令碼屬性 AUTH_EXTRA（逗號分隔 email）。每 10 分鐘重抓一次。
-// 2) 刀表（days/）、急診刀（er/list）不含可辨識病人資料，任何人都可以看、匯入、上傳、填急診刀。
-//    只有調度板的「✏️ 排刀模式」（調整刀序、房間、人力等總醫師業務）要登入刀表編輯者（在網頁端檢查 me.edit）：
-//    刀表編輯者＝管理員＋指令碼屬性 EDITORS（JSON 陣列，入口「👤 我的帳號」由管理員維護）。
+// 2) 刀表（days/）、急診刀（er/list）不含可辨識病人資料，調度板所有功能（含排刀模式）都不用登入。
+//    （保留 EDITORS／action=editors 刀表編輯者名單的伺服器功能，目前網頁沒有使用。）
 //    管理員＝交班單的擁有者與編輯者，加上指令碼屬性 AUTH_ADMIN（逗號分隔 email）。
 // GOOGLE_CLIENT_ID：Google Cloud「OAuth 用戶端 ID（網頁應用程式）」，已授權的 JavaScript 來源要加 GitHub Pages 網址。
 //   留空＝不啟用登入（資料維持原本開放）。設定步驟見 開發說明.md「登入與權限」。
