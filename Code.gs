@@ -205,7 +205,67 @@ function authPrefs_(sess,b){const e=sessEmail_(sess);if(!e)throw new Error('auth
   if(typeof b.name==='string')u.name=b.name.slice(0,40);u.ts=Date.now();userPut_(e,u);return meFor_(e)}
 // 讀取：私密鍵一律不給，其他都開放
 function readKey_(k,sess){if(PRIVATE_KEY.test(k))return{deny:1};const v=apiGet(k);return{v:v?JSON.parse(v):null}}
+// ===== 院內刀表上傳頁（?page=upload）：醫院電腦擋 github.io 時用。病歷號、姓名在瀏覽器就先去掉（病歷號換成 3 字元病人代碼 99xxxx），
+//       只存去識別化的文字到 inbox/or；調度板打開時自動套用。原始全文只在勾選時送到癌症討論會試算表（跟調度板匯入相同）。
+function apiUpload(txt,raw,by){txt=String(txt||'');if(!txt.trim()||txt.length>800000)throw new Error('內容是空的或太大');
+  const now=Date.now(),who=String(by||'').slice(0,20);
+  apiSet('inbox/or',JSON.stringify({txt,ts:now,by:who,done:0}));
+  apiSet('meta/import',JSON.stringify({ts:now,src:'院內上傳',by:who}));
+  let can=null;if(raw){try{can=cancerImport(String(raw))}catch(e){can={err:String(e&&e.message||e)}}}
+  return{last:Utilities.formatDate(new Date(now),'Asia/Taipei','M/d HH:mm'),can}}
+function uploadPage_(){let mi=null;try{mi=JSON.parse(apiGet('meta/import')||'null')}catch(e){}
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const last=mi&&mi.ts?esc(Utilities.formatDate(new Date(mi.ts),'Asia/Taipei','M/d HH:mm')+(mi.src?'（'+mi.src+(mi.by?'・'+mi.by:'')+'）':'')):'尚無紀錄';
+  return HtmlService.createHtmlOutput(UPLOAD_HTML.replace('{{LAST}}',last)).setTitle('刀表上傳（院內）').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
+const UPLOAD_HTML=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{font:16px/1.6 "Microsoft JhengHei","Noto Sans TC",sans-serif;color:#0f262b;background:#f3f6f6;margin:0}
+.w{max-width:720px;margin:0 auto;padding:18px}h1{font-size:22px;margin:0 0 4px}.n{color:#587076;font-size:14px}
+textarea{width:100%;box-sizing:border-box;height:150px;font:14px monospace;border:2px dashed #0b5563;border-radius:12px;padding:10px;background:#fff}
+button{font:700 16px inherit;padding:10px 16px;border-radius:10px;border:0;background:#0b5563;color:#fff;cursor:pointer}
+#m{margin-top:10px;padding:10px 12px;border-radius:10px;display:none}.ok{background:#e3f5ec;color:#14532d}.bad{background:#fdecec;color:#b42318}
+.last{background:#fff;border-radius:12px;padding:10px 12px;margin:10px 0}</style></head><body><div class="w">
+<h1>📥 刀表上傳（院內）</h1><div class="n">HIS 手術工作表 Ctrl+A、Ctrl+C → 點下面的框 → Ctrl+V，就會自動上傳。病歷號、姓名會先在這台電腦去掉才送出。</div>
+<div class="last">刀表最後更新：<b id="last">{{LAST}}</b></div>
+<textarea id="t" placeholder="在這裡按 Ctrl+V 貼上，會自動上傳"></textarea>
+<p><label><input type="checkbox" id="can" checked> 同時送到「黃部長癌症討論會追蹤表」</label>　<label>上傳者 <input id="by" style="width:90px" placeholder="可不填"></label>　<button id="go">上傳</button></p>
+<div id="m"></div><p class="n">上傳後，任何人打開刀房調度板就會自動套用（保留已排好的順序，只更新術式；新刀排在最後；刀表上刪除的刀會移除）。</p></div>
+<script>
+(function(){var TM=/^(\\d{1,2}:\\d{2}|TF\\s*:?\\s*\\d+|[小大]夜:?)$/i,PID=/^\\d{6,10}$/,BED=/^[0-9]{3,5}[A-Za-z]{0,2}$/,TAIL=/常規|急|插刀|科$/;
+function fnv(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h}
+function code(p){var v=/^99\\d{4}$/.test(p)?+p.slice(2)%4096:fnv(p)%4096;var s=String(v);while(s.length<4)s='0'+s;return '99'+s}
+function clean(txt){var L=String(txt).replace(/\\r/g,'').split('\\n'),i,j,k,q,n=0,ds={};
+ var tab=0;for(i=0;i<L.length;i++)if(L[i].split('\\t').length>=5)tab++;
+ if(tab){var out=[];for(i=0;i<L.length;i++){var p=L[i].split('\\t');if(p.length<5){out.push(L[i]);continue}var di=-1;
+   for(k=0;k<p.length-1;k++)if(/^\\d{7}$/.test(p[k].replace(/^\\s+|\\s+$/g,''))&&TM.test(p[k+1].replace(/^\\s+|\\s+$/g,''))){di=k;break}
+   if(di<0){out.push(L[i]);continue}n++;ds[p[di].replace(/\\s/g,'')]=1;
+   for(k=0;k<di;k++){var c=p[k].replace(/^\\s+|\\s+$/g,'');if(!c)continue;if(PID.test(c))p[k]=code(c);else if(!BED.test(c))p[k]='-'}
+   out.push(p.join('\\t'))}return{t:out.join('\\n'),n:n,ds:ds}}
+ var a=[];for(i=0;i<L.length;i++){var x=L[i].replace(/^\\s+|\\s+$/g,'');if(x)a.push(x)}
+ for(j=0;j<a.length-1;j++){if(!(/^\\d{7}$/.test(a[j])&&TM.test(a[j+1])))continue;n++;ds[a[j]]=1;var m=-1;
+  for(k=Math.max(0,j-3);k<j;k++)if(PID.test(a[k])){m=k;break}
+  if(m>=0){a[m]=code(a[m]);for(q=m+1;q<j;q++)if(!BED.test(a[q]))a[q]='-'}
+  else for(q=Math.max(0,j-2);q<j;q++)if(!BED.test(a[q])&&!TAIL.test(a[q])&&!/^\\d/.test(a[q]))a[q]='-'}
+ return{t:a.join('\\n'),n:n,ds:ds}}
+function md(r){var m=String(r).match(/^(\\d{3})(\\d{2})(\\d{2})$/);return m?(+m[2])+'/'+(+m[3]):r}
+function msg(t,ok){var e=document.getElementById('m');e.style.display='block';e.className=ok?'ok':'bad';e.innerHTML=t}
+var busy=false;
+function up(){if(busy)return;var ta=document.getElementById('t'),raw=ta.value;if(!raw.replace(/\\s/g,'')){msg('框是空的：請先在 HIS 複製，再到框裡按 Ctrl+V');return}
+ var c=clean(raw);if(!c.n){msg('看不出是 HIS 手術工作表，請確認複製的內容（要包含手術日與時間）');return}
+ var dl=[];for(var d in ds_(c))dl.push(md(d));busy=true;msg('上傳中…（'+c.n+' 筆，'+dl.join('、')+'）',true);
+ google.script.run.withSuccessHandler(function(r){busy=false;ta.value='';document.getElementById('last').textContent=r.last+'（院內上傳）';
+   var cn=r.can?(r.can.err?'<br>癌症討論會表：送出失敗（'+r.can.err+'）':'<br>癌症討論會表：已送出'):'';
+   msg('✓ 已上傳 '+c.n+' 筆（'+dl.join('、')+'）。打開刀房調度板就會自動套用。'+cn,true)})
+  .withFailureHandler(function(e){busy=false;msg('上傳失敗：'+(e&&e.message||e)+'。請再試一次。')})
+  .apiUpload(c.t,document.getElementById('can').checked?raw:'',document.getElementById('by').value)}
+function ds_(c){return c.ds}
+document.getElementById('go').onclick=up;
+document.getElementById('t').addEventListener('paste',function(){setTimeout(up,60)});
+try{var b=localStorage.getItem('upBy');if(b)document.getElementById('by').value=b;document.getElementById('by').onchange=function(){localStorage.setItem('upBy',this.value)}}catch(e){}
+document.getElementById('t').focus();
+window.__clean=clean;})();
+</script></body></html>`;
 function doGet(e){const p=(e&&e.parameter)||{};
+  if(p.page==='upload')return uploadPage_();
   const tk=()=>TOKEN&&p.token!==TOKEN,run=f=>{try{return out({ok:true,value:f()})}catch(x){return out({ok:false,err:String(x&&x.message||x)})}},deny=()=>out({ok:false,err:'auth'});
   if(p.action||p.key||p.keys){if(tk())return out({ok:false,err:'token'})}
   if(p.action==='authcfg')return out({ok:true,value:{on:authOn(),client:GOOGLE_CLIENT_ID}});

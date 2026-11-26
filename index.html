@@ -174,6 +174,24 @@ tr.fel td{background:var(--soft)}
 <input type="file" id="file" accept="image/*" multiple hidden data-ch="file">
 <script src="auth.js?v=1"></script>
 <script>
+/* 開機保護：主程式沒跑起來時（舊瀏覽器、程式錯誤、本機暫存壞掉）顯示原因與修復按鈕，不要只剩空白。刻意用舊式 JS 寫，舊瀏覽器也能執行。 */
+(function(){var shown=false,errs=[];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function ok(){return !!document.querySelector('.tabs > *')}
+function show(why){if(shown||ok())return;shown=true;var d=document.createElement('div');d.id='bootErr';
+ d.style.cssText='max-width:640px;margin:24px auto;padding:16px 18px;border:2px solid #e5484d;border-radius:12px;background:#fff;color:#0f262b;font:15px/1.6 sans-serif';
+ d.innerHTML='<b style="font-size:18px">網頁沒有正常載入</b><p>請依序試：<br>1. 按「重新載入」<br>2. 還是不行，按「清除這台電腦的暫存」（雲端的資料不受影響；這台電腦還沒同步上去的修改會消失）<br>3. 都不行的話，請把下面灰色的字截圖回報</p><p><button id="bootR" style="font-size:15px;padding:6px 12px">重新載入</button> <button id="bootC" style="font-size:15px;padding:6px 12px">清除這台電腦的暫存</button></p><p style="color:#587076;font-size:12.5px;word-break:break-all">'+esc(why)+(errs.length?'<br>'+esc(errs.slice(0,3).join(' / ')):'')+'<br>'+esc(navigator.userAgent)+'</p>';
+ document.body.insertBefore(d,document.body.firstChild);
+ document.getElementById('bootR').onclick=function(){location.reload()};
+ document.getElementById('bootC').onclick=function(){if(!confirm('確定清除這台電腦的暫存？雲端的資料不受影響。'))return;try{localStorage.clear()}catch(e){}
+  var p=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){for(var i=0;i<rs.length;i++)rs[i].unregister()}))}catch(e){}
+  try{if(window.caches)p.push(caches.keys().then(function(ks){for(var i=0;i<ks.length;i++)caches['delete'](ks[i])}))}catch(e){}
+  var go=function(){location.reload()};if(window.Promise&&p.length)Promise.all(p).then(go,go);else go()}}
+window.addEventListener('error',function(e){errs.push((e.message||'錯誤')+(e.lineno?' (第 '+e.lineno+' 行)':''));setTimeout(function(){show('程式錯誤')},400)});
+setTimeout(function(){show('載入逾時（15 秒）')},15000);
+})();
+</script>
+<script>
 {
 /*CORE*/
 const CATS=[['minor','膀胱鏡/DJ小刀'],['urs','URS/RIRS 碎石'],['tur','TUR-BT/TUR-P/膀胱'],['laser','攝護腺雷射'],['pcnl','PCNL/ECIRS'],['lap','腹腔鏡'],['robot','達文西 Xi'],['sp','SP 達文西'],['open','開放/陰囊/疝氣'],['bx','切片/HIFU'],['eswl','ESWL'],['tx','腎移植']];
@@ -182,11 +200,13 @@ const VSPAL=['#2f6fb5','#c4621d','#2e8b57','#8c45b8','#c2185b','#0f8b8d','#9c7a1
 const colMode=()=>{try{return localStorage.getItem('or:colBy')==='"cat"'?'cat':'vs'}catch(e){return 'vs'}};
 const vsCol=n=>{const L=(cfg&&cfg.sur)||[];n=String(n||'').replace(/部長$/,'');let i=L.findIndex(s=>s.n===n);if(i<0){i=L.length;for(const ch of n)i=(i*31+ch.charCodeAt(0))%9973}return VSPAL[i%VSPAL.length]};
 const dispN=n=>{const x=(cfg.sur||[]).find(y=>y.n===n);return x&&x.t?n+x.t:n};
+const LOCAL=location.protocol==='file:';
+let lastImp=null,inboxBusy=false;
 let resAdv=false,gearOpen=false,erDoneOpen=false,erToast=null;
 let edMode=(()=>{try{return localStorage.getItem('or:edit')==='true'}catch(e){return false}})();
 const GEAR=[['res','人力與能力'],['set','術式與房間設定'],['help','❓ 怎麼用']];
 /* 意見回饋集中在科務入口 hub.html#fb（Apps Script 版用 GitHub Pages 網址） */
-const fbUrl=()=>(GAS?'https://ttimcom-hue.github.io/Uro-OR/':'')+'hub.html?from=or#fb';
+const fbUrl=()=>(GAS||LOCAL?'https://ttimcom-hue.github.io/Uro-OR/':'')+'hub.html?from=or#fb';
 const caseCol=x=>colMode()==='vs'?vsCol(x.c.surgeon):(CATC[x.cat]||'#6f9bb6');
 const colLegend=tl=>colMode()==='vs'?[...new Set(tl.rooms.flatMap(r=>r.cases.map(x=>x.c.surgeon)))].map(n=>`<span><i style="background:${vsCol(n)}"></i>${esc(dispN(n))}</span>`).join(''):CATS.map(([k,n])=>`<span><i class="c-${k}"></i>${n}</span>`).join('');
 const CATN=Object.fromEntries(CATS);const isRob=c=>c==='robot'||c==='sp';
@@ -259,7 +279,7 @@ function erAddRows(use,auto){const G=new Map();for(const r of use){const key=[r.
  return n}
 function rowsToCases(rows){const st=T(cfg.set.start),G=new Map();lastDel=0;rows.forEach((r,i)=>{const t=String(r.time||'').trim();{const mm=t.match(/^\d{1,2}:(\d{2})$/);if(mm&&+mm[1]%10!==0)r.del=true}if(r.del){lastDel++;return}let slot,kind='';
  if(/夜/.test(t)){slot=999;kind='eve'}else if(/TF/i.test(t)){slot=+((t.match(/\d+/)||[1])[0])}else if(/\d{1,2}:\d{2}/.test(t)){if(T(t)<=st)slot=0;else{slot=T(t)/10000;kind='clock'}}else slot=60;
- const key=[r.date,r.room,r.surgeon,slot,kind==='clock'?t:'',r.pid||''].join('|');let g=G.get(key);if(!g){g={id:nid(),date:r.date,room:r.room,hisRoom:r.room,hk:[r.room,r.surgeon,t].join('|'),surgeon:r.surgeon,slot,seq:i,procs:[],spec:[],time:kind==='clock'?t:'',eve:kind==='eve',clock:kind==='clock',opd:kind==='clock',fixed:slot===0&&!kind,sq:r.sq||undefined,raw:r.raw||undefined,md:null};G.set(key,g)}
+ const key=[r.date,r.room,r.surgeon,slot,kind==='clock'?t:'',r.pid||''].join('|');let g=G.get(key);if(!g){g={id:nid(),date:r.date,room:r.room,hisRoom:r.room,pt:ptag(r.pid),hk:[r.room,r.surgeon,t].join('|'),surgeon:r.surgeon,slot,seq:i,procs:[],spec:[],time:kind==='clock'?t:'',eve:kind==='eve',clock:kind==='clock',opd:kind==='clock',fixed:slot===0&&!kind,sq:r.sq||undefined,raw:r.raw||undefined,md:null};G.set(key,g)}
  if(r.anes&&!g.anes)g.anes=r.anes;if(r.ca==='Y')g.cancer=true;if(r.src){g.src=r.src;if(r.src==='徑')g.sd=true;if(r.src==='門')g.opd=true;if(/急/.test(r.src))g.er=true}const hr=String(r.special||'').match(/>\s*(\d+(?:\.\d+)?)\s*hr/i);if(hr)g.minDur=Math.max(g.minDur||0,Math.round(+hr[1]*60));g.procs.push(r.name);if(r.special&&!/^[\/\s]*$/.test(r.special))g.spec.push(r.special);if(/(^|[\/\s])ER\b|急/.test(r.special||''))g.er=true});
  const out={};for(const g of G.values())(out[g.date]=out[g.date]||[]).push(g);
  for(const d in out){const byR={};out[d].sort((a,b)=>a.slot-b.slot||a.seq-b.seq).forEach(c=>{if(!c.eve)(byR[c.room]=byR[c.room]||[]).push(c)});
@@ -269,7 +289,7 @@ function fuzzySur(raw,date,room){const s=String(raw||'').trim(),known=cfg.sur.ma
 function normRow(o,fallbackDate){const date=rocDate(o.d||o.date)||fallbackDate;const room=roomOf(o.loc||o.room);const fz=fuzzySur(o.s||o.surgeon,date,room);return{sq:fz.sq,raw:fz.raw,date,time:String(o.t||o.time||''),surgeon:fz.s,room,name:String(o.n||o.name||'').trim(),special:String(o.x||o.special||'').trim()}}
 function parseHIS(txt,fallbackDate){const a=String(txt).split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],TM=/^(\d{1,2}:\d{2}|TF\s*:?\s*\d+|[小大]夜:?)$/i;const starts=[];for(let i=0;i<a.length-1;i++)if(/^\d{7}$/.test(a[i])&&TM.test(a[i+1]))starts.push(i);
  starts.forEach((j,n)=>{const end=n+1<starts.length?starts[n+1]-2:a.length;let k=j+3;const s=a[j+2];let ca='';if(/^[YN]$/.test(a[k])){ca=a[k];k++}const loc=a[k],name=a[k+1];let q=k+2,spec=[];while(q<end&&q<k+5&&!/^(住|門|徑|急|急診)$/.test(a[q])){spec.push(a[q]);q++}
-  const seg=a.slice(q,end);const anes=(seg.find(x=>/^(GA|IVGA|LA|Sed|Spinal|EA|SA|MAC)/i.test(x))||'').split(' ')[0];const del=seg.some(x=>/已刪|刪除|取消/.test(x));const pid=/^\d{6,10}$/.test(a[j-2]||'')?a[j-2]:'';
+  const seg=a.slice(q,end);const anes=(seg.find(x=>/^(GA|IVGA|LA|Sed|Spinal|EA|SA|MAC)/i.test(x))||'').split(' ')[0];const del=seg.some(x=>/已刪|刪除|取消/.test(x));const pid=[a[j-2],a[j-3]].find(x=>/^\d{6,10}$/.test(x||''))||'';
   const r=normRow({d:a[j],t:a[j+1].replace(/\s/g,''),s,loc,n:name,x:spec.filter(x=>x!=='/').join(' ')},fallbackDate);r.src=/^(住|門|徑|急|急診)$/.test(a[q]||'')?a[q]:'';r.ca=ca;{const st=(a[q+2]||'').match(/^(\d{2})(\d{2})\d{2}$/);if(st&&/^\d{7}$/.test(a[q+1]||'')){r.sent=st[1]+':'+st[2];r.sentD=rocDate(a[q+1])}r.kind=(seg.find(x=>/常規|急診|緊急|插刀|一般急/.test(x))||'')}r.anes=anes;r.del=del;r.pid=pid;rows.push(r)});return rows}
 function parseText(txt,fallbackDate){const his=parseHIS(txt,fallbackDate);if(his.length)return his;txt=String(txt).replace(/：/g,':').replace(/[”“"'`]/g,' ').replace(/\bT\s*[EF]{1,2}\s*[:;.,]*\s*(\d)/g,'TF:$1 ').replace(/\bO(\d:\d\d)/g,'0$1').replace(/(3F|2F門診|門診|碎石)\s*R\s*([0-9OoQSsDl]{1,3})/g,(m,a,d)=>a+' R'+d.replace(/[OoQD]/g,'0').replace(/[Ss]/g,'5').replace(/l/g,'1'));const rows=[];for(let ln of String(txt).split(/\r?\n/)){ln=ln.trim();if(!ln||/手術日|手術師/.test(ln))continue;let p;
  if(ln.split('\t').length>=5){p=ln.split('\t').map(s=>s.trim());const di=p.findIndex((c,i)=>/^\d{7}$/.test(c)&&/^(\d{1,2}:\d{2}|TF\s*:?\s*\d+|[小大]夜:?)$/i.test(p[i+1]||''));if(di>=0){const sur=p[di+2];const caC=p.slice(di+3,di+5).find(x=>/^[YN]$/.test(x))||'';let li=p.findIndex((c,i)=>i>di+2&&/R\s*\d|達文西|碎石|門診/.test(c));if(li<0)li=di+4;const nm=p[li+1]||'';let si=p.findIndex((c,i)=>i>li+1&&/^(住|門|徑|急|急診)$/.test(c));const spec=si>0?p.slice(li+2,si).filter(x=>x&&x!=='/').join(' '):(p[li+2]||'').replace(/^\/$/,'');const tail=si>0?p.slice(si):[];const r=normRow({d:p[di],t:p[di+1].replace(/\s/g,''),s:sur,loc:p[li],n:nm,x:spec},fallbackDate);r.src=si>0?p[si]:'';r.ca=caC;{const st=(p[si+2]||'').match(/^(\d{2})(\d{2})\d{2}$/);if(si>0&&st){r.sent=st[1]+':'+st[2];r.sentD=rocDate(p[si+1])||''}r.kind=(tail.find(x=>/常規|急診|緊急|插刀|一般急/.test(x))||'')}r.anes=(tail.find(x=>/^(GA|IVGA|LA|Sed|Spinal|EA|SA|MAC)/i.test(x))||'').split(' ')[0];r.del=tail.some(x=>/已刪|刪除|取消/.test(x));r.pid=(p.slice(0,di).find(x=>/^\d{6,10}$/.test(x)))||'';r.bed=(p.slice(0,di).find(x=>/^[0-9]{3,5}[A-Za-z]{0,2}$/.test(x)&&!/^\d{6,}$/.test(x)))||'';rows.push(r);continue}const hasC=p.length>=7||/^[YN]?$/.test(p[3]);const [d,t,s]=p;const off=hasC?4:3;rows.push(normRow({d,t,s,loc:p[off],n:p[off+1],x:p.slice(off+2).join(' ')},fallbackDate));continue}
@@ -327,6 +347,8 @@ const anesOf=(c,room,cat)=>c.anesSel||normAnes(c.anes)||(roomCfg(room).opd?'LA':
 const anesMin=(c,room,cat)=>+((cfg.anes||{})[anesOf(c,room,cat)]||0);
 const LVR={R1:1,R2:2,R3:3,R4:4,R5:5,CR:5,Fellow:6};const lvOf=r=>LVR[(r||{}).lv]||0;
 const ptxt=c=>(c.procs.join(' ')+' '+(c.spec||[]).join(' '));
+/* 病人代碼：病歷號算出的 3 字元短碼（約 4 千種，無法回推病歷號），只用來在重新匯入時對照同一位病人。院內上傳頁已先把病歷號換成 99xxxx（xxxx＝同一個代碼） */
+const ptag=pid=>{pid=String(pid||'').trim();if(!pid)return'';const m=pid.match(/^99(\d{4})$/);let v;if(m)v=+m[1]%4096;else{let h=2166136261;for(let i=0;i<pid.length;i++){h^=pid.charCodeAt(i);h=Math.imul(h,16777619)>>>0}v=h%4096}return v.toString(16).padStart(3,'0')};
 const DIFF={easy:['簡單',.8],norm:['一般',1],hard:['困難',1.3],vhard:['很困難',1.6]};
 const DIFF_KW=/staghorn|鹿角|redo|re-do|complex|複雜|困難|difficult/i;
 const diffOf=c=>c.diff||(DIFF_KW.test(ptxt(c))?'hard':'norm');
@@ -565,14 +587,25 @@ const syncTxt=()=>(pendP.size?'儲存中…・':lastSaved?`已自動儲存 ${Str
 let nextDay=null;const nextWork=ds=>{let d=addDays(ds,1);if(dowOf(d)===0)d=addDays(d,1);return d};
 async function fetchDay(date){let d=null;if(gsOn()){try{d=await gsGet('days/'+date)}catch(e){}}else if(db){try{const x=await db.doc('days/'+date).get();if(x.exists)d=JSON.parse(JSON.stringify(x.data()))}catch(e){}}return newer(d,LS.get('days/'+date))||null}
 async function loadNext(){loadER();return loadUp()}
-setInterval(()=>{try{const a=document.activeElement;if(tab==='er'&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))loadER()}catch(e){}},45000);
+/* 院內上傳（Apps Script ?page=upload）：上傳頁已把病歷號、姓名去掉，存在 inbox/or。任何能編輯的裝置打開調度板時自動套用（跟一般匯入同樣保留手動刀序），套用後清掉內容 */
+async function inboxCheck(){if(inboxBusy||!gsOn()||NOEDIT())return;inboxBusy=true;try{
+ try{const mi=await gsGet('meta/import');if(mi&&mi.ts&&(!lastImp||mi.ts>lastImp.ts)){lastImp=mi;if(tab==='plan')render()}}catch(e){}
+ const ib=await gsGet('inbox/or');if(!ib||!ib.txt||ib.done)return;
+ const ds=Object.keys(rowsToCases(parseText(ib.txt,day.date)));
+ for(const d of ds){try{const c=await gsGet('days/'+d),l=d===day.date?day:LS.get('days/'+d),n=newer(c,l);if(n&&n!==l){LS.set('days/'+d,n);if(d===day.date){day=n;for(const k of Object.keys(newDay(d)))if(day[k]==null)day[k]=newDay(d)[k]}}}catch(e){}}
+ const R=importAll(ib.txt);
+ for(const d of R.dates){const v=d===day.date?day:LS.get('days/'+d);if(v){clearTimeout(timers['days/'+d]);await gsSet('days/'+d,v);pendP.delete('days/'+d)}}
+ await gsSet('inbox/or',{ts:ib.ts,by:ib.by||'',dates:R.dates,done:Date.now(),txt:''});
+ if(R.dates.length)toast(`已套用院內上傳的刀表：${R.dates.map(d=>(+d.slice(5,7))+'/'+(+d.slice(8))).join('、')}`);render()
+}catch(e){}finally{inboxBusy=false}}
+setInterval(()=>{try{inboxCheck();const a=document.activeElement;if(tab==='er'&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))loadER()}catch(e){}},45000);
 async function loadDay(date){setTimeout(()=>{if(day&&Array.isArray(day.er)&&day.er.length)loadER()},50);curDate=date;LS.set('last',date);let d=null;if(gsOn()){try{d=await gsGet('days/'+date)}catch(e){syncState='err'}}if(db){try{const s=await db.doc('days/'+date).get();if(s.exists)d=JSON.parse(JSON.stringify(s.data()))}catch(e){}}
  const loc=LS.get('days/'+date);day=newer(d,loc)||newDay(date);if(loc&&day===loc&&d&&(+loc.ts||0)>(+d.ts||0))persist('days/'+date,day);for(const k of Object.keys(newDay(date)))if(day[k]==null)day[k]=newDay(date)[k]}
 
 function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=planMoves(day,tl),L=advise(day,tl,asg,pl);cache={asg};
  const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
  const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
- $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${!IN_CLAUDE&&!GAS?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
+ $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
  <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn edonly" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
  <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
@@ -720,7 +753,7 @@ function fbView(){if(fb===null){setTimeout(loadFb,0);return '<p class="card note
  <section class="card"><h2>待處理（${open.length}）<button class="btn s" data-act="fbReload">重新整理</button></h2>${open.length?`<ul class="fbl">${open.map(item).join('')}</ul>`:'<p class="note">沒有待處理的回饋。</p>'}<p class="note">處理完把左邊打勾，就會移到「已解決」。</p></section>
  ${done.length?`<details class="card"><summary>已解決（${done.length}）</summary><ul class="fbl">${done.map(item).join('')}</ul></details>`:''}`}
 function quickLinks(){const er=(ERS.items||[]).filter(e=>!e.del&&e.st!=='done'),ins=er.filter(e=>e.t==='insert').length,topNo=er.filter(e=>topS().includes((e.s||'').trim())&&!e.by).length;const nd=Object.keys(upDays).filter(x=>x>localISO()&&dowOf(x)!==0).sort()[0];const ndD=nd&&(nd===day.date?day:upDays[nd]);const it=ndD?prepItems(ndD):[];const chk=ndD?(ndD.chk||{}):{};const done=it.filter(x=>x.need.every(([k])=>(chk[x.c.id]||{})[k])).length;
- return `<div class="row" style="margin:-8px 0 18px"><button class="btn s ${er.length?'tg on':''}" data-act="tab" data-k="er">急診刀：${er.length?`待處理 ${er.length} 台${ins?`（插刀 ${ins}）`:''}${topNo?`・★ ${topNo} 台未填代開`:''}${(()=>{try{const n=erPlan().out.filter(x=>!x.none).length;return n?`・${n} 台可接空檔`:''}catch(e){return''}})()}`:'無'}</button><button class="btn s ${it.length&&done<it.length?'tg on':''}" data-act="tab" data-k="prep">明天術前準備：${nd?`${done}/${it.length} 完成`:'讀取中'}</button></div>`}
+ return `<div class="row" style="margin:-8px 0 18px"><button class="btn s ${er.length?'tg on':''}" data-act="tab" data-k="er">急診刀：${er.length?`待處理 ${er.length} 台${ins?`（插刀 ${ins}）`:''}${topNo?`・★ ${topNo} 台未填代開`:''}${(()=>{try{const n=erPlan().out.filter(x=>!x.none).length;return n?`・${n} 台可接空檔`:''}catch(e){return''}})()}`:'無'}</button><button class="btn s ${it.length&&done<it.length?'tg on':''}" data-act="tab" data-k="prep">明天術前準備：${nd?`${done}/${it.length} 完成`:'讀取中'}</button>${lastImp&&lastImp.ts?`<span class="note" style="align-self:center">📥 刀表最後更新 ${(()=>{const d=new Date(lastImp.ts);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`})()}${lastImp.src?'（'+esc(lastImp.src)+(lastImp.by?'・'+esc(lastImp.by):'')+'）':''}</span>`:''}</div>`}
 const erWaitH=e=>{if(!e.ad&&!e.at)return null;const d=new Date(`${e.ad||localISO()}T${e.at||'00:00'}:00`);return Math.floor((Date.now()-d.getTime())/36e5)};
 function erSorted(){const er=(ERS.items||[]).filter(e=>!e.del);const rk=t=>ER_T.findIndex(x=>x[0]===t);const auto=(a,b)=>rk(a.t)-rk(b.t)||`${a.ad||'9'} ${a.at||''}`.localeCompare(`${b.ad||'9'} ${b.at||''}`);
  const act=er.filter(e=>e.st!=='done'),done=er.filter(e=>e.st==='done').sort(auto);const act2=act.slice().sort((a,b)=>rk(a.t)-rk(b.t)||((a.ord!=null?0:1)-(b.ord!=null?0:1))||(a.ord!=null&&b.ord!=null?a.ord-b.ord:0)||auto(a,b));return[...act2,...done]}
@@ -931,9 +964,10 @@ function sortRoom(room){const tl=timeline(day),r=tl.rooms.find(x=>x.id===room);i
 let mergeMsg=null,impStats={};
 /* 重新匯入同一天刀表：保留已排好的順序、房間、手動時間與備註，只更新 HIS 上的術式等資料 */
 function mergeCases(target,list){const old=target.cases.slice(),used=new Set(),out=[];let kept=0,added=0,changed=0;const pk=c=>c.procs.map(p=>p.replace(/\(.*?\)|（.*?）/g,'').trim().toLowerCase()).sort().join('+');
- const find=(nc)=>{const tests=[o=>o.hk&&o.hk===nc.hk,o=>o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&pk(o)===pk(nc),o=>o.surgeon===nc.surgeon&&pk(o)===pk(nc),o=>!o.hk&&o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&(o.time||'')===(nc.time||'')&&!!o.eve===!!nc.eve];for(const t of tests){const o=old.find(x=>!used.has(x)&&t(x));if(o)return o}return null};
+ const passes=[[(o,nc)=>o.pt&&nc.pt&&o.pt===nc.pt&&o.surgeon===nc.surgeon],[(o,nc)=>o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&pk(o)===pk(nc),(o,nc)=>o.surgeon===nc.surgeon&&pk(o)===pk(nc)],[(o,nc)=>o.hk&&o.hk===nc.hk,(o,nc)=>!o.hk&&o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&(o.time||'')===(nc.time||'')&&!!o.eve===!!nc.eve]];
+ const L0=list.slice().sort((a,b)=>a.order-b.order),match=new Map();for(const P of passes)for(const nc of L0){if(match.has(nc))continue;for(const t of P){const o=old.find(x=>!used.has(x)&&t(x,nc));if(o){used.add(o);match.set(nc,o);break}}}
  const mx={};for(const o of old)mx[o.room]=Math.max(mx[o.room]||0,o.order||0);
- for(const nc of list.slice().sort((a,b)=>a.order-b.order)){const o=find(nc);if(o){used.add(o);const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
+ for(const nc of L0){const o=match.get(nc);if(o){const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom,pt:nc.pt||o.pt};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
   else{const had=old.some(x=>x.room===nc.room&&!x.eve);nc.order=(mx[nc.room]=(mx[nc.room]||0)+1);if(had){nc.fixed=false;nc.wait=false}out.push(nc);added++}}
  const removed=old.filter(o=>!used.has(o)).length;target.cases=out;for(const room of new Set(out.map(c=>c.room)))out.filter(c=>c.room===room&&!c.eve).sort((a,b)=>a.order-b.order).forEach((c,j)=>c.order=j+1);
  return{n:out.length,kept,added,changed,removed}}
@@ -1081,7 +1115,7 @@ if(window.AUTH&&!IN_CLAUDE&&!GAS){AUTH.init(gs.url,gs.token);{const pm=AUTH.pref
  addEventListener('auth:change',()=>{if(NOEDIT())edMode=false;render()});
  /* 不是刀表編輯者：按「✏️ 排刀模式」改成提示登入／沒有權限（window capture 先於調度板自己的監聽器） */
  addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-edmode],[data-imp]');if(!t||!NOEDIT()||edMode&&t.dataset.edmode)return;e.stopPropagation();e.preventDefault();if(AUTH.me())toast('你的帳號沒有編輯刀表的權限，請總醫師在科務入口「👤 我的帳號」把你加入刀表編輯者');else AUTH.login()},true)}
-render();gsBoot().then(loadNext);
+render();gsBoot().then(loadNext).then(inboxCheck);
 if(/^#(line|today)$/.test(location.hash))setTimeout(()=>{const e=$('#line-sec');if(e)e.scrollIntoView()},300);
 (async()=>{const C=typeof window.claude!=='undefined'&&window.claude&&window.claude.use?window.claude:null;if(!C)return;
  try{db=await C.use('db')}catch(e){db=null}
@@ -1221,7 +1255,7 @@ document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.c
    手機：叫出系統分享選單（LINE、訊息、複製…）；電腦或不支援時：直接複製連結並顯示提示。
    連結＝目前這一頁（含分頁 #），加 openExternalBrowser=1 讓 LINE 用手機瀏覽器開啟。 */
 const SHARE_T='泌尿科刀房調度板';
-function shareLink(){const h=location.hash&&!/^#(home)?$/.test(location.hash)?location.hash:'';const base=GAS?'https://ttimcom-hue.github.io/Uro-OR/':location.origin+location.pathname.replace(/[^/]*$/,'');return base+'?openExternalBrowser=1'+h}
+function shareLink(){const h=location.hash&&!/^#(home)?$/.test(location.hash)?location.hash:'';const base=GAS||LOCAL?'https://ttimcom-hue.github.io/Uro-OR/':location.origin+location.pathname.replace(/[^/]*$/,'');return base+'?openExternalBrowser=1'+h}
 function toast(t){const d=document.createElement('div');d.textContent=t;d.setAttribute('role','status');d.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0f262b;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;z-index:10000;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:90vw;text-align:center';document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
 async function copyText(t){try{await navigator.clipboard.writeText(t);return true}catch(e){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}a.remove();return ok}}
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-share]');if(!a)return;e.preventDefault();e.stopPropagation();
@@ -1263,18 +1297,22 @@ function importAll(txt){mergeMsg=null;impStats={};const rows0=parseText(txt,day.
 function impModal(){const m=document.createElement('div');m.className='imodal impm';const cOK=gsOn();
  m.innerHTML=`<div class="ibox" style="max-width:640px"><div class="ihead"><b style="font-size:18px">📥 匯入刀表（一次更新全部）</b></div>
  <ol class="inote" style="padding-left:20px;margin:4px 0 8px"><li>HIS「手術工作表」查詢要的日期範圍（可以一次查好幾天）</li><li>整頁 <b>Ctrl+A</b>、<b>Ctrl+C</b></li><li>貼到下面，按「匯入」</li></ol>
- <textarea id="impT" rows="7" style="width:100%" placeholder="在這裡貼上 HIS 手術工作表"></textarea>
+ <div class="row" style="margin-bottom:6px"><button class="ibtn p" data-impclip="1">📋 從剪貼簿匯入（先在 HIS 複製好）</button><span class="inote" id="impClipMsg"></span></div><textarea id="impT" rows="7" style="width:100%" placeholder="或在這裡貼上 HIS 手術工作表（Ctrl+V），再按「匯入」"></textarea>
  <div class="inote" style="margin:6px 0">會一起更新：<b>各天刀房排程</b>（保留已排好的順序）、<b>急診刀</b>自動分到急診刀分頁、<b>術前準備</b>、<b>機器調度</b>${cOK?`、<label><input type="checkbox" id="impC" ${cfg.set.cancerAuto!==false?'checked':''}> <b>黃部長癌症討論會表</b></label>`:''}</div>
  <div class="row"><button class="ibtn p" data-impgo="1">匯入</button><button class="ibtn" data-impclose="1">關閉</button></div><div id="impR" style="margin-top:8px"></div></div>`;
  document.body.appendChild(m);setTimeout(()=>{const t=m.querySelector('#impT');if(t)t.focus()},50);
  m.addEventListener('click',async e=>{if(e.target===m||e.target.closest('[data-impclose]')){m.remove();return}
   if(e.target.closest('[data-impgo]')){const txt=m.querySelector('#impT').value;if(!txt.trim())return;const cb=m.querySelector('#impC');if(cb){cfg.set.cancerAuto=cb.checked;saveCfg()}
-   const R=importAll(txt);const res=m.querySelector('#impR');
+   const R=importAll(txt);const res=m.querySelector('#impR');if(R.dates.length){lastImp={ts:Date.now(),src:LOCAL?'院內電腦':'調度板'};if(gsOn())gsSet('meta/import',lastImp).catch(()=>{})}
    const dl=R.dates.map(d=>{const st=R.stats[d]||{};return `<li><b>${+d.slice(5,7)}/${+d.slice(8)}（${DOW[dowOf(d)]}）</b> ${st.fresh?`新匯入 ${st.n} 台`:`更新 ${st.n} 台（保留順序 ${st.kept}${st.changed?`，術式變更 ${st.changed}`:''}${st.added?`，新增 ${st.added}`:''}${st.removed?`，移除 ${st.removed}`:''}）`}</li>`}).join('');
    res.innerHTML=R.dates.length||R.emg?`<div class="ok-box"><b>✓ 匯入完成</b><ul style="margin:4px 0;padding-left:20px">${dl}${R.emg?`<li>急診刀 ${R.emg} 筆 → 急診刀分頁${R.ne?`（新增 ${R.ne} 台）`:'（都已存在）'}</li>`:''}<li>術前準備、機器調度已依新刀表更新</li>${R.sendC?'<li id="impCan">癌症討論會表：送出中…</li>':''}</ul>${R.del?`<span class="inote">略過 ${R.del} 筆已刪除的刀</span>`:''}</div>`:'<p style="color:var(--red)">讀不到刀單，請確認是 HIS 手術工作表整頁複製。</p>';
    m.querySelector('#impT').value='';
    if(R.dates.length&&!R.dates.includes(day.date)){await loadDay(R.dates[0])}try{await loadUp()}catch(x){}render();
    if(R.sendC){try{cst=await cancerCall('import',txt);cst.at=new Date();const li=m.querySelector('#impCan');if(li)li.textContent=`癌症討論會表：已送出（${cst.newN?cst.newN+' 台新個案待加入追蹤':'個案都已在追蹤表'}）`;render()}catch(x){const li=m.querySelector('#impCan');if(li)li.textContent=/old|key/.test(x.message)?'癌症討論會表：要先更新 Apps Script':'癌症討論會表：送出失敗'}}}})}
+document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-impclip]');if(!t)return;e.stopPropagation();e.preventDefault();const box=t.closest('.imodal'),msg=box&&box.querySelector('#impClipMsg');
+ let txt='';try{txt=await navigator.clipboard.readText()}catch(x){}
+ if(!txt||!txt.trim()){if(msg)msg.textContent='讀不到剪貼簿（可能沒有允許），請在下面的框按 Ctrl+V 貼上，再按「匯入」';const ta=box&&box.querySelector('#impT');if(ta)ta.focus();return}
+ const ta=box.querySelector('#impT');ta.value=txt;if(msg)msg.textContent='';const go=box.querySelector('[data-impgo]');if(go)go.click()},true);
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-imp]');if(!t)return;e.stopPropagation();e.preventDefault();impModal()},true);
 if(location.hash==='#import')setTimeout(impModal,600);
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-edmode],[data-gear]');if(!t)return;e.stopPropagation();e.preventDefault();if(t.dataset.edmode){edMode=!edMode;LS.set('edit',edMode);if(!edMode)selId=null}else gearOpen=!gearOpen;render()},true);
