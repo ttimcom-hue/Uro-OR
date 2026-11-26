@@ -221,7 +221,7 @@ function handoff(){if(S.err==='nosync')return setupCard();if(NEED())return AUTH.
    資料鍵 feedback/list {items:[{id,name,cat,text,at,st:'new'|'done',re}], ts}（與舊版調度板回饋同一份）。
    更新紀錄：每次合併到 main 時在 CHANGELOG 最前面加一筆（v 版本、d 日期、t 標題、s 影響的網站、i 摘要）。 */
 const CHANGELOG=[
- {v:'1.9',d:'2026-11-25',t:'Google 帳號登入與刀表編輯權限',s:['刀房調度板','科務入口','晨會','行事曆'],i:['刀表、急診刀不用登入就能看；只有「刀表編輯者」能修改與匯入刀表（管理員在「👤 我的帳號」加人）','黃部長交班、癌症討論會只開放黃部長交班單有共用的 Google 帳號','新增「👤 我的帳號」：顯示名稱、我是誰（首頁顯示你今晚的值班、行事曆自動選好你）、外觀深淺色、入口預設分頁、調度板預設模式，換手機也一樣','iPhone 主畫面 App 跳不出 Google 登入時，可用 8 碼登入碼','Apps Script 網址不再提供網頁版調度板，請改用 GitHub Pages 網址']},
+ {v:'1.9',d:'2026-11-25',t:'Google 帳號登入與刀表編輯權限',s:['刀房調度板','科務入口','晨會','行事曆'],i:['看刀表、匯入／上傳刀表、填急診刀都不用登入；只有「✏️ 排刀模式」要刀表編輯者（管理員在「👤 我的帳號」加人）','黃部長交班、癌症討論會只開放黃部長交班單有共用的 Google 帳號','新增「👤 我的帳號」：顯示名稱、我是誰（首頁顯示你今晚的值班、行事曆自動選好你）、外觀深淺色、入口預設分頁、調度板預設模式，換手機也一樣','iPhone 主畫面 App 跳不出 Google 登入時，可用 8 碼登入碼','Apps Script 網址不再提供網頁版調度板，請改用 GitHub Pages 網址']},
  {v:'1.8',d:'2026-11-24',t:'科內行事曆',s:['行事曆','科務入口'],i:['新網站「科內行事曆」：晨會（週二 07:25）、癌症討論會（週四 07:25，都在 554）、Seminar、學會與科內活動，可切換月曆／週／時程表／出席表','每個人選「我是」後直接回覆參加／不參加／未定；調度板登記的休假自動標「休」','晨會簡報裡只貼截圖的會議會自動辨識文字（待確認）；晨會網站的重要會議自動帶入','可貼上文字或匯入 .ics 檔，也能整批加到自己的日曆']},
  {v:'1.7',d:'2026-11-23',t:'一鍵分享連結',s:['科務入口','刀房調度板','晨會'],i:['三個網站標題列都有「🔗 分享」：手機直接叫出分享選單（LINE、訊息…），電腦自動複製連結','分享的是目前這一頁（例如癌症討論會、急診刀），對方點開就到同一頁，LINE 會用手機瀏覽器開啟']},
  {v:'1.6',d:'2026-11-23',t:'入口加速、新圖示、意見回饋集中',s:['科務入口','刀房調度板','晨會'],i:['科務入口打開時先顯示上次的資料，背景再一次讀取最新資料，不用再等好幾秒','三個網站換上新的主畫面圖示與分享縮圖（刀房＝青綠、科務＝靛藍、晨會＝橘）','意見回饋集中到科務入口這一頁；調度板、晨會只留「💬 意見回饋」按鈕','新增版本紀錄']},
@@ -261,14 +261,14 @@ function myDay(){const id=APREF().me;if(!id)return '';const p=P().find(x=>x.id==
 function mePage(){if(!window.AUTH)return '<section class="card"><p>登入元件載入失敗，請重新整理。</p></section>';
  if(!AUTH.on())return '<section class="card"><h2>👤 我的帳號</h2><p class="note">登入功能尚未啟用。</p></section>';
  const m=AUTH.me(),pf=APREF();
- if(!m)return `<section class="card" style="text-align:center"><h2 style="justify-content:center">👤 我的帳號</h2><p>用 Google 帳號登入後，可以：</p><ul style="text-align:left;max-width:420px;margin:0 auto 10px"><li>刀表編輯者可以修改刀表（看刀表、急診刀不用登入）</li><li>查看黃部長交班、癌症討論會（限交班單有共用的帳號）</li><li>記住「我是誰」，首頁直接顯示你今晚的值班、行事曆自動選好你</li><li>設定外觀、入口打開時的分頁、調度板預設模式，換手機也一樣</li></ul><button class="btn p" data-alogin>🔑 用 Google 帳號登入</button></section>`;
+ if(!m)return `<section class="card" style="text-align:center"><h2 style="justify-content:center">👤 我的帳號</h2><p>用 Google 帳號登入後，可以：</p><ul style="text-align:left;max-width:420px;margin:0 auto 10px"><li>刀表編輯者可以使用調度板的「✏️ 排刀模式」（看刀表、匯入刀表、急診刀不用登入）</li><li>查看黃部長交班、癌症討論會（限交班單有共用的帳號）</li><li>記住「我是誰」，首頁直接顯示你今晚的值班、行事曆自動選好你</li><li>設定外觀、入口打開時的分頁、調度板預設模式，換手機也一樣</li></ul><button class="btn p" data-alogin>🔑 用 Google 帳號登入</button></section>`;
  const sel=(k,opts,v)=>`<select data-ch="pref" data-k="${k}">${opts.map(([a,b])=>`<option value="${a}" ${String(v||'')===a?'selected':''}>${b}</option>`).join('')}</select>`;
  const ppl=P().filter(p=>p.on!==false).sort((a,b)=>'VSFR'.indexOf(a.role)-'VSFR'.indexOf(b.role)||String(a.n).localeCompare(String(b.n)));
  return `<section class="card"><div class="row" style="gap:14px;align-items:center">${m.pic?`<img src="${esc(m.pic)}" alt="" width="56" height="56" referrerpolicy="no-referrer" style="border-radius:50%">`:'<span style="font-size:40px">👤</span>'}
   <div style="flex:1"><b style="font-size:18px">${esc(AUTH.name())}</b><div class="note">${esc(m.email)}</div>
-  <div class="row" style="margin-top:4px;gap:6px">${m.edit?'<span class="chip g">✏️ 可以編輯刀表</span>':'<span class="chip">只能看刀表</span>'}${m.ok?'<span class="chip g">✓ 可看交班單、癌症討論會</span>':'<span class="chip a">交班單、癌症討論會：未開放</span>'}${m.admin?'<span class="chip">🛠 管理員</span>':''}</div></div>
+  <div class="row" style="margin-top:4px;gap:6px">${m.edit?'<span class="chip g">✏️ 可以排刀</span>':'<span class="chip">沒有排刀權限</span>'}${m.ok?'<span class="chip g">✓ 可看交班單、癌症討論會</span>':'<span class="chip a">交班單、癌症討論會：未開放</span>'}${m.admin?'<span class="chip">🛠 管理員</span>':''}</div></div>
   <button class="btn" data-alogout>換帳號</button><button class="btn" data-act="logout">登出</button></div>
-  ${m.edit?'':`<p class="note" style="margin-top:10px">要編輯刀表，請管理員（黃部長交班單的擁有者或編輯者）在這一頁把 <b>${esc(m.email)}</b> 加入刀表編輯者。</p>`}${m.ok?'':`<p class="note" style="margin-top:10px">交班單、癌症討論會的權限＝黃部長交班單（Google 文件）的共用對象。請總醫師把交班單共用給 <b>${esc(m.email)}</b>（檢視者即可），約 10 分鐘內生效，再按 <button class="btn s" data-arefresh>重新檢查</button>。</p>`}</section>
+  ${m.edit?'':`<p class="note" style="margin-top:10px">要使用排刀模式，請管理員（黃部長交班單的擁有者或編輯者）在這一頁把 <b>${esc(m.email)}</b> 加入刀表編輯者。</p>`}${m.ok?'':`<p class="note" style="margin-top:10px">交班單、癌症討論會的權限＝黃部長交班單（Google 文件）的共用對象。請總醫師把交班單共用給 <b>${esc(m.email)}</b>（檢視者即可），約 10 分鐘內生效，再按 <button class="btn s" data-arefresh>重新檢查</button>。</p>`}</section>
  <section class="card" style="margin-top:14px"><h2>個人設定 <small>存在你的帳號，換手機、換電腦登入後都一樣</small></h2>
   <dl class="dl" style="row-gap:10px;align-items:center">
    <dt>顯示名稱</dt><dd><input id="mename" value="${esc(m.name||'')}" placeholder="${esc((m.email||'').split('@')[0])}" style="width:180px"> <button class="btn s" data-act="mename">儲存</button></dd>
@@ -284,7 +284,7 @@ function mePage(){if(!window.AUTH)return '<section class="card"><p>登入元件�
 let ED=null,edMsg='';
 function edPanel(){if(!ED){AUTH.editors().then(v=>{ED=v;render()},x=>{ED={err:x.message};render()});return '<section class="card" style="margin-top:14px"><p class="note">讀取刀表編輯者名單中…</p></section>'}
  if(ED.err)return `<section class="card" style="margin-top:14px"><p class="note">讀不到編輯者名單：${esc(ED.err)}</p></section>`;
- return `<section class="card" style="margin-top:14px"><h2>✏️ 刀表編輯者 <small>只有這些帳號能修改刀表、匯入刀表；看刀表與急診刀不受影響</small></h2>
+ return `<section class="card" style="margin-top:14px"><h2>✏️ 刀表編輯者 <small>只有這些帳號能用調度板的「排刀模式」（調整刀序、房間、人力）；看刀表、匯入刀表、急診刀不用權限</small></h2>
   ${ED.editors.length?`<ul class="fbl">${ED.editors.map(e=>`<li class="row" style="justify-content:space-between"><span>${esc(e)}</span><button class="btn s" data-act="edrm" data-e="${esc(e)}">移除</button></li>`).join('')}</ul>`:'<p class="note">目前沒有額外的編輯者（只有管理員能編輯）。</p>'}
   <div class="row" style="margin-top:8px"><input id="edadd" type="email" placeholder="Google 帳號 email" style="flex:1;min-width:220px"><button class="btn p" data-act="edadd">加入</button><span class="note">${esc(edMsg)}</span></div>
   <p class="note" style="margin-top:8px">管理員（自動有編輯權限）：${ED.admins.map(esc).join('、')||'—'}。管理員＝黃部長交班單的擁有者與編輯者。</p></section>`}

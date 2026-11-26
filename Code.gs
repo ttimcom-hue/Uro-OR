@@ -145,13 +145,13 @@ function mtgOutline_(blob){
 // ===== 登入與權限（Google 帳號）=====
 // 1) 病人相關資料（交班單術前數值 handoff、Drive 討論會掃描 cancerScan）只給「核可帳號」：
 //    ＝黃部長交班單（hoDocId()）的擁有者、編輯者、檢視者／加註者，加上指令碼屬性 AUTH_EXTRA（逗號分隔 email）。每 10 分鐘重抓一次。
-// 2) 刀表（days/）、急診刀（er/list）不含可辨識病人資料，任何人都可以看；但「寫入刀表 days/」與刀表匯入（cancerImport，只寫不讀）只給刀表編輯者：
-//    ＝管理員＋指令碼屬性 EDITORS（JSON 陣列，入口「👤 我的帳號」由管理員維護）。
+// 2) 刀表（days/）、急診刀（er/list）不含可辨識病人資料，任何人都可以看、匯入、上傳、填急診刀。
+//    只有調度板的「✏️ 排刀模式」（調整刀序、房間、人力等總醫師業務）要登入刀表編輯者（在網頁端檢查 me.edit）：
+//    刀表編輯者＝管理員＋指令碼屬性 EDITORS（JSON 陣列，入口「👤 我的帳號」由管理員維護）。
 //    管理員＝交班單的擁有者與編輯者，加上指令碼屬性 AUTH_ADMIN（逗號分隔 email）。
 // GOOGLE_CLIENT_ID：Google Cloud「OAuth 用戶端 ID（網頁應用程式）」，已授權的 JavaScript 來源要加 GitHub Pages 網址。
 //   留空＝不啟用登入（資料維持原本開放）。設定步驟見 開發說明.md「登入與權限」。
 const GOOGLE_CLIENT_ID='271644198276-u9n58etp9ie1mu0o6f0i59c3tu763p6f.apps.googleusercontent.com';
-const EDIT_KEY=/^days\//;                       // 寫入要刀表編輯者
 const PRIVATE_KEY=/^(user\/|sess)/;            // 只能經由登入 API 存取
 const SESSION_DAYS=30;
 const PAGES_URL='https://ttimcom-hue.github.io/Uro-OR/';
@@ -174,8 +174,6 @@ function approved_(email){return !!email&&allowList_().indexOf(em_(email))>=0}
 function admin_(email){return !!email&&shareList_().admins.indexOf(em_(email))>=0}
 function editorsGet_(){try{return JSON.parse(PropertiesService.getScriptProperties().getProperty('EDITORS')||'[]').map(em_).filter(Boolean)}catch(e){return[]}}
 function editor_(email){return !!email&&(admin_(email)||editorsGet_().indexOf(em_(email))>=0)}
-// 能不能寫入刀表：沒啟用登入＝可以；有啟用＝刀表編輯者
-function canEdit_(sess){return !authOn()||editor_(sessEmail_(sess))}
 // 管理員維護刀表編輯者名單
 function authEditors_(sess,list){const e=sessEmail_(sess);if(!admin_(e))throw new Error('admin');
   if(Array.isArray(list)){const L=[...new Set(list.map(em_).filter(x=>/^[^@\s]+@[^@\s]+$/.test(x)))].slice(0,100);PropertiesService.getScriptProperties().setProperty('EDITORS',JSON.stringify(L))}
@@ -292,9 +290,8 @@ function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==T
   if(b.action==='code')return run(()=>authCode_(b.sess));
   if(b.action==='prefs')return run(()=>authPrefs_(b.sess,b));
   if(b.action==='editors')return run(()=>authEditors_(b.sess,b.list));
-  if(b.action==='cancerImport'){if(!canEdit_(b.sess))return out({ok:false,err:'edit'});return run(()=>cancerImport_(b.text))}
+  if(b.action==='cancerImport'){return run(()=>cancerImport_(b.text))}
   const k=String(b.key||'');if(!k||PRIVATE_KEY.test(k))return out({ok:false,err:'key'});
-  if(EDIT_KEY.test(k)&&!canEdit_(b.sess))return out({ok:false,err:'edit'});
   dataSet_(k,JSON.stringify(b.value));return out({ok:true})}
 // ===== 黃部長交班單 → 調度板術前資料（即時讀取，只回傳數值，不回傳姓名、病歷號、床號，也不存進同步資料） =====
 const HO_DOC_ID='1MUwbZVat96vpyil2ahjP6lIv-NzW_MHbOC99EXTx7Yk';

@@ -536,15 +536,15 @@ cfg=fixCfg(LS.get('config/main')||defaultCfg());{const l=LS.get('er/list');if(l&
 day=LS.get('days/'+curDate)||(curDate==='2026-11-20'&&!LS.get('touched')?sampleDay():newDay(curDate));
 const timers={},writing={};
 const pendP=new Set();let lastSaved=null;const newer=(a,b)=>!a?b:!b?a:((+b.ts||0)>(+a.ts||0)?b:a);
-function persist(path,obj){if(/^days\//.test(path)&&NOEDIT()){noEdit();return}if(obj&&typeof obj==='object')obj.ts=Date.now();LS.set(path,obj);LS.set('touched',1);pendP.add(path);const se=$('#sync');if(se)se.textContent=syncTxt();if(!db&&!gsOn()){pendP.delete(path);lastSaved=new Date()}if(!db&&gsOn()){clearTimeout(timers[path]);timers[path]=setTimeout(()=>gsFlush(path,JSON.parse(JSON.stringify(obj))),900);return}if(!db)return;clearTimeout(timers[path]);timers[path]=setTimeout(()=>flush(path,JSON.parse(JSON.stringify(obj))),700)}
+function persist(path,obj){if(obj&&typeof obj==='object')obj.ts=Date.now();LS.set(path,obj);LS.set('touched',1);pendP.add(path);const se=$('#sync');if(se)se.textContent=syncTxt();if(!db&&!gsOn()){pendP.delete(path);lastSaved=new Date()}if(!db&&gsOn()){clearTimeout(timers[path]);timers[path]=setTimeout(()=>gsFlush(path,JSON.parse(JSON.stringify(obj))),900);return}if(!db)return;clearTimeout(timers[path]);timers[path]=setTimeout(()=>flush(path,JSON.parse(JSON.stringify(obj))),700)}
 async function flush(path,obj){if(writing[path]){writing[path].next=obj;return}writing[path]={};try{await db.doc(path).set(obj);syncState='cloud';if(!writing[path].next){pendP.delete(path);lastSaved=new Date()}}catch(e){syncState='err'}const nx=writing[path].next;delete writing[path];if(nx)flush(path,nx);const el=$('#sync');if(el)el.textContent=syncTxt()}
 const gsOn=()=>!IN_CLAUDE&&(GAS||(gs.on&&gs.url));
-/* 登入（auth.js）：請求帶 sess。刀表、急診刀任何人都能看；只有刀表編輯者（AUTH.canEdit()）能儲存刀表（days/）的修改 */
+/* 登入（auth.js）：請求帶 sess。看刀表、匯入／上傳刀表、急診刀、術前勾選都不用登入；只有「✏️ 排刀模式」（總醫師業務）要刀表編輯者（AUTH.canEdit()） */
 const AQ=()=>window.AUTH?AUTH.q():'',AB=o=>window.AUTH?AUTH.body(o):o,APREF=()=>window.AUTH?AUTH.prefs():{};
 const NOEDIT=()=>!!(window.AUTH&&!IN_CLAUDE&&!GAS&&!AUTH.canEdit());
 /* 不是編輯者時的提示（載入後 3 秒內的自動存檔不提示；8 秒內只提示一次） */
 const bootAt=Date.now();let noEditAt=0;function noEdit(){if(Date.now()-bootAt<3000||Date.now()-noEditAt<8000)return;noEditAt=Date.now();const m=window.AUTH&&AUTH.me();
- toast(m?'你的帳號沒有編輯刀表的權限，修改不會儲存（請總醫師在科務入口加入編輯者）':'要先登入刀表編輯者的 Google 帳號，修改才會儲存')}
+ toast(m?'你的帳號沒有排刀權限（請總醫師在科務入口加入刀表編輯者）':'排刀模式要先登入刀表編輯者的 Google 帳號')}
 const gasCall=(fn,...a)=>new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn](...a));
 /* ===== 黃部長交班單 → 術前資料：每次即時向 Apps Script 讀，只放記憶體，不存進同步資料或本機 ===== */
 let hoD={};
@@ -588,7 +588,7 @@ let nextDay=null;const nextWork=ds=>{let d=addDays(ds,1);if(dowOf(d)===0)d=addDa
 async function fetchDay(date){let d=null;if(gsOn()){try{d=await gsGet('days/'+date)}catch(e){}}else if(db){try{const x=await db.doc('days/'+date).get();if(x.exists)d=JSON.parse(JSON.stringify(x.data()))}catch(e){}}return newer(d,LS.get('days/'+date))||null}
 async function loadNext(){loadER();return loadUp()}
 /* 院內上傳（Apps Script ?page=upload）：上傳頁已把病歷號、姓名去掉，存在 inbox/or。任何能編輯的裝置打開調度板時自動套用（跟一般匯入同樣保留手動刀序），套用後清掉內容 */
-async function inboxCheck(){if(inboxBusy||!gsOn()||NOEDIT())return;inboxBusy=true;try{
+async function inboxCheck(){if(inboxBusy||!gsOn())return;inboxBusy=true;try{
  try{const mi=await gsGet('meta/import');if(mi&&mi.ts&&(!lastImp||mi.ts>lastImp.ts)){lastImp=mi;if(tab==='plan')render()}}catch(e){}
  const ib=await gsGet('inbox/or');if(!ib||!ib.txt||ib.done)return;
  const ds=Object.keys(rowsToCases(parseText(ib.txt,day.date)));
@@ -606,7 +606,7 @@ function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=
  const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
  const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
  $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
- <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn edonly" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
+ <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
  <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
  <main>${tab==='plan'?planView(tl,asg,L):tab==='er'?erNight()+erSlotCard()+erCard():tab==='prep'?prepView():tab==='res'?resView():tab==='fb'?fbMoved():tab==='help'?helpView():setView()}</main>`;$('#app').classList.toggle('ro',!edMode);titleize($('#app'))}
@@ -1114,7 +1114,7 @@ let rzT=null;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTime
 if(window.AUTH&&!IN_CLAUDE&&!GAS){AUTH.init(gs.url,gs.token);{const pm=AUTH.prefs().orMode;if(pm)edMode=pm==='edit'}if(NOEDIT())edMode=false;
  addEventListener('auth:change',()=>{if(NOEDIT())edMode=false;render()});
  /* 不是刀表編輯者：按「✏️ 排刀模式」改成提示登入／沒有權限（window capture 先於調度板自己的監聽器） */
- addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-edmode],[data-imp]');if(!t||!NOEDIT()||edMode&&t.dataset.edmode)return;e.stopPropagation();e.preventDefault();if(AUTH.me())toast('你的帳號沒有編輯刀表的權限，請總醫師在科務入口「👤 我的帳號」把你加入刀表編輯者');else AUTH.login()},true)}
+ addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-edmode]');if(!t||!NOEDIT()||edMode&&t.dataset.edmode)return;e.stopPropagation();e.preventDefault();if(AUTH.me())toast('「✏️ 排刀模式」只給刀表編輯者。請總醫師在科務入口「👤 我的帳號」把你加入；匯入刀表、急診刀不用權限');else AUTH.login()},true)}
 render();gsBoot().then(loadNext).then(inboxCheck);
 if(/^#(line|today)$/.test(location.hash))setTimeout(()=>{const e=$('#line-sec');if(e)e.scrollIntoView()},300);
 (async()=>{const C=typeof window.claude!=='undefined'&&window.claude&&window.claude.use?window.claude:null;if(!C)return;
