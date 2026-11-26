@@ -178,7 +178,7 @@ tr.fel td{background:var(--soft)}
 </head>
 <body>
 <div id="app"><header><div class="hrow"><h1>泌尿科刀房調度板</h1></div></header><main><p>載入中…</p></main></div>
-<input type="file" id="file" accept="image/*" multiple hidden data-ch="file">
+<input type="file" id="file" accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/bmp" multiple hidden data-ch="file">
 <script src="auth.js?v=1"></script>
 <script>
 /* 開機保護：主程式沒跑起來時（舊瀏覽器、程式錯誤、本機暫存壞掉）顯示原因與修復按鈕，不要只剩空白。刻意用舊式 JS 寫，舊瀏覽器也能執行。 */
@@ -609,7 +609,7 @@ async function loadDay(date){setTimeout(()=>{if(day&&Array.isArray(day.er)&&day.
 function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=planMoves(day,tl),L=advise(day,tl,asg,pl);cache={asg};
  const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
  const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
- $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${window.OR_HOST==='gas'&&window.OR_EXEC?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a target="_top" href="${esc(OR_EXEC)}?page=upload">📥 上傳刀表</a><a target="_top" href="${esc(OR_EXEC)}">☰ 選單</a>${window.AUTH?AUTH.badge('#'):''}</div>`:''}${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
+ $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${window.OR_HOST==='gas'&&window.OR_EXEC?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="#" data-imp="1">📥 匯入刀表</a><a target="_top" href="${esc(OR_EXEC)}">☰ 選單</a>${window.AUTH?AUTH.badge('#'):''}</div>`:''}${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
  <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
  <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],['help','📖 教學'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
@@ -941,7 +941,7 @@ function dutyView(){const mo=dutyMonth||day.date.slice(0,7);const[Y,M]=mo.split(
  const cells=[];for(let i=0;i<off;i++)cells.push('<div></div>');for(let d=1;d<=n;d++){const ds=`${mo}-${String(d).padStart(2,'0')}`,ids=(cfg.duty||{})[ds]||[],w=dowOf(ds);cells.push(`<div class="dcell${ds===day.date?' today':''}${w===0||w===6?' we':''}"><b>${d}</b><div>${ids.map(id=>{const[rid,ro]=String(id).split(':');return `<button class="btn s ${ro?'d'+ro:''}" data-act="dutyDel" data-d="${ds}" data-r="${esc(id)}" title="移除">${esc(nm(rid))}${ro?'·'+ROLEN[ro]:''}</button>`}).join('')}</div><select data-ch="dutyAdd" data-d="${ds}" aria-label="${ds} 加入值班"><option value="">＋</option><optgroup label="二線（可上刀）">${cfg.res.filter(r=>r.on).map(r=>`<option value="${r.id}:sec">${esc(r.n)}</option>`).join('')}</optgroup><optgroup label="ICU（不能上刀）">${cfg.res.filter(r=>r.on).map(r=>`<option value="${r.id}:icu">${esc(r.n)}</option>`).join('')}</optgroup><optgroup label="一線">${cfg.res.filter(r=>r.on).map(r=>`<option value="${r.id}:w1">${esc(r.n)}</option>`).join('')}</optgroup><optgroup label="總值">${cfg.res.filter(r=>r.on).map(r=>`<option value="${r.id}:tot">${esc(r.n)}</option>`).join('')}</optgroup></select></div>`)}
  return `<section class="card"><h2>值班表 <small>匯入後，值班隔天下午自動排 pm；值班分 ICU（不能上刀）與二線（可跟小夜刀、急診刀）；週六值班會在公告加「（值班）」</small></h2>
  <div class="row"><label class="row" style="gap:6px">月份<input type="month" data-ch="dutyM" value="${mo}"></label><label class="row" style="gap:4px"><input type="checkbox" data-ch="postCall" ${cfg.set.postCall!==false?'checked':''}> 值班隔天下午 pm</label></div>
- <details ${Object.keys(cfg.duty||{}).some(d=>d.startsWith(mo))?'':'open'} style="margin-top:8px"><summary>匯入值班表（圖片或文字）</summary><div class="row" style="margin:6px 0"><button class="btn p" data-act="dutyImgPick">上傳值班表圖片</button><input type="file" id="dutyImg" accept="image/*" hidden data-ch="dutyImg"><span class="note" id="dutyimgmsg">${sampler?'由 Claude 辨識外科部病房值班表：GU 欄的一線／二線、ICU 欄（4BI、3BI）、總值，只取本科住院醫師。':'圖片辨識需在 Claude 線上版開啟；此版本請改用下方貼上文字。'}</span></div><textarea id="dutyTxt" rows="6" style="width:100%" placeholder="從 Excel、Google 試算表或 LINE 複製貼上，支援：&#10;11/23 亭易&#10;23（一）	正宇	華緯&#10;外科部值班表若有 Excel／Word 原檔：選取整張表格（含標題）複製貼上即可，會自動抓 GU 一線／二線、4BI／3BI（ICU）、總值&#10;也可以逐行輸入，例：11/23 ICU 亭易 二線 正宇&#10;或橫式月曆：第一列 1、2、3…31，每位住院醫師一列，格子填 ICU 或 二線"></textarea><div class="row"><button class="btn p" data-act="dutyGo">匯入到 ${Y}/${M}</button><button class="btn" data-act="dutyClear">清除 ${M} 月值班</button></div><p class="note" id="dutymsg">名字可用全名或簡稱；別名可在下方名單的「別名」欄設定（例如 Gary）。</p></details>
+ <details ${Object.keys(cfg.duty||{}).some(d=>d.startsWith(mo))?'':'open'} style="margin-top:8px"><summary>匯入值班表（圖片或文字）</summary><div class="row" style="margin:6px 0"><button class="btn p" data-act="dutyImgPick">上傳值班表圖片</button><input type="file" id="dutyImg" accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/bmp" hidden data-ch="dutyImg"><span class="note" id="dutyimgmsg">${sampler?'由 Claude 辨識外科部病房值班表：GU 欄的一線／二線、ICU 欄（4BI、3BI）、總值，只取本科住院醫師。':'圖片辨識需在 Claude 線上版開啟；此版本請改用下方貼上文字。'}</span></div><textarea id="dutyTxt" rows="6" style="width:100%" placeholder="從 Excel、Google 試算表或 LINE 複製貼上，支援：&#10;11/23 亭易&#10;23（一）	正宇	華緯&#10;外科部值班表若有 Excel／Word 原檔：選取整張表格（含標題）複製貼上即可，會自動抓 GU 一線／二線、4BI／3BI（ICU）、總值&#10;也可以逐行輸入，例：11/23 ICU 亭易 二線 正宇&#10;或橫式月曆：第一列 1、2、3…31，每位住院醫師一列，格子填 ICU 或 二線"></textarea><div class="row"><button class="btn p" data-act="dutyGo">匯入到 ${Y}/${M}</button><button class="btn" data-act="dutyClear">清除 ${M} 月值班</button></div><p class="note" id="dutymsg">名字可用全名或簡稱；別名可在下方名單的「別名」欄設定（例如 Gary）。</p></details>
  <div class="dcal">${['一','二','三','四','五','六','日'].map(x=>`<div class="dh">${x}</div>`).join('')}${cells.join('')}</div></section>`}
 function setView(){const S=cfg.set,TK=[['1','週一'],['2','週二'],['3','週三'],['4','週四'],['5','週五'],['6o','週六（單週）'],['6e','週六（雙週）']],TR=['6','16','24','26','23','5'];
  const f=(k,n,ty='time',ex='')=>`<label class="row" style="gap:6px">${n}<input type="${ty}" data-ch="setF" data-k="${k}" value="${esc(S[k])}" ${ex}></label>`;
@@ -1166,23 +1166,23 @@ function hisSvg(vb,cls){const cols=[['病歷號',8],['姓名',94],['床號',158]
  btn.forEach((t,i)=>{const x=bx0+i*bw,on=t==='轉檔';s+=`<rect x="${x}" y="236" width="${bw-4}" height="40" rx="3" fill="#f7f7f7" stroke="#999"/><text x="${x+(bw-4)/2}" y="${t.length>4?254:261}" font-size="${t.length>4?10:12}" font-weight="700" text-anchor="middle" fill="#111">${t.length>4?t.slice(0,4):t}</text>${t.length>4?`<text x="${x+(bw-4)/2}" y="268" font-size="10" font-weight="700" text-anchor="middle" fill="#111">${t.slice(4)}</text>`:''}`;
   if(on)s+=`<rect x="${x-3}" y="233" width="${bw+2}" height="46" rx="4" fill="none" stroke="#e5484d" stroke-width="4"/><text x="${x+(bw-4)/2}" y="296" font-size="12" font-weight="800" text-anchor="middle" fill="#e5484d">按這裡</text>`});
  return s+`</svg>`}
-function helpView(){const up=(SYNC_URL||'')+'?page=upload',bd=(SYNC_URL||'')+'?page=board';
+function helpView(){const bd=(SYNC_URL||'')+'?page=board';
  const step=(n,t,body,pic)=>`<div class="tstep"><div><div class="row" style="gap:10px;align-items:center;margin-bottom:6px"><span class="tn">${n}</span><h3 style="margin:0">${t}</h3></div>${body}</div>${pic?`<div class="tpic">${pic}</div>`:''}</div>`;
  return `<section class="tut"><h2>📖 教學 <small>照著圖做就好；圖中都是假資料</small></h2>
  <nav class="row tutnav"><a class="btn s" href="#t-up">上傳刀表</a><a class="btn s" href="#t-view">看刀表</a><a class="btn s" href="#t-edit">排刀</a><a class="btn s" href="#t-er">急診刀</a><a class="btn s" href="#t-faq">常見問題</a></nav>
 
- <div class="card" id="t-up"><h2>① 上傳刀表 <small>在醫院電腦做，約 10 秒</small></h2>
+ <div class="card" id="t-up"><h2>① 匯入刀表 <small>在醫院電腦做，約 10 秒</small></h2>
  ${step(1,'HIS 查好日期，按右下角「轉檔」',`<p>打開 HIS 手術查詢，選好日期（可以一次查好幾天），出現「瀏覽」清單後，按右下角的<b class="thl">「轉檔」</b>。</p>`,`<div class="tshot">${hisSvg('0 0 800 300','his-full')}${hisSvg('372 140 428 160','his-zoom')}</div><p class="note">示意圖，資料是假的。</p>`)}
  ${step(2,'在轉檔出來的表格全選、複製',`<p>按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 全選，再按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 複製。選到標題列也沒關係。</p>`,'')}
- ${step(3,'打開上傳頁，按 Ctrl+V 就自動上傳',`<p>醫院電腦用這個網址（請存成書籤）：</p><p class="turl"><a href="${esc(up)}" target="_top">${esc(up)}</a></p><p>點框、按 <kbd>Ctrl</kbd>+<kbd>V</kbd>，看到<b class="thl">綠色「✓ 已上傳」</b>就完成。病歷號、姓名會先在醫院電腦去掉，不會上傳。</p><p class="note">也可以在調度板按「✏️ 排刀模式」→「📥 匯入刀表」→「📋 從剪貼簿匯入」。</p>`,`<div class="tshot">${tutImg('up2m','上傳頁貼上後顯示綠色的已上傳')}</div>`)}
- <p class="ok-box">上傳後大家打開調度板就會自動更新：已排好的順序不變、只更新術式、新刀排最後、刀表上刪除的刀會移除。</p></div>
+ ${step(3,'按「📥 匯入刀表」，在框裡按 Ctrl+V',`<p>醫院電腦請用 <b>Google 版調度板</b>（請存成書籤），上方就有「📥 匯入刀表」：</p><p class="turl"><a href="${esc(bd)}" target="_top">${esc(bd)}</a></p><p>手機或一般版：先按「✏️ 排刀模式」，再按「📥 匯入刀表」。</p><p>點框、按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 就會自動匯入，看到<b class="thl">「✓ 匯入完成」</b>就好了。病歷號、姓名只在這台電腦解析時用，不會存進同步資料。</p>`,`<div class="tshot narrow">${tutImg('imp','匯入刀表視窗：貼上後顯示匯入完成')}</div>`)}
+ <p class="ok-box">匯入後大家打開調度板就會看到新刀表：已排好的順序不變、只更新術式、新刀排最後、刀表上刪除的刀會移除。</p></div>
 
  <div class="card" id="t-view"><h2>② 看刀表 <small>手機、電腦都可以</small></h2>
  ${step(1,'先看「📥 刀表最後更新」',`<p>在「今日排程」上方，寫著最後一次上傳的時間和上傳的人。時間太舊就請在醫院的人上傳一次。</p><p>時間軸的顏色＝主治醫師；可以切換「手機清單／直式／橫式」。</p><p>手機用瀏覽器打開後，「分享／⋮」→「加入主畫面」，就像 App 一樣。</p>`,`<div class="tshot narrow">${tutImg('b1','手機上的刀房調度板，顯示刀表最後更新')}</div>`)}</div>
 
  <div class="card" id="t-edit"><h2>③ 排刀 <small>不用登入，大家都可以排</small></h2>
  ${step(1,'按「✏️ 排刀模式」',`<p>按下去才會出現排刀工具：拖曳色塊換順序或換房、點色塊改時間／難度／攝護腺體積、一鍵排序、加班與跳台評估、人力調整、LINE 公告。排完按「✓ 完成排刀」回到一般畫面。</p>
- <p><b>在醫院電腦排刀</b>：醫院打不開 github.io，請用 Google 版（請存成書籤）：</p><p class="turl"><a href="${esc(bd)}" target="_top">${esc(bd)}</a></p>`,'')}</div>
+ <p><b>在醫院電腦排刀</b>：用上面的 Google 版調度板，看刀表、匯入、排刀、急診刀都在同一頁，跟一般版一樣。</p>`,'')}</div>
 
  <div class="card" id="t-er"><h2>④ 急診刀 <small>在「急診刀」分頁，全科共用</small></h2>
  ${step(1,'新增急診刀',`<p>按最下面的「新增急診刀」，填主治、術式、類別。床號欄只填床號或代稱，<b>不要填姓名、病歷號</b>。刀表上標「急」的刀，上傳時會自動加進來。</p>`,`<div class="tshot narrow">${tutImg('er5','新增急診刀按鈕')}</div>`)}
@@ -1191,8 +1191,8 @@ function helpView(){const up=(SYNC_URL||'')+'?page=upload',bd=(SYNC_URL||'')+'?p
  ${step(4,'按錯「完成」可以復原',`<p>完成的刀會收起來。按完成後下方提示約 8 秒，按<b class="thl">「↩ 復原」</b>；錯過了就點開「✓ 已完成」，按「回復未完成」。</p>`,`<div class="tshot narrow">${tutImg('er3','已標為完成的提示與復原按鈕')}${tutImg('er4','已完成區塊與回復未完成按鈕')}</div>`)}</div>
 
  <div class="card" id="t-faq"><h2>常見問題</h2><dl class="tfaq">
- <dt>醫院電腦打不開調度板</dt><dd>醫院網路擋了 github.io。上傳用上傳頁，看刀表、排刀用 Google 版（網址在上面）。</dd>
- <dt>重新上傳會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；刪除的刀會移除。</dd>
+ <dt>醫院電腦打不開調度板</dt><dd>醫院網路擋了 github.io。請用 Google 版調度板（網址在「① 匯入刀表」），所有功能都一樣。</dd>
+ <dt>重新匯入會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；刪除的刀會移除。</dd>
  <dt>會傳出病人資料嗎？</dt><dd>不會。病歷號、姓名在醫院電腦就先去掉；只有勾選時，原始刀表照舊送到黃部長的癌症討論會追蹤表。</dd>
  <dt>有問題或建議</dt><dd>寫在<a href="${fbUrl()}" target="_blank" rel="noopener">💬 意見回饋</a>。</dd></dl></div>
  </section>`}
@@ -1336,8 +1336,8 @@ function importAll(txt){mergeMsg=null;impStats={};const rows0=parseText(txt,day.
  return{n,ne,emg:emg.length,dates,stats:{...impStats},del:lastDel,sendC}}
 function impModal(){const m=document.createElement('div');m.className='imodal impm';const cOK=gsOn();
  m.innerHTML=`<div class="ibox" style="max-width:640px"><div class="ihead"><b style="font-size:18px">📥 匯入刀表（一次更新全部）</b></div>
- <ol class="inote" style="padding-left:20px;margin:4px 0 8px"><li>HIS「手術工作表」查詢要的日期範圍（可以一次查好幾天）</li><li>整頁 <b>Ctrl+A</b>、<b>Ctrl+C</b></li><li>貼到下面，按「匯入」</li></ol>
- <div class="row" style="margin-bottom:6px"><button class="ibtn p" data-impclip="1">📋 從剪貼簿匯入（先在 HIS 複製好）</button><span class="inote" id="impClipMsg"></span></div><textarea id="impT" rows="7" style="width:100%" placeholder="或在這裡貼上 HIS 手術工作表（Ctrl+V），再按「匯入」"></textarea>
+ <ol class="inote" style="padding-left:20px;margin:4px 0 8px"><li>HIS 查好日期（可以一次查好幾天），按右下角「<b>轉檔</b>」</li><li>在轉檔出來的表格按 <b>Ctrl+A</b>、<b>Ctrl+C</b></li><li>點下面的框按 <b>Ctrl+V</b>，就會自動匯入</li></ol>
+ <div class="row" style="margin-bottom:6px"><button class="ibtn p" data-impclip="1">📋 從剪貼簿匯入（先在 HIS 複製好）</button><span class="inote" id="impClipMsg"></span></div><textarea id="impT" rows="7" style="width:100%" placeholder="點這裡按 Ctrl+V 貼上 HIS 刀表，就會自動匯入"></textarea>
  <div class="inote" style="margin:6px 0">會一起更新：<b>各天刀房排程</b>（保留已排好的順序）、<b>急診刀</b>自動分到急診刀分頁、<b>術前準備</b>、<b>機器調度</b>${cOK?`、<label><input type="checkbox" id="impC" ${cfg.set.cancerAuto!==false?'checked':''}> <b>黃部長癌症討論會表</b></label>`:''}</div>
  <div class="row"><button class="ibtn p" data-impgo="1">匯入</button><button class="ibtn" data-impclose="1">關閉</button></div><div id="impR" style="margin-top:8px"></div></div>`;
  document.body.appendChild(m);setTimeout(()=>{const t=m.querySelector('#impT');if(t)t.focus()},50);
@@ -1349,6 +1349,7 @@ function impModal(){const m=document.createElement('div');m.className='imodal im
    m.querySelector('#impT').value='';
    if(R.dates.length&&!R.dates.includes(day.date)){await loadDay(R.dates[0])}try{await loadUp()}catch(x){}render();
    if(R.sendC){try{cst=await cancerCall('import',txt);cst.at=new Date();const li=m.querySelector('#impCan');if(li)li.textContent=`癌症討論會表：已送出（${cst.newN?cst.newN+' 台新個案待加入追蹤':'個案都已在追蹤表'}）`;render()}catch(x){const li=m.querySelector('#impCan');if(li)li.textContent=/old|key/.test(x.message)?'癌症討論會表：要先更新 Apps Script':'癌症討論會表：送出失敗'}}}})}
+document.addEventListener('paste',e=>{const t=e.target;if(!t||t.id!=='impT')return;setTimeout(()=>{const box=t.closest('.imodal'),go=box&&box.querySelector('[data-impgo]');if(go&&t.value.trim())go.click()},80)},true);
 document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-impclip]');if(!t)return;e.stopPropagation();e.preventDefault();const box=t.closest('.imodal'),msg=box&&box.querySelector('#impClipMsg');
  let txt='';try{txt=await navigator.clipboard.readText()}catch(x){}
  if(!txt||!txt.trim()){if(msg)msg.textContent='讀不到剪貼簿（可能沒有允許），請在下面的框按 Ctrl+V 貼上，再按「匯入」';const ta=box&&box.querySelector('#impT');if(ta)ta.focus();return}

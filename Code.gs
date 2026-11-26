@@ -275,12 +275,16 @@ function boardPage_(){let html=indexHtml_(),auth='';
   try{const C=CacheService.getScriptCache();auth=C.get('authjs')||'';if(!auth){const r=UrlFetchApp.fetch(GH_RAW+'auth.js',{muteHttpExceptions:true});if(r.getResponseCode()===200){auth=r.getContentText();if(auth.length<95000)C.put('authjs',auth,3600)}}}catch(e){}
   html=html.replace(/<script src="auth\.js[^"]*"><\/script>/,auth?'<script>'+auth.replace(/<\/script/gi,'<\\/script')+'</script>':'');
   html=html.replace('<head>','<head><script>window.OR_HOST="gas";window.OR_EXEC='+JSON.stringify(ScriptApp.getService().getUrl())+';</script>');
-  return HtmlService.createHtmlOutput(html).setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
+  // HtmlService 送出前會刪 JS 註解，但它看不懂 `樣板字串`，曾把字串裡的 accept="image/*" 當成註解開頭、刪掉一大段程式（Unexpected identifier '辨識第'）。
+  // 所以整頁用 base64 包起來，在瀏覽器解開後原封不動 document.write，HtmlService 碰不到裡面的程式。
+  const b64=Utilities.base64Encode(html,Utilities.Charset.UTF_8);
+  const shell='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><p id="ld" style="font:16px sans-serif;padding:16px">載入中…</p><script>(function(){var b="'+b64+'";try{var s=atob(b),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);var h=new TextDecoder("utf-8").decode(u);document.open();document.write(h);document.close()}catch(e){document.getElementById("ld").textContent="載入失敗："+e}})();</script></body></html>';
+  return HtmlService.createHtmlOutput(shell).setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
 function menuPage_(){const u=ScriptApp.getService().getUrl(),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const b=(href,t,d)=>'<a target="_top" href="'+esc(href)+'"><b>'+t+'</b><span>'+d+'</span></a>';
   return HtmlService.createHtmlOutput('<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font:16px/1.6 "Microsoft JhengHei","Noto Sans TC",sans-serif;background:#f3f6f6;color:#0f262b;margin:0}.w{max-width:560px;margin:0 auto;padding:22px 18px}h1{font-size:24px;margin:0 0 14px}a{display:block;background:#fff;border:1px solid #d5e3e5;border-radius:14px;padding:14px 16px;margin-bottom:10px;text-decoration:none;color:inherit}a b{display:block;font-size:19px;color:#0b5563}a span{color:#587076;font-size:14.5px}</style></head><body><div class="w"><h1>泌尿科刀房調度板</h1>'
-    +b(u+'?page=board','🗓️ 刀房調度板（Google 版）','醫院電腦打不開 github.io 時用。看刀表、排刀、急診刀都可以。')
-    +b(u+'?page=upload','📥 上傳刀表','HIS 手術工作表複製後貼上，自動上傳。')
+    +b(u+'?page=board','🗓️ 刀房調度板（Google 版）','醫院電腦用這個。看刀表、匯入刀表、排刀、急診刀都在這裡，跟一般版一樣。')
+    +b(u+'?page=upload','📥 只上傳刀表（舊方式）','HIS 刀表複製後貼上，自動上傳；調度板打開時套用。')
     +b(PAGES_URL,'🌐 刀房調度板（一般版）','手機、個人電腦用這個：'+PAGES_URL)
     +'</div></body></html>').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
 function doGet(e){const p=(e&&e.parameter)||{};
