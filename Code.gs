@@ -267,8 +267,24 @@ try{var b=localStorage.getItem('upBy');if(b)document.getElementById('by').value=
 document.getElementById('t').focus();
 window.__clean=clean;})();
 </script></body></html>`;
+// ===== Google 網址版調度板（?page=board）：醫院電腦擋 github.io 時用。內容就是 index.html，
+//       但和 GitHub Pages 版一樣只走公開的 HTTP 資料管道（不用 google.script.run，不多開伺服器函式）；
+//       auth.js 由這裡內嵌，排刀要用「登入碼」登入（科務入口「👤 我的帳號」產生），伺服器照樣只讓刀表編輯者寫入刀表。
+function boardPage_(){let html=HtmlService.createHtmlOutputFromFile('index').getContent(),auth='';
+  try{const C=CacheService.getScriptCache();auth=C.get('authjs')||'';if(!auth){const r=UrlFetchApp.fetch(GH_RAW+'auth.js',{muteHttpExceptions:true});if(r.getResponseCode()===200){auth=r.getContentText();if(auth.length<95000)C.put('authjs',auth,3600)}}}catch(e){}
+  html=html.replace(/<script src="auth\.js[^"]*"><\/script>/,auth?'<script>'+auth.replace(/<\/script/gi,'<\\/script')+'</script>':'');
+  html=html.replace('<head>','<head><script>window.OR_HOST="gas";window.OR_EXEC='+JSON.stringify(ScriptApp.getService().getUrl())+';</script>');
+  return HtmlService.createHtmlOutput(html).setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
+function menuPage_(){const u=ScriptApp.getService().getUrl(),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const b=(href,t,d)=>'<a target="_top" href="'+esc(href)+'"><b>'+t+'</b><span>'+d+'</span></a>';
+  return HtmlService.createHtmlOutput('<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font:16px/1.6 "Microsoft JhengHei","Noto Sans TC",sans-serif;background:#f3f6f6;color:#0f262b;margin:0}.w{max-width:560px;margin:0 auto;padding:22px 18px}h1{font-size:24px;margin:0 0 14px}a{display:block;background:#fff;border:1px solid #d5e3e5;border-radius:14px;padding:14px 16px;margin-bottom:10px;text-decoration:none;color:inherit}a b{display:block;font-size:19px;color:#0b5563}a span{color:#587076;font-size:14.5px}</style></head><body><div class="w"><h1>泌尿科刀房調度板</h1>'
+    +b(u+'?page=board','🗓️ 刀房調度板（Google 版）','醫院電腦打不開 github.io 時用。看刀表、急診刀；排刀要用登入碼登入。')
+    +b(u+'?page=upload','📥 上傳刀表','HIS 手術工作表複製後貼上，自動上傳。')
+    +b(PAGES_URL,'🌐 刀房調度板（一般版）','手機、個人電腦用這個：'+PAGES_URL)
+    +'</div></body></html>').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
 function doGet(e){const p=(e&&e.parameter)||{};
   if(p.page==='upload')return uploadPage_();
+  if(p.page==='board')return boardPage_();
   const tk=()=>TOKEN&&p.token!==TOKEN,run=f=>{try{return out({ok:true,value:f()})}catch(x){return out({ok:false,err:String(x&&x.message||x)})}},deny=()=>out({ok:false,err:'auth'});
   if(p.action||p.key||p.keys){if(tk())return out({ok:false,err:'token'})}
   if(p.action==='authcfg')return out({ok:true,value:{on:authOn(),client:GOOGLE_CLIENT_ID}});
@@ -283,7 +299,7 @@ function doGet(e){const p=(e&&e.parameter)||{};
     const v=dataGetMany_(ks.filter(k=>denied.indexOf(k)<0));denied.forEach(k=>v[k]=null);return out({ok:true,value:v,denied})}
   if(p.key){const r=readKey_(p.key,p.sess);return r.deny?deny():out({ok:true,value:r.v})}
   // 不再提供 Apps Script 版網頁：HtmlService 網頁可讓任何人呼叫所有伺服器函式（包含讀交班單原文），一律改用 GitHub Pages
-  return ContentService.createTextOutput('泌尿科刀房調度板已改用：'+PAGES_URL+'\n請用這個網址開啟。')}
+  return menuPage_()}
 function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==TOKEN)return out({ok:false,err:'token'});
   const run=f=>{try{return out({ok:true,value:f()})}catch(x){return out({ok:false,err:String(x&&x.message||x)})}};
   if(b.action==='login')return run(()=>authLogin_(b.id_token));
