@@ -629,7 +629,7 @@ async function loadDay(date){setTimeout(()=>{if(day&&Array.isArray(day.er)&&day.
 function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=planMoves(day,tl),L=advise(day,tl,asg,pl);cache={asg};
  const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
  const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
- $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${window.OR_HOST==='gas'&&window.OR_EXEC?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="#" data-imp="1">📥 匯入刀表</a><a target="_top" href="${esc(OR_EXEC)}">☰ 選單</a>${window.AUTH?AUTH.badge('#'):''}</div>`:''}${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
+ $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${window.OR_HOST==='gas'&&window.OR_EXEC?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a target="_top" href="${esc(OR_EXEC)}">☰ 選單</a>${window.AUTH?AUTH.badge('#'):''}</div>`:''}${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
  <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
  <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],['help','📖 教學'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
@@ -1186,34 +1186,33 @@ function hisSvg(vb,cls){const cols=[['病歷號',8],['姓名',94],['床號',158]
  btn.forEach((t,i)=>{const x=bx0+i*bw,on=t==='轉檔';s+=`<rect x="${x}" y="236" width="${bw-4}" height="40" rx="3" fill="#f7f7f7" stroke="#999"/><text x="${x+(bw-4)/2}" y="${t.length>4?254:261}" font-size="${t.length>4?10:12}" font-weight="700" text-anchor="middle" fill="#111">${t.length>4?t.slice(0,4):t}</text>${t.length>4?`<text x="${x+(bw-4)/2}" y="268" font-size="10" font-weight="700" text-anchor="middle" fill="#111">${t.slice(4)}</text>`:''}`;
   if(on)s+=`<rect x="${x-3}" y="233" width="${bw+2}" height="46" rx="4" fill="none" stroke="#e5484d" stroke-width="4"/><text x="${x+(bw-4)/2}" y="296" font-size="12" font-weight="800" text-anchor="middle" fill="#e5484d">按這裡</text>`});
  return s+`</svg>`}
-function helpView(){const bd=(SYNC_URL||'')+'?page=board';
+function helpView(){const bd=(SYNC_URL||'')+'?page=board',PC=!isMob();
+ const img=(n,alt)=>tutImg(PC?n+'-d':n,alt),shot=(n,alt,wide)=>`<div class="tshot ${PC&&wide?'':'narrow'}">${img(n,alt)}</div>`;
  const step=(n,t,body,pic)=>`<div class="tstep"><div><div class="row" style="gap:10px;align-items:center;margin-bottom:6px"><span class="tn">${n}</span><h3 style="margin:0">${t}</h3></div>${body}</div>${pic?`<div class="tpic">${pic}</div>`:''}</div>`;
- return `<section class="tut"><h2>📖 教學 <small>照著圖做就好；圖中都是假資料</small></h2>
- <nav class="row tutnav"><a class="btn s" href="#t-up">上傳刀表</a><a class="btn s" href="#t-view">看刀表</a><a class="btn s" href="#t-edit">排刀</a><a class="btn s" href="#t-er">急診刀</a><a class="btn s" href="#t-faq">常見問題</a></nav>
-
- <div class="card" id="t-up"><h2>① 匯入刀表 <small>在醫院電腦做，約 10 秒</small></h2>
- ${step(1,'HIS 查好日期，按右下角「轉檔」',`<p>打開 HIS 手術查詢，選好日期（可以一次查好幾天），出現「瀏覽」清單後，按右下角的<b class="thl">「轉檔」</b>。</p>`,`<div class="tshot">${hisSvg('0 0 800 300','his-full')}${hisSvg('372 140 428 160','his-zoom')}</div><p class="note">示意圖，資料是假的。</p>`)}
+ const S={
+ up:{nav:'匯入刀表',html:(k)=>`<div class="card" id="t-up"><h2>${k} 匯入刀表 <small>${PC?'在醫院電腦做，約 10 秒':'在醫院電腦做；手機通常不用匯入'}</small></h2>
+ ${step(1,'HIS 查好日期，按右下角「轉檔」',`<p>打開 HIS 手術查詢，選好日期（可以一次查好幾天、甚至未來全部），出現「瀏覽」清單後，按右下角的<b class="thl">「轉檔」</b>。</p>`,`<div class="tshot">${hisSvg('0 0 800 300','his-full')}${hisSvg('372 140 428 160','his-zoom')}</div><p class="note">示意圖，資料是假的。</p>`)}
  ${step(2,'在轉檔出來的表格全選、複製',`<p>按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 全選，再按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 複製。選到標題列也沒關係。</p>`,'')}
- ${step(3,'按「📥 匯入刀表」，在框裡按 Ctrl+V',`<p>醫院電腦請用 <b>Google 版調度板</b>（請存成書籤），上方就有「📥 匯入刀表」：</p><p class="turl"><a href="${esc(bd)}" target="_top">${esc(bd)}</a></p><p>手機或一般版：先按「✏️ 排刀模式」，再按「📥 匯入刀表」。</p><p>點框、按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 就會自動匯入，看到<b class="thl">「✓ 匯入完成」</b>就好了。病歷號、姓名只在這台電腦解析時用，不會存進同步資料。</p>`,`<div class="tshot narrow">${tutImg('imp','匯入刀表視窗：貼上後顯示匯入完成')}</div>`)}
- <p class="ok-box">匯入後大家打開調度板就會看到新刀表：已排好的順序不變、只更新術式、新刀排最後、刀表上刪除的刀會移除。</p></div>
-
- <div class="card" id="t-view"><h2>② 看刀表 <small>手機、電腦都可以</small></h2>
- ${step(1,'先看「📥 刀表最後更新」',`<p>在「今日排程」上方，寫著最後一次上傳的時間和上傳的人。時間太舊就請在醫院的人上傳一次。</p><p>時間軸的顏色＝主治醫師；可以切換「手機清單／直式／橫式」。</p><p>手機用瀏覽器打開後，「分享／⋮」→「加入主畫面」，就像 App 一樣。</p>`,`<div class="tshot narrow">${tutImg('b1','手機上的刀房調度板，顯示刀表最後更新')}</div>`)}</div>
-
- <div class="card" id="t-edit"><h2>③ 排刀 <small>不用登入，大家都可以排</small></h2>
- ${step(1,'按「✏️ 排刀模式」',`<p>按下去才會出現排刀工具：拖曳色塊換順序或換房、點色塊改時間／難度／攝護腺體積、一鍵排序、加班與跳台評估、人力調整、LINE 公告。排完按「✓ 完成排刀」回到一般畫面。</p>
- <p><b>在醫院電腦排刀</b>：用上面的 Google 版調度板，看刀表、匯入、排刀、急診刀都在同一頁，跟一般版一樣。</p>`,'')}</div>
-
- <div class="card" id="t-er"><h2>④ 急診刀 <small>在「急診刀」分頁，全科共用</small></h2>
- ${step(1,'新增急診刀',`<p>按最下面的「新增急診刀」，填主治、術式、類別。床號欄只填床號或代稱，<b>不要填姓名、病歷號</b>。刀表上標「急」的刀，上傳時會自動加進來。</p>`,`<div class="tshot narrow">${tutImg('er5','新增急診刀按鈕')}</div>`)}
- ${step(2,'更新全院等待台數',`<p>看到全院急診刀的最新狀況時，填全院等待的<b class="thl">插刀、緊急刀、一般急</b>各幾台，和<b class="thl">本科最前面那台排第幾台</b>。其他台的順位和預估接刀時間會自動算。</p>`,`<div class="tshot narrow">${tutImg('er1','全院等待：插刀 1、緊急刀 2、一般急 4，本科最前面排第 3 台')}</div>`)}
- ${step(3,'每一台：NPO 和狀態',`<p>病人開始禁食，按 NPO 旁的<b class="thl">「現在」</b>；已插管就勾「已插管」。進房按<b class="thl">「已排房」</b>，開完按<b class="thl">「完成」</b>。</p>`,`<div class="tshot narrow">${tutImg('er2','一台急診刀的卡片')}</div>`)}
- ${step(4,'按錯「完成」可以復原',`<p>完成的刀會收起來。按完成後下方提示約 8 秒，按<b class="thl">「↩ 復原」</b>；錯過了就點開「✓ 已完成」，按「回復未完成」。</p>`,`<div class="tshot narrow">${tutImg('er3','已標為完成的提示與復原按鈕')}${tutImg('er4','已完成區塊與回復未完成按鈕')}</div>`)}</div>
-
+ ${step(3,'按「📥 匯入刀表」，在框裡按 Ctrl+V',`<p>醫院電腦請用 <b>Google 版調度板</b>（請存成書籤），上方就有「📥 匯入刀表」：</p><p class="turl"><a href="${esc(bd)}" target="_top">${esc(bd)}</a></p><p>一般版（github.io）也一樣，上方就有「📥 匯入刀表」。</p><p>點框、按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 就會自動匯入，看到<b class="thl">「✓ 匯入完成」</b>就好了。<b>急診刀也會一起匯入</b>，不用另外手動加。病歷號、姓名只在這台電腦解析時用，不會存進同步資料。</p>`,shot('imp','匯入刀表視窗：貼上後顯示匯入完成',false))}
+ <p class="ok-box">匯入後大家打開調度板就會看到新刀表：已排好的順序不變、只更新術式、新刀排最後、刀表上刪除的刀會移除；重複匯入不會重複出現。</p></div>`},
+ view:{nav:'看刀表',html:(k)=>`<div class="card" id="t-view"><h2>${k} 看刀表 <small>${PC?'電腦、手機都可以':'手機、電腦都可以'}</small></h2>
+ ${step(1,'先看「📥 刀表最後更新」',`<p>在「今日排程」上方，寫著最後一次匯入的時間和是誰匯入的。時間太舊就請在醫院的人匯入一次。</p><p>時間軸的顏色＝主治醫師；可以切換「手機清單／直式／橫式」。${PC?'':'</p><p>手機用瀏覽器打開後，「分享／⋮」→「加入主畫面」，就像 App 一樣。'}</p>`,shot('b1','刀房調度板首頁，顯示刀表最後更新',true))}</div>`},
+ edit:{nav:'排刀',html:(k)=>`<div class="card" id="t-edit"><h2>${k} 排刀 <small>不用登入，大家都可以排</small></h2>
+ ${step(1,'按「✏️ 排刀模式」',`<p>按下去才會出現排刀工具：${PC?'在時間軸上<b>拖曳色塊</b>換順序或換房、<b>點色塊</b>改時間／難度／攝護腺體積':'點刀改時間、往前／往後、移房'}、一鍵排序、加班與跳台評估、人力調整、LINE 公告。排完按「✓ 完成排刀」回到一般畫面。</p><p><b>在醫院電腦排刀</b>：用「匯入刀表」裡的 Google 版調度板，看刀表、匯入、排刀、急診刀都在同一頁，跟一般版一樣。</p>`,PC?shot('edit','排刀模式：標題列出現完成排刀與匯入刀表',true):'')}</div>`},
+ er:{nav:'急診刀',html:(k)=>`<div class="card" id="t-er"><h2>${k} 急診刀 <small>在「急診刀」分頁，全科共用</small></h2>
+ ${step(1,'急診刀跟著刀表一起匯入',`<p><b>不用一台一台手動加。</b>匯入刀表（Ctrl+V）時，HIS 上標「插刀／緊急刀／一般急刀」的刀會自動加進急診刀分頁；HIS 已經排好房間和時段的，也會出現在時間軸上（標「急」「緊急」）。重複匯入不會重複出現，刪掉的也不會再跑回來。</p><p>HIS 上還沒有的急診刀，才按最下面的「新增急診刀」手動加；床號欄只填床號或代稱，<b>不要填姓名、病歷號</b>。</p>`,shot('er5','新增急診刀按鈕',false))}
+ ${step(2,'更新全院等待台數',`<p>看到全院急診刀的最新狀況時，填全院等待的<b class="thl">插刀、緊急刀、一般急</b>各幾台，和<b class="thl">本科最前面那台排第幾台</b>。其他台的順位和預估接刀時間會自動算。</p>`,shot('er1','全院等待：插刀 1、緊急刀 2、一般急 4，本科最前面排第 3 台',false))}
+ ${step(3,'每一台：NPO 和狀態',`<p>病人開始禁食，按 NPO 旁的<b class="thl">「現在」</b>；已插管就勾「已插管」。</p><p>${PC?'表格<b>第一欄</b>就有<b class="thl">「已排房」</b>和<b class="thl">「✓ 完成」</b>按鈕。':'卡片下方按<b class="thl">「已排房」</b>，開完按<b class="thl">「完成」</b>。'}</p>`,shot('er2',PC?'急診刀表格，第一欄有已排房與完成按鈕':'一台急診刀的卡片',PC))}
+ ${step(4,'按錯「完成」可以復原',`<p>完成的刀會收起來。按完成後${PC?'右下角':'下方'}提示約 8 秒，按<b class="thl">「↩ 復原」</b>；錯過了就點開「✓ 已完成」，按「回復未完成」。</p>`,`<div class="tshot narrow">${img('er3','已標為完成的提示與復原按鈕')}${img('er4','已完成區塊與回復未完成按鈕')}</div>`)}</div>`}};
+ const order=PC?['up','edit','view','er']:['view','er','up','edit'],K=['①','②','③','④'];
+ return `<section class="tut"><h2>📖 教學 <small>${PC?'電腦版':'手機版'}・照著圖做就好；圖中都是假資料</small></h2>
+ <nav class="row tutnav">${order.map(k=>`<a class="btn s" href="#t-${k}">${S[k].nav}</a>`).join('')}<a class="btn s" href="#t-faq">常見問題</a></nav>
+ ${order.map((k,i)=>S[k].html(K[i])).join('\n')}
  <div class="card" id="t-faq"><h2>常見問題</h2><dl class="tfaq">
- <dt>醫院電腦打不開調度板</dt><dd>醫院網路擋了 github.io。請用 Google 版調度板（網址在「① 匯入刀表」），所有功能都一樣。</dd>
- <dt>重新匯入會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；刪除的刀會移除。</dd>
- <dt>會傳出病人資料嗎？</dt><dd>不會。病歷號、姓名在醫院電腦就先去掉；只有勾選時，原始刀表照舊送到黃部長的癌症討論會追蹤表。</dd>
+ <dt>醫院電腦打不開調度板</dt><dd>醫院網路擋了 github.io。請用 Google 版調度板（網址在「匯入刀表」），所有功能都一樣。</dd>
+ <dt>重新匯入會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；刪除的刀會移除。急診刀也不會重複。</dd>
+ <dt>一次匯入很多天可以嗎？</dt><dd>可以，未來幾百台一次匯入也行。匯入後等標題列顯示「已同步 Google 試算表」再關網頁。</dd>
+ <dt>會傳出病人資料嗎？</dt><dd>不會。病歷號、姓名只在這台電腦解析時用；只有勾選時，原始刀表照舊送到黃部長的癌症討論會追蹤表。</dd>
  <dt>有問題或建議</dt><dd>寫在<a href="${fbUrl()}" target="_blank" rel="noopener">💬 意見回饋</a>。</dd></dl></div>
  </section>`}
 
