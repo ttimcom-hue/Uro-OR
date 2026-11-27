@@ -257,8 +257,8 @@ const noOT=id=>(roomCfg(id).robot||robotOnly(id))&&!isSwap(id,day.date);
 const otRm=id=>isGA(id)&&!noOT(id);
 const isSwap=(id,ds)=>{const r=roomCfg(id);return !!(r.swap||(r.swapSat&&dowOf(ds)===6))};
 function classify(name){const n=String(name).toLowerCase();for(const p of cfg.procs){if(String(p.k).split(/[,，]/).some(k=>{k=k.trim().toLowerCase();return k&&n.includes(k)}))return p}return null}
-function est(c){const ps=c.procs.map(n=>classify(n));const mains=ps.filter(p=>p&&p.cat!=='addon').sort((a,b)=>b.m-a.m),adds=ps.filter(p=>p&&p.cat==='addon'),unk=ps.filter(p=>!p).length;let base=0,cat='minor',lv=1;
- if(mains.length){base=+mains[0].m+mains.slice(1).reduce((s,p)=>s+p.m*.5,0);cat=mains[0].cat;lv=Math.max(...mains.map(p=>+p.lv))}else if(adds.length){base=45;cat='urs';lv=2}
+function est(c){const ps=[...new Set(c.procs.map(n=>String(n).trim().toLowerCase()))].map(n=>classify(n));/* 同一台合併多個術式：時間全部加總（完全相同的術式名稱只算一次） */const mains=ps.filter(p=>p&&p.cat!=='addon').sort((a,b)=>b.m-a.m),adds=ps.filter(p=>p&&p.cat==='addon'),unk=ps.filter(p=>!p).length;let base=0,cat='minor',lv=1;
+ if(mains.length){base=mains.reduce((s,p)=>s+ +p.m,0);cat=mains[0].cat;lv=Math.max(...mains.map(p=>+p.lv))}else if(adds.length){base=45;cat='urs';lv=2}
  base+=adds.reduce((s,p)=>s+ +p.m,0)+unk*45;const aj=durAdj(c,cat,base);return{cat,lv,dur:Math.max(10,+c.minDur||0,Math.round(aj.d/5)*5),base:Math.round(base/5)*5,adj:aj.parts,unknown:unk}}
 function tplKey(day){const w=dowOf(day.date);if(w===0)return null;if(w!==6)return String(w);const par=day.par||(isoWeek(day.date)%2?'odd':'even');return par==='odd'?'6o':'6e'}
 const vsLeaveOf=(n,date,half)=>(cfg.vsLeaves||[]).find(l=>l.s===n&&l.from<=date&&(l.to||l.from)>=date&&(!l.half||l.half==='all'||!half||l.half===half));
