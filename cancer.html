@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="癌症討論會"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="cancer.webmanifest"><link rel="apple-touch-icon" href="cancer-apple-touch-icon.png?v=2"><link rel="icon" type="image/png" href="cancer-favicon.png?v=2"><meta name="theme-color" content="#2e346e"><meta property="og:title" content="泌尿科 癌症討論會"><meta property="og:description" content="下次討論會・注意事項・達文西術前・統計"><meta property="og:image" content="og-cancer.png?v=2"><meta property="og:type" content="website">
+<title>泌尿科 癌症討論會</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://script.google.com"><link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f4f7f7,#0b1315);--card:light-dark(#fff,#121e21);--ink:light-dark(#0f262b,#e2edee);--mut:light-dark(#587076,#8ea6aa);--line:light-dark(#d8e2e3,#24363a);--scrub:light-dark(#0b5563,#0e6474);--soft:light-dark(#e4f0f1,#15313a);--red:#e5484d;--redbg:light-dark(#fdecec,#3a1a1c);--amb:#c77d00;--ambbg:light-dark(#fff4dc,#3a2c10);--ok:#1f8a5b}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC",system-ui,sans-serif}
+.t{font-family:Figtree,"Noto Sans TC",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+header{background:var(--scrub);color:#fff;padding:18px max(4vw,14px) 0}
+.hrow{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:flex-end;justify-content:space-between;max-width:1100px;margin:auto}
+h1{font:800 clamp(24px,3.4vw,34px)/1.1 Figtree,"Noto Sans TC",sans-serif;margin:0}
+.sub{opacity:.85;font-size:14px}
+.tabs{display:flex;gap:4px;max-width:1100px;margin:14px auto 0;overflow-x:auto}
+.tabs a{color:#fff;text-decoration:none;border-radius:10px 10px 0 0;padding:11px 18px;opacity:.8;flex:none;min-height:44px}
+.tabs a[aria-current=page]{background:var(--bg);color:var(--ink);opacity:1;font-weight:700}
+.tabs .sep{flex:none;width:1px;background:rgba(255,255,255,.3);margin:10px 6px}
+.tabs a.ext{font-size:14px}
+.hbtn{color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:3px 12px;font-size:13px;text-decoration:none;white-space:nowrap}
+.hside{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+a.kpi{color:inherit;text-decoration:none}a.kpi:hover{border-color:var(--scrub)}
+.tool .go{color:inherit;text-decoration:none;display:block}
+.tool .ic{font-size:20px;margin-right:6px}
+main{max-width:1100px;margin:auto;padding:18px max(4vw,14px) 60px}
+section{margin-bottom:22px}
+h2{font:700 19px/1.3 "Noto Sans TC",sans-serif;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--mut);font-size:13px}h2 small a{color:var(--scrub)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.tool{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--scrub);border-radius:14px;padding:14px 16px;min-height:96px}
+.tool:hover{border-color:var(--scrub)}
+.tool b{font-size:17px}.tool p{margin:4px 0 0;color:var(--mut);font-size:13.5px}
+.tool.soon{border-left-color:var(--line);opacity:.75;cursor:default}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12.5px;background:var(--soft);white-space:nowrap}
+.chip.r{background:var(--redbg);color:var(--red)}.chip.a{background:var(--ambbg);color:var(--amb)}.chip.g{color:var(--ok)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi b{display:block;font:800 26px/1.1 Figtree,sans-serif}.kpi span{color:var(--mut);font-size:13px}
+.note{color:var(--mut);font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;cursor:pointer}
+.btn.p{background:var(--scrub);color:#fff;border-color:var(--scrub)}.btn.s{min-height:32px;padding:4px 10px;font-size:13.5px}
+input,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:38px}
+table{width:100%;border-collapse:collapse}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{font-size:13px;color:var(--mut);font-weight:500}
+tr.off td{opacity:.5}
+.dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 14px}.dl dt{color:var(--mut)}.dl dd{margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border:0;background:var(--card);color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}.seg button.on{background:var(--scrub);color:#fff}
+@media (max-width:700px){
+ .kpis{grid-template-columns:repeat(2,1fr);gap:8px}.kpi{padding:10px}.kpi b{font-size:22px}.kpi span{font-size:12px}.tool{min-height:0}
+ table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}table.stack td{border:0;padding:0}table.stack td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--mut)}table.stack input,table.stack select{width:100%}
+}
+.fbl{list-style:none;padding:0;margin:0}.fbl li{border-top:1px solid var(--line);padding:10px 0}.fbl li:first-child{border-top:0}.fbl li.dn .fbt{opacity:.6}
+textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}
+.ver{border-left:3px solid var(--line);padding:2px 0 2px 14px;margin:0 0 14px}.ver.cur{border-left-color:var(--scrub)}.ver h3{margin:0;font-size:16px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.ver ul{margin:4px 0 0;padding-left:20px}.ver li{margin:2px 0}
+.imodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9999;padding:12px}.ibox{background:var(--card,#fff);color:var(--ink,#0f262b);border-radius:16px;max-width:420px;width:100%;padding:16px 18px;font-size:15px;line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.3)}.ihead{display:flex;gap:12px;align-items:center;margin-bottom:8px}.ihead img{border-radius:11px}.ibox ol{padding-left:22px;margin:8px 0}.ibox li{margin:4px 0}.ik{display:inline-block;border:1px solid var(--line,#ccc);border-radius:6px;padding:0 6px;font-weight:700}.inote{color:var(--mut,#587076);font-size:13px;margin:4px 0}.ishare{border-top:1px solid var(--line,#ddd);margin-top:10px;padding-top:10px}.ishare input{width:100%;font-size:13px;margin:4px 0}.ibtn{border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px 14px;font:inherit;min-height:40px;margin:4px 6px 0 0;cursor:pointer}.ibtn.p{background:#0b5563;color:#fff;border-color:#0b5563}@media(min-width:700px){.imodal{align-items:center}}
+.hbtn{cursor:pointer;font:inherit;font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="hrow"><div><h1>🎗️ 泌尿科 癌症討論會</h1><div class="sub" id="sub"></div></div><div class="hside"><span class="sub" id="sync"></span><span class="hside" id="tools"></span></div></div>
+<nav class="tabs" id="tabs"></nav></header>
+<main id="app"><p class="note">載入中…</p></main>
+<script>
+/* 開機保護：主程式沒跑起來時（舊瀏覽器、程式錯誤、本機暫存壞掉）顯示原因與修復按鈕，不要只剩空白。刻意用舊式 JS 寫，舊瀏覽器也能執行。 */
+(function(){var shown=false,errs=[];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function ok(){return !!document.querySelector('.tabs > *')}
+function show(why){if(shown||ok())return;shown=true;var d=document.createElement('div');d.id='bootErr';
+ d.style.cssText='max-width:640px;margin:24px auto;padding:16px 18px;border:2px solid #e5484d;border-radius:12px;background:#fff;color:#0f262b;font:15px/1.6 sans-serif';
+ d.innerHTML='<b style="font-size:18px">網頁沒有正常載入</b><p>請依序試：<br>1. 按「重新載入」<br>2. 還是不行，按「清除這台電腦的暫存」（雲端的資料不受影響；這台電腦還沒同步上去的修改會消失）<br>3. 都不行的話，請把下面灰色的字截圖回報</p><p><button id="bootR" style="font-size:15px;padding:6px 12px">重新載入</button> <button id="bootC" style="font-size:15px;padding:6px 12px">清除這台電腦的暫存</button></p><p style="color:#587076;font-size:12.5px;word-break:break-all">'+esc(why)+(errs.length?'<br>'+esc(errs.slice(0,3).join(' / ')):'')+'<br>'+esc(navigator.userAgent)+'</p>';
+ document.body.insertBefore(d,document.body.firstChild);
+ document.getElementById('bootR').onclick=function(){location.reload()};
+ document.getElementById('bootC').onclick=function(){if(!confirm('確定清除這台電腦的暫存？雲端的資料不受影響。'))return;try{localStorage.clear()}catch(e){}
+  var p=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){for(var i=0;i<rs.length;i++)rs[i].unregister()}))}catch(e){}
+  try{if(window.caches)p.push(caches.keys().then(function(ks){for(var i=0;i<ks.length;i++)caches['delete'](ks[i])}))}catch(e){}
+  var go=function(){location.reload()};if(window.Promise&&p.length)Promise.all(p).then(go,go);else go()}}
+window.addEventListener('error',function(e){errs.push((e.message||'錯誤')+(e.lineno?' (第 '+e.lineno+' 行)':''));setTimeout(function(){show('程式錯誤')},400)});
+setTimeout(function(){show('載入逾時（15 秒）')},15000);
+})();
+</script>
+<script src="auth.js?v=1"></script>
+<script>
+{
+/* 泌尿科 癌症討論會（cancer.html，獨立網站；原本是科務入口的「癌症討論會」分頁）。
+   資料只存在 Google 試算表「黃部長癌症討論會追蹤表」（CANCER_ID）。這裡只透過 Apps Script ?action=cancerStatus 讀「人數、日期、分頁編號」，
+   不經過網站傳病人資料；名單用 iframe 直接顯示試算表（要登入有權限的 Google 帳號才看得到）。
+   登入（auth.js）：啟用時只給黃部長交班單有共用的帳號（AUTH.need() 為真就顯示鎖定卡片）。 */
+const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec';
+const LS={get(k){try{return JSON.parse(localStorage.getItem('or:'+k))}catch(e){return null}},set(k,v){try{localStorage.setItem('or:'+k,JSON.stringify(v))}catch(e){}}};
+let gs=LS.get('gsync');if(!gs||!gs.url)gs=SYNC_URL?{url:SYNC_URL,token:'',on:true}:{url:'',token:'',on:false};
+const on=()=>gs.on&&gs.url;
+const AQ=()=>window.AUTH?AUTH.q():'',NEED=()=>!!(window.AUTH&&AUTH.need());
+const q_=k=>gs.url+(gs.url.includes('?')?'&':'?')+k+'&token='+encodeURIComponent(gs.token||'')+AQ();
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const DOW='日一二三四五六';const md=s=>`${+s.slice(5,7)}/${+s.slice(8)}（${DOW[new Date(s+'T00:00:00').getDay()]}）`;
+const today=iso(new Date());
+const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
+const CANCER_ID='1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI',CANCER_URL='https://docs.google.com/spreadsheets/d/'+CANCER_ID+'/edit';
+const CC_GID={next:772796418,todo:10,dv:1572085460,trk:0,stat:1426015442};
+const VIEWS=[['next','下次討論會'],['todo','注意事項'],['dv','達文西術前'],['stat','統計'],['trk','個案追蹤（編輯）']];
+const page=()=>{const h=location.hash.slice(1);return VIEWS.some(v=>v[0]===h)?h:'next'};
+let C=LS.get('cccache'),err='',msg='',loading=false;
+async function load(){if(!on())return render();loading=true;render();
+ try{const r=await fetch(q_('action=cancerStatus'));const j=await r.json();if(!j.ok||!j.value)throw 0;C=j.value;LS.set('cccache',C);err=''}catch(e){err='conn'}loading=false;render()}
+const ccDate=c=>{const d=String((c&&c.mtg)||'').replace(/\//g,'-').slice(0,10);return /^\d{4}-\d\d-\d\d$/.test(d)?d:''};
+const ccN=c=>{const n=(c&&c.cnt)||{};return{pend:n['待討論']||0,todo:(n['已討論-待手術']||0)+(n['暫緩/改期']||0)+(n['待確認']||0)}};
+function setupCard(){return `<section class="card"><h2>尚未連上同步</h2><p>癌症討論會和刀房調度板共用同一個 Google 同步網址。請先在同一支手機／電腦打開一次<a href="./">刀房調度板</a>，再回來重新整理。</p></section>`}
+function body(){if(!on())return setupCard();if(NEED())return AUTH.lockCard('癌症討論會');
+ const pg=page(),c=C||{},g={...CC_GID,...(c.gid||{})},d=ccDate(c),k=ccN(c);
+ const kp=(v,lab,big,sub,cls,nohl)=>`<a class="kpi" href="#${v}" style="text-decoration:none;color:inherit;${pg===v&&!nohl?'border-color:var(--scrub)':''}"><span>${lab}</span><b${cls?` style="color:var(--${cls})"`:''}>${big}</b><span>${sub}</span></a>`;
+ const kpis=!C?`<p class="note">${err?'讀不到人數（Apps Script 可能需要更新或重新授權），下面的試算表仍可使用。':'讀取人數中…'}</p>`:
+  `<div class="kpis" style="margin-bottom:12px">${kp('next',`下次討論會 ${d?md(d):''}`,`${c.listed||0} 人`,'已排入')}${kp('next','還沒討論、可挑',`${k.pend} 人`,c.warn||c.late?`⚠ ${c.warn||0} 人需排入${c.late?`・${c.late} 人已過最晚日`:''}`:'沒有急迫個案',c.warn||c.late?'red':'',1)}${kp('todo','討論後、待手術',`${k.todo} 人`,'注意事項會同步到交班單')}${kp('trk','刀表新個案',`${c.newN||0}`,c.newN?'等待自動加入追蹤':'都已在追蹤表')}</div>`;
+ const gid=g[pg]??g.next,src=`https://docs.google.com/spreadsheets/d/${CANCER_ID}/edit?rm=minimal&gid=${gid}#gid=${gid}`;
+ return `${msg?`<p class="note" style="margin:0 0 8px">${esc(msg)}</p>`:''}${kpis}
+ <section class="card" style="padding:10px"><div class="row" style="margin-bottom:8px"><h2 style="margin:0;flex:1">${esc((VIEWS.find(v=>v[0]===pg)||VIEWS[0])[1])}</h2><a class="btn p" style="text-decoration:none" href="${CANCER_URL}#gid=${gid}" target="_blank" rel="noopener">開啟試算表 ↗</a></div>
+ <iframe src="${src}" title="癌症討論會試算表" style="width:100%;height:calc(100vh - 300px);min-height:460px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
+ <p class="note">資料只存在 Google 試算表；要先登入有權限的 Google 帳號才看得到。平常只要在「個案追蹤」填資料，其他頁都會自動更新。手機上建議按「開啟試算表」用 Google 試算表 App。</p></section>`}
+function render(){const pg=page();
+ $('#sub').textContent=`黃部長・每週四 07:30　今天 ${md(today)}`;
+ $('#sync').textContent=loading?'讀取中…':err==='conn'?'無法連上同步':C?'已同步':'';
+ $('#tabs').innerHTML=VIEWS.map(([k,v])=>`<a href="#${k}" ${pg===k?'aria-current="page"':''}>${v}</a>`).join('')+'<span class="sep"></span><a class="ext" href="hub.html">🏠 科務入口</a><a class="ext" href="handoff.html">📝 交班</a><a class="ext" href="hub.html?from=cc#fb">💬 意見回饋</a>';
+ $('#tools').innerHTML=`${window.AUTH?AUTH.badge():''}${NEED()?'':'<button class="hbtn" data-act="scan" title="讀 Drive 討論會資料夾的新名單與紀錄單">🔄 從 Drive 更新</button><button class="hbtn" data-act="re">重新整理</button>'}<a href="#" class="hbtn" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" class="hbtn" data-inst>📲 加到主畫面</a>'}`;
+ $('#app').innerHTML=body()}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act]');if(!b)return;const k=b.dataset.act;
+ if(k==='re'){msg='';load()}
+ if(k==='scan'){msg='讀取 Drive 討論會資料夾中…（約半分鐘）';render();fetch(q_('action=cancerScan')).then(r=>r.json()).then(j=>{msg=j.ok?String(j.value):j.err==='auth'?'沒有權限：請用交班單有共用的帳號登入':'更新失敗：'+(j.err||'');load()},()=>{msg='更新失敗，請稍後再試';render()})}});
+addEventListener('hashchange',render);
+if(window.AUTH){AUTH.init(gs.url,gs.token);addEventListener('auth:change',render)}
+render();load();setInterval(()=>{if(!document.hidden)load()},300000);
+/* ===== 加到主畫面 ===== */
+let bip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});
+try{if('serviceWorker' in navigator&&/^https:/.test(location.protocol)&&!/claude|googleusercontent/.test(location.host))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+const instLink=()=>location.origin+location.pathname.replace(/[^/]*$/,'')+'cancer.html?openExternalBrowser=1';
+function showInstall(){const ua=navigator.userAgent,inApp=/Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua),ios=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),and=/Android/i.test(ua);
+ const steps=inApp?`<p><b>你現在是在 LINE 裡面開啟的</b>，要先換到手機瀏覽器才能加到主畫面。</p><button class="ibtn p" data-iext>用 ${ios?'Safari':'Chrome'} 開啟</button><p class="inote">開啟後再按一次「📲 加到主畫面」。</p>`
+  :ios?`<ol><li>點 Safari 下方（或上方）的<b>分享</b>按鈕 <span class="ik">⬆︎</span></li><li>往下滑，點<b>「加入主畫面」</b> <span class="ik">＋</span></li><li>右上角按<b>「新增」</b></li></ol><p class="inote">要用 Safari 開才有這個選項；Chrome 也可以從「分享」裡找到。</p>`
+  :and?`<ol><li>點 Chrome 右上角 <span class="ik">⋮</span></li><li>點<b>「新增至主畫面」</b>或<b>「安裝應用程式」</b></li><li>按<b>「安裝」</b></li></ol>`
+  :`<ol><li>Chrome／Edge：網址列右邊的 <span class="ik">⊕</span> 安裝圖示，或選單 →「安裝」</li><li>手機上用 Safari／Chrome 開這個網址，再按「📲 加到主畫面」</li></ol>`;
+ const m=document.createElement('div');m.className='imodal';m.innerHTML=`<div class="ibox"><div class="ihead"><img src="cancer-apple-touch-icon.png?v=2" alt="" width="48" height="48"><div><b>加到主畫面</b><div class="inote">之後點圖示就能直接打開，像 App 一樣</div></div></div>${steps}
+ <div class="ishare"><b>分享給大家</b><p class="inote">把這個連結貼到 LINE 群組，大家點開會自動用手機瀏覽器開啟，再按「📲 加到主畫面」即可。</p><input readonly value="${instLink()}"><button class="ibtn" data-icopy>複製安裝連結</button></div><button class="ibtn" data-iclose>關閉</button></div>`;
+ document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-iclose]'))m.remove();if(e.target.closest('[data-iext]'))location.href=instLink();if(e.target.closest('[data-icopy]')){const t='泌尿科 癌症討論會（點開後按「📲 加到主畫面」）\n'+instLink();const ip=m.querySelector('.ishare input');try{navigator.clipboard.writeText(t).then(()=>{e.target.textContent='已複製 ✓'},()=>{ip.select();document.execCommand('copy');e.target.textContent='已複製 ✓'})}catch(x){ip.select();document.execCommand('copy')}}})}
+document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-inst]');if(!a)return;e.preventDefault();e.stopPropagation();if(bip){bip.prompt();try{await bip.userChoice}catch(x){}bip=null;return}showInstall()},true);
+/* ===== 一鍵分享／複製連結（[data-share]）=====
+   手機：叫出系統分享選單（LINE、訊息、複製…）；電腦或不支援時：直接複製連結並顯示提示。
+   連結＝目前這一頁（含分頁 #），加 openExternalBrowser=1 讓 LINE 用手機瀏覽器開啟。 */
+const SHARE_T='泌尿科 癌症討論會';
+function shareLink(){const h=location.hash&&!/^#(home)?$/.test(location.hash)?location.hash:'';const base=location.origin+location.pathname.replace(/[^/]*$/,'')+'cancer.html';return base+'?openExternalBrowser=1'+h}
+function toast(t){const d=document.createElement('div');d.textContent=t;d.setAttribute('role','status');d.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0f262b;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;z-index:10000;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:90vw;text-align:center';document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+async function copyText(t){try{await navigator.clipboard.writeText(t);return true}catch(e){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}a.remove();return ok}}
+document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('[data-share]');if(!a)return;e.preventDefault();e.stopPropagation();
+ const url=shareLink(),text=SHARE_T+'（點開後可按「📲 加到主畫面」）';
+ if(navigator.share&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){try{await navigator.share({title:SHARE_T,text,url});return}catch(x){if(x&&x.name==='AbortError')return}}
+ if(await copyText(text+'\n'+url))toast('✓ 已複製連結，貼到 LINE 或訊息就能分享');else prompt('複製這個連結分享給大家：',url)},true);
+}
+</script>
+</body>
+</html>
