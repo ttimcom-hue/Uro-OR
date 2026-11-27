@@ -213,7 +213,7 @@ let resAdv=false,gearOpen=false,erDoneOpen=false,erToast=null;
 let edMode=(()=>{try{return localStorage.getItem('or:edit')==='true'}catch(e){return false}})();
 const GEAR=[['res','人力與能力'],['set','術式與房間設定']];
 /* 意見回饋集中在科務入口 hub.html#fb（Apps Script 版用 GitHub Pages 網址） */
-const fbUrl=()=>(GAS||LOCAL?'https://ttimcom-hue.github.io/Uro-OR/':'')+'hub.html?from=or#fb';
+const fbUrl=()=>(GAS||location.protocol==='file:'?'https://ttimcom-hue.github.io/Uro-OR/':'')+'hub.html?from=or#fb';
 const caseCol=x=>colMode()==='vs'?vsCol(x.c.surgeon):(CATC[x.cat]||'#6f9bb6');
 const colLegend=tl=>colMode()==='vs'?[...new Set(tl.rooms.flatMap(r=>r.cases.map(x=>x.c.surgeon)))].map(n=>`<span><i style="background:${vsCol(n)}"></i>${esc(dispN(n))}</span>`).join(''):CATS.map(([k,n])=>`<span><i class="c-${k}"></i>${n}</span>`).join('');
 const CATN=Object.fromEntries(CATS);const isRob=c=>c==='robot'||c==='sp';
@@ -277,7 +277,7 @@ function interleave(fixed,rest,clocks,start,room){const turn=room!=null?roomTurn
  while(r.length||q.length){if(q.length&&(T(q[0].time)<=t||!r.length)){add(q.shift());continue}if(!q.length){add(r.shift());continue}
   const T0=T(q[0].time);const i=r.findIndex(c=>!(c.sd&&sdS>t)&&!c.wait&&t+dur(c)<=T0+tol);if(i>=0)add(r.splice(i,1)[0]);else add(q.shift())}
  return out}
-let lastDel=0;
+let lastDel=0,lastDelRows=[];/* 刀表上明確標刪除的列（已刪／刪除／取消、時間非整 10 分）：重新匯入時只移除這些 */
 const emgOnBoard=r=>isEmgRow(r)&&r.room&&r.room!=='?'&&/^(\d{1,2}:\d{2}|TF\s*:?\s*\d+|[小大]夜:?)$/i.test(String(r.time||'').trim());
 function isEmgRow(r){return /急/.test(r.src||'')||/急|插|緊急/.test(r.kind||'')}
 /* 急診刀匯入：同一台用「病人代碼」或「送單日＋送單時＋主治」辨識（不比對術式文字，HIS 加減術式或有人改過術式都算同一台）。
@@ -296,7 +296,7 @@ function erAddRows(use,auto){const G=new Map();for(const r of use){const key=[r.
 function erDedupe(){const by=new Map();for(const e of ERS.items){if(e.del)continue;const k=erKeyOf(e);if(!k)continue;(by.get(k)||by.set(k,[]).get(k)).push(e)}let n=0;
  for(const L of by.values()){if(L.length<2)continue;const score=e=>(e.npo?4:0)+(e.st==='room'?2:0)+(e.st==='done'?1:0)+(e.by?1:0)+(e.vol?1:0)+(e.q?1:0);L.sort((a,b)=>score(b)-score(a));
   for(const e of L.slice(1)){e.del=true;e.ts=Date.now();n++}}return n}
-function rowsToCases(rows){const st=T(cfg.set.start),G=new Map();lastDel=0;rows.forEach((r,i)=>{const t=String(r.time||'').trim();{const mm=t.match(/^\d{1,2}:(\d{2})$/);if(mm&&+mm[1]%10!==0)r.del=true}if(r.del){lastDel++;return}let slot,kind='';
+function rowsToCases(rows){const st=T(cfg.set.start),G=new Map();lastDel=0;lastDelRows=[];rows.forEach((r,i)=>{const t=String(r.time||'').trim();{const mm=t.match(/^\d{1,2}:(\d{2})$/);if(mm&&+mm[1]%10!==0)r.del=true}if(r.del){lastDel++;lastDelRows.push({date:r.date,surgeon:r.surgeon,room:r.room,pt:ptag(r.pid),proc:r.name||''});return}let slot,kind='';
  if(/夜/.test(t)){slot=999;kind='eve'}else if(/TF/i.test(t)){slot=+((t.match(/\d+/)||[1])[0])}else if(/\d{1,2}:\d{2}/.test(t)){if(T(t)<=st)slot=0;else{slot=T(t)/10000;kind='clock'}}else slot=60;
  const key=[r.date,r.room,r.surgeon,slot,kind==='clock'?t:'',r.pid||''].join('|');let g=G.get(key);if(!g){g={id:nid(),date:r.date,room:r.room,hisRoom:r.room,pt:ptag(r.pid),hk:[r.room,r.surgeon,t].join('|'),surgeon:r.surgeon,slot,seq:i,procs:[],spec:[],time:kind==='clock'?t:'',eve:kind==='eve',clock:kind==='clock',opd:kind==='clock',fixed:slot===0&&!kind,sq:r.sq||undefined,raw:r.raw||undefined,md:null};G.set(key,g)}
  if(r.anes&&!g.anes)g.anes=r.anes;if(r.ca==='Y')g.cancer=true;if(r.src){g.src=r.src;if(r.src==='徑')g.sd=true;if(r.src==='門')g.opd=true;if(/急/.test(r.src))g.er=true}if(isEmgRow(r)){g.er=true;g.erK=/插/.test(r.kind||'')?'插刀':/緊急/.test(r.kind||'')?'緊急':'急'}const hr=String(r.special||'').match(/>\s*(\d+(?:\.\d+)?)\s*hr/i);if(hr)g.minDur=Math.max(g.minDur||0,Math.round(+hr[1]*60));g.procs.push(r.name);if(r.special&&!/^[\/\s]*$/.test(r.special))g.spec.push(r.special);if(/(^|[\/\s])ER\b|急/.test(r.special||''))g.er=true});
@@ -550,9 +550,9 @@ async function erMigrateAll(force){if(!force&&LS.get('erMig2'))return 0;let n=0;
  for(const x of ds){let d=null;try{d=await fetchDay(x)}catch(e){}if(!d||!Array.isArray(d.er)||!d.er.length)continue;for(const e of d.er){if(!e.id)e.id='e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);if(!ERS.items.some(y=>y.id===e.id||(y.s===e.s&&y.p===e.p&&(y.at||'')===(e.at||'')&&(y.ad||'')===(e.ad||'')))){ERS.items.push(e);n++}}if(d.hosp&&!(ERS.hosp||{}).upd)ERS.hosp=d.hosp;d.er=[];delete d.hosp;if(x===day.date){day.er=[];delete day.hosp}persist('days/'+x,d)}
  LS.set('erMig2',1);if(n)saveER();return n}
 async function loadER(){const r=await fetchER();let ch=erMerge(r);if(day&&Array.isArray(day.er)&&day.er.length){for(const e of day.er){if(!e.id)e.id='e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);if(!ERS.items.some(x=>x.id===e.id))ERS.items.push(e)}if(day.hosp&&!(ERS.hosp||{}).upd)ERS.hosp=day.hosp;day.er=[];delete day.hosp;saveDay();saveER();ch=true}if(await erMigrateAll())ch=true;if(erDedupe()){saveER();ch=true}if(ch)render()}
-let cache={asg:{am:{},pm:{}}},db=null,sampler=null,syncState='local',tab='plan',day=null,curDate=LS.get('last')||'2026-11-20',busy='',clearArm=false,thumbs=[];
+let cache={asg:{am:{},pm:{}}},db=null,sampler=null,syncState='local',tab='plan',day=null,curDate=(()=>{const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`})(),/* 打開一律是今天的刀表 */busy='',clearArm=false,thumbs=[];
 cfg=fixCfg(LS.get('config/main')||defaultCfg());{const l=LS.get('er/list');if(l&&Array.isArray(l.items)){ERS=l;if(!ERS.hosp)ERS.hosp={}}}erRebase();
-day=LS.get('days/'+curDate)||(curDate==='2026-11-20'&&!LS.get('touched')?sampleDay():newDay(curDate));
+day=LS.get('days/'+curDate)||newDay(curDate);
 const timers={},writing={};
 const pendP=new Set();let lastSaved=null;const newer=(a,b)=>!a?b:!b?a:((+b.ts||0)>(+a.ts||0)?b:a);
 function persist(path,obj){if(obj&&typeof obj==='object')obj.ts=Date.now();LS.set(path,obj);LS.set('touched',1);pendP.add(path);const se=$('#sync');if(se)se.textContent=syncTxt();if(!db&&!gsOn()){pendP.delete(path);lastSaved=new Date()}if(!db&&gsOn()){clearTimeout(timers[path]);timers[path]=setTimeout(()=>gsFlush(path,JSON.parse(JSON.stringify(obj))),900);return}if(!db)return;clearTimeout(timers[path]);timers[path]=setTimeout(()=>flush(path,JSON.parse(JSON.stringify(obj))),700)}
@@ -629,7 +629,7 @@ async function loadDay(date){setTimeout(()=>{if(day&&Array.isArray(day.er)&&day.
 function render(){const tl=timeline(day),D=demands(day,tl),asg=assign(day,D),pl=planMoves(day,tl),L=advise(day,tl,asg,pl);cache={asg};
  const w=dowOf(day.date),wk=isoWeek(day.date),par=day.par||(wk%2?'odd':'even');
  const tr=tplRooms(day).map(([r,s])=>`R${r} ${esc(s)}`).join(' · ')||'無固定刀房';
- $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${window.OR_HOST==='gas'&&window.OR_EXEC?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a target="_top" href="${esc(OR_EXEC)}">☰ 選單</a>${window.AUTH?AUTH.badge('#'):''}</div>`:''}${!IN_CLAUDE&&!GAS&&!LOCAL?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
+ $('#app').innerHTML=`<header><div class="hrow"><div><h1>泌尿科刀房調度板</h1>${window.OR_HOST==='gas'&&window.OR_EXEC?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a target="_top" href="${esc(OR_EXEC)}">☰ 選單</a>${window.AUTH?AUTH.badge('#'):''}</div>`:''}${!IN_CLAUDE&&!GAS&&location.protocol!=='file:'?`<div class="hub row" style="gap:6px;margin:4px 0 2px"><a href="hub.html">🏠 科務入口</a>${window.AUTH?AUTH.badge('hub.html#me'):''}<a href="hub.html#people">人員名冊</a><a href="hub.html#links">常用連結</a><a href="hub.html?from=or#fb">💬 意見回饋</a><a href="#" data-share title="分享或複製這一頁的連結">🔗 分享</a>${isStand()?'':'<a href="#" data-inst>📲 加到主畫面</a>'}</div>`:''}<div class="sub">${esc(tr)}</div></div>
  <div class="datebox"><button class="btn modebtn" data-edmode="1" title="${edMode?'回到簡潔的看刀表畫面':'顯示匯入、排序、加班評估、公告等排刀工具'}">${edMode?'✓ 完成排刀':'✏️ 排刀模式'}</button><button class="btn imp-btn" data-imp="1">📥 匯入刀表</button><label class="sr" for="date" hidden>日期</label><input type="date" id="date" data-ch="date" value="${day.date}" aria-label="日期"><span class="pill" style="background:#fff;color:var(--scrub)">週${DOW[w]} · 第${wk}週 · ${par==='odd'?'單週':'雙週'}</span>
  ${w===6?`<select data-ch="par" aria-label="單雙週"><option value="">自動判斷</option><option value="odd" ${day.par==='odd'?'selected':''}>單週</option><option value="even" ${day.par==='even'?'selected':''}>雙週</option></select>`:''}<span class="sync" id="sync">${syncTxt()}</span></div></div>
  <nav class="tabs" role="tablist">${[['plan','今日排程'],['er','急診刀'+((ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length?'（'+(ERS.items||[]).filter(e=>!e.del&&e.st!=='done').length+'）':'')],['prep','術前準備'],['help','📖 教學'],...((gearOpen||GEAR.some(g=>g[0]===tab))?GEAR:[])].map(([k,n])=>`<button role="tab" data-act="tab" data-k="${k}" aria-selected="${tab===k}">${n}</button>`).join('')}${GEAR.some(g=>g[0]===tab)?'':`<button class="gear" data-gear="1" aria-expanded="${gearOpen}">${gearOpen?'收起 ‹':'⚙ 設定與說明 ›'}</button>`}</nav></header>
@@ -987,16 +987,20 @@ function sortRoom(room){const tl=timeline(day),r=tl.rooms.find(x=>x.id===room);i
  interleave(r.cases.filter(x=>x.c.fixed).map(x=>x.c),xs.map(o=>o.x.c),r.cases.filter(x=>x.c.clock&&!x.c.fixed).map(x=>x.c),T(cfg.set.start),room).forEach((c,i)=>c.order=i+1)}
 let mergeMsg=null,impStats={};
 /* 重新匯入同一天刀表：保留已排好的順序、房間、手動時間與備註，只更新 HIS 上的術式等資料 */
-function mergeCases(target,list){const old=target.cases.slice(),used=new Set(),out=[];let kept=0,added=0,changed=0;const pk=c=>c.procs.map(p=>p.replace(/\(.*?\)|（.*?）/g,'').trim().toLowerCase()).sort().join('+');
+function mergeCases(target,list,dels){dels=dels||[];const old=target.cases.slice(),used=new Set(),out=[];let kept=0,added=0,changed=0;const pk=c=>c.procs.map(p=>p.replace(/\(.*?\)|（.*?）/g,'').trim().toLowerCase()).sort().join('+');
  const passes=[[(o,nc)=>o.pt&&nc.pt&&o.pt===nc.pt&&o.surgeon===nc.surgeon],[(o,nc)=>o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&pk(o)===pk(nc),(o,nc)=>o.surgeon===nc.surgeon&&pk(o)===pk(nc)],[(o,nc)=>o.hk&&o.hk===nc.hk,(o,nc)=>!o.hk&&o.surgeon===nc.surgeon&&(o.hisRoom||o.room)===nc.room&&(o.time||'')===(nc.time||'')&&!!o.eve===!!nc.eve]];
  const L0=list.slice().sort((a,b)=>a.order-b.order),match=new Map();for(const P of passes)for(const nc of L0){if(match.has(nc))continue;for(const t of P){const o=old.find(x=>!used.has(x)&&t(x,nc));if(o){used.add(o);match.set(nc,o);break}}}
  const mx={};for(const o of old)mx[o.room]=Math.max(mx[o.room]||0,o.order||0);
  for(const nc of L0){const o=match.get(nc);if(o){const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom,pt:nc.pt||o.pt,er:nc.er||o.er,erK:nc.erK||o.erK};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
   else{const had=old.some(x=>x.room===nc.room&&!x.eve);nc.order=(mx[nc.room]=(mx[nc.room]||0)+1);if(had){nc.fixed=false;nc.wait=false}out.push(nc);added++}}
- const removed=old.filter(o=>!used.has(o)).length;target.cases=out;for(const room of new Set(out.map(c=>c.room)))out.filter(c=>c.room===room&&!c.eve).sort((a,b)=>a.order-b.order).forEach((c,j)=>c.order=j+1);
- return{n:out.length,kept,added,changed,removed}}
+ /* 這次刀表沒有的刀：只有刀表上明確標刪除的才移除，其他照原樣保留（例如只貼了部分房間、或 HIS 還沒列出來） */
+ const pn=x=>String(x||'').replace(/\(.*?\)|（.*?）/g,'').trim().toLowerCase();
+ const isDel=o=>dels.some(x=>x.surgeon===o.surgeon&&((x.pt&&o.pt&&x.pt===o.pt)||(x.proc&&o.procs.some(p=>pn(p)===pn(x.proc)))));
+ let removed=0,keptOld=0;for(const o of old){if(used.has(o))continue;if(isDel(o)){removed++;continue}out.push(o);keptOld++}
+ target.cases=out;for(const room of new Set(out.map(c=>c.room)))out.filter(c=>c.room===room&&!c.eve).sort((a,b)=>a.order-b.order).forEach((c,j)=>c.order=j+1);
+ return{n:out.length,kept,added,changed,removed,keptOld}}
 function addCases(byDate){const dates=Object.keys(byDate);if(!dates.length)return 0;const rep=$('#replace')?$('#replace').checked:true;let n=0;
- for(const d of dates){const target=d===day.date?day:(LS.get('days/'+d)||newDay(d));let merged=false;if(rep&&!target._rep&&target.cases.length){const r0=mergeCases(target,byDate[d]);n+=r0.n;mergeMsg=r0;impStats[d]=r0;target._rep=1;merged=true}else{if(rep&&!target._rep){target.cases=[];target._rep=1}const base={};for(const x of target.cases)base[x.room]=Math.max(base[x.room]||0,x.order||0);for(const c of byDate[d]){c.order+=base[c.room]||0;target.cases.push(c);n++}impStats[d]={n:byDate[d].length,fresh:true}}if(!merged)for(const room of new Set(target.cases.map(c=>c.room))){const sp=isSplit(target,room);if(!sp)continue;const cs=target.cases.filter(c=>c.room===room&&!c.eve).sort((a,b)=>(b.fixed?1:0)-(a.fixed?1:0)||((a.surgeon===sp.pm)-(b.surgeon===sp.pm))||a.order-b.order);cs.forEach((c,j)=>{c.order=j+1;if(c.surgeon===sp.pm&&c.add&&T(c.time)>=T(cfg.set.amEnd))c.add=false})}
+ for(const d of dates){const target=d===day.date?day:(LS.get('days/'+d)||newDay(d));let merged=false;if(rep&&!target._rep&&target.cases.length){const r0=mergeCases(target,byDate[d],lastDelRows.filter(x=>x.date===d));n+=r0.n;mergeMsg=r0;impStats[d]=r0;target._rep=1;merged=true}else{if(rep&&!target._rep){target.cases=[];target._rep=1}const base={};for(const x of target.cases)base[x.room]=Math.max(base[x.room]||0,x.order||0);for(const c of byDate[d]){c.order+=base[c.room]||0;target.cases.push(c);n++}impStats[d]={n:byDate[d].length,fresh:true}}if(!merged)for(const room of new Set(target.cases.map(c=>c.room))){const sp=isSplit(target,room);if(!sp)continue;const cs=target.cases.filter(c=>c.room===room&&!c.eve).sort((a,b)=>(b.fixed?1:0)-(a.fixed?1:0)||((a.surgeon===sp.pm)-(b.surgeon===sp.pm))||a.order-b.order);cs.forEach((c,j)=>{c.order=j+1;if(c.surgeon===sp.pm&&c.add&&T(c.time)>=T(cfg.set.amEnd))c.add=false})}
   delete target._rep;delete target.demo;if(target!==day)persist('days/'+d,target)}
  return n}
 async function aiParse(files){if(!sampler){busy='此檢視無法使用 AI 讀圖，請改用貼上文字或手動新增。';render();return}
@@ -1073,7 +1077,7 @@ function act(k,b){const id=b.dataset.id,i=+b.dataset.i;
  else if(k==='applyAll'){const tl=timeline(day);planMoves(day,tl).moves.forEach(m=>moveTo(m.c,m.to))}
  else if(k==='sortRoom'){sortRoom(b.dataset.room)}
  else if(k==='optimize'){timeline(day).rooms.forEach(r=>sortRoom(r.id))}
- else if(k==='pasteGo'){mergeMsg=null;impStats={};pasteText=$('#paste').value;lastRaw=pasteText;if(cfg.set.cancerAuto!==false&&gsOn()&&/手術工作表|病歷號/.test(pasteText))setTimeout(()=>cancerSend(lastRaw),50);const rows0=parseText(pasteText,day.date);const okT=r=>{const mm=String(r.time||'').match(/^\d{1,2}:(\d{2})$/);return !r.del&&!(mm&&+mm[1]%10)};const emg=rows0.filter(r=>okT(r)&&r.surgeon&&r.name&&isEmgRow(r));const ne=emg.length?erAddRows(emg,true):0;if(emg.length){saveER()}const by=rowsToCases(rows0.filter(r=>!isEmgRow(r)||emgOnBoard(r)));if(Object.keys(by).length||emg.length)pasteText='';const n=addCases(by);busy=n||ne?`${n?(mergeMsg?`已更新 ${n} 台（保留原順序 ${mergeMsg.kept} 台${mergeMsg.changed?`，其中 ${mergeMsg.changed} 台術式有變更`:''}${mergeMsg.added?`，新增 ${mergeMsg.added} 台排在各房最後`:''}${mergeMsg.removed?`，移除 ${mergeMsg.removed} 台 HIS 已不在的刀`:''}）`:`已加入 ${n} 台`):''}${lastDel?`（略過 ${lastDel} 筆已刪除）`:''}${emg.length?`${n?'；':''}急診刀 ${emg.length} 筆已自動移到「急診刀」分頁${ne?`（新增 ${ne} 台）`:'（都已存在）'}`:''}`:'無法解析，請確認格式（每列：日期 時 主治 位置 術式）';if(n&&!by[day.date]){loadDay(Object.keys(by)[0]).then(render);return}}
+ else if(k==='pasteGo'){mergeMsg=null;impStats={};pasteText=$('#paste').value;lastRaw=pasteText;if(cfg.set.cancerAuto!==false&&gsOn()&&/手術工作表|病歷號/.test(pasteText))setTimeout(()=>cancerSend(lastRaw),50);const rows0=parseText(pasteText,day.date);const okT=r=>{const mm=String(r.time||'').match(/^\d{1,2}:(\d{2})$/);return !r.del&&!(mm&&+mm[1]%10)};const emg=rows0.filter(r=>okT(r)&&r.surgeon&&r.name&&isEmgRow(r));const ne=emg.length?erAddRows(emg,true):0;if(emg.length){saveER()}const by=rowsToCases(rows0.filter(r=>!isEmgRow(r)||emgOnBoard(r)));if(Object.keys(by).length||emg.length)pasteText='';const n=addCases(by);busy=n||ne?`${n?(mergeMsg?`已更新 ${n} 台（保留原順序 ${mergeMsg.kept} 台${mergeMsg.changed?`，其中 ${mergeMsg.changed} 台術式有變更`:''}${mergeMsg.added?`，新增 ${mergeMsg.added} 台排在各房最後`:''}${mergeMsg.removed?`，移除 ${mergeMsg.removed} 台刀表標刪除的刀`:''}${mergeMsg.keptOld?`，${mergeMsg.keptOld} 台這次刀表沒有、照原樣保留`:''}）`:`已加入 ${n} 台`):''}${lastDel?`（略過 ${lastDel} 筆已刪除）`:''}${emg.length?`${n?'；':''}急診刀 ${emg.length} 筆已自動移到「急診刀」分頁${ne?`（新增 ${ne} 台）`:'（都已存在）'}`:''}`:'無法解析，請確認格式（每列：日期 時 主治 位置 術式）';if(n&&!by[day.date]){loadDay(Object.keys(by)[0]).then(render);return}}
  else if(k==='addCase'){const proc=$('#mProc').value.trim();if(!proc)return;const room=$('#mRoom').value;const c={id:nid(),date:day.date,room,surgeon:$('#mSur').value.trim()||'未定',procs:[proc],spec:[],md:$('#mMin').value?+$('#mMin').value:null,order:Math.max(0,...day.cases.filter(x=>x.room===room).map(x=>x.order))+1};day.cases.push(c)}
  else{ // config actions
   if(k==='addRes'||k==='delRes')rosterPushSoon(k==='delRes'?cfg.res[i]?.id:null);if(k==='addRes')cfg.res.push({id:'r'+Date.now().toString(36),n:'新成員',lv:'R1',on:true,ab:mkAb([1,1,1,0,0,0,0,1,1,1,0])});
@@ -1194,7 +1198,7 @@ function helpView(){const bd=(SYNC_URL||'')+'?page=board',PC=!isMob();
  ${step(1,'HIS 查好日期，按右下角「轉檔」',`<p>打開 HIS 手術查詢，選好日期（可以一次查好幾天、甚至未來全部），出現「瀏覽」清單後，按右下角的<b class="thl">「轉檔」</b>。</p>`,`<div class="tshot">${hisSvg('0 0 800 300','his-full')}${hisSvg('372 140 428 160','his-zoom')}</div><p class="note">示意圖，資料是假的。</p>`)}
  ${step(2,'在轉檔出來的表格全選、複製',`<p>按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 全選，再按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 複製。選到標題列也沒關係。</p>`,'')}
  ${step(3,'按「📥 匯入刀表」，在框裡按 Ctrl+V',`<p>醫院電腦請用 <b>Google 版調度板</b>（請存成書籤），上方就有「📥 匯入刀表」：</p><p class="turl"><a href="${esc(bd)}" target="_top">${esc(bd)}</a></p><p>一般版（github.io）也一樣，上方就有「📥 匯入刀表」。</p><p>點框、按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 就會自動匯入，看到<b class="thl">「✓ 匯入完成」</b>就好了。<b>急診刀也會一起匯入</b>，不用另外手動加。病歷號、姓名只在這台電腦解析時用，不會存進同步資料。</p>`,shot('imp','匯入刀表視窗：貼上後顯示匯入完成',false))}
- <p class="ok-box">匯入後大家打開調度板就會看到新刀表：已排好的順序不變、只更新術式、新刀排最後、刀表上刪除的刀會移除；重複匯入不會重複出現。</p></div>`},
+ <p class="ok-box">匯入後大家打開調度板就會看到新刀表：已排好的順序不變、只更新術式、新刀排最後、刀表上標「刪除」的刀才會移除（沒貼到的刀會保留）；重複匯入不會重複出現。</p></div>`},
  view:{nav:'看刀表',html:(k)=>`<div class="card" id="t-view"><h2>${k} 看刀表 <small>${PC?'電腦、手機都可以':'手機、電腦都可以'}</small></h2>
  ${step(1,'先看「📥 刀表最後更新」',`<p>在「今日排程」上方，寫著最後一次匯入的時間和是誰匯入的。時間太舊就請在醫院的人匯入一次。</p><p>時間軸的顏色＝主治醫師；可以切換「手機清單／直式／橫式」。${PC?'':'</p><p>手機用瀏覽器打開後，「分享／⋮」→「加入主畫面」，就像 App 一樣。'}</p>`,shot('b1','刀房調度板首頁，顯示刀表最後更新',true))}</div>`},
  edit:{nav:'排刀',html:(k)=>`<div class="card" id="t-edit"><h2>${k} 排刀 <small>不用登入，大家都可以排</small></h2>
@@ -1210,7 +1214,7 @@ function helpView(){const bd=(SYNC_URL||'')+'?page=board',PC=!isMob();
  ${order.map((k,i)=>S[k].html(K[i])).join('\n')}
  <div class="card" id="t-faq"><h2>常見問題</h2><dl class="tfaq">
  <dt>醫院電腦打不開調度板</dt><dd>醫院網路擋了 github.io。請用 Google 版調度板（網址在「匯入刀表」），所有功能都一樣。</dd>
- <dt>重新匯入會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；刪除的刀會移除。急診刀也不會重複。</dd>
+ <dt>重新匯入會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；只有刀表上標「刪除」的才移除，沒貼到的刀會保留。急診刀也不會重複。</dd>
  <dt>一次匯入很多天可以嗎？</dt><dd>可以，未來幾百台一次匯入也行。匯入後等標題列顯示「已同步 Google 試算表」再關網頁。</dd>
  <dt>會傳出病人資料嗎？</dt><dd>不會。病歷號、姓名只在這台電腦解析時用；只有勾選時，原始刀表照舊送到黃部長的癌症討論會追蹤表。</dd>
  <dt>有問題或建議</dt><dd>寫在<a href="${fbUrl()}" target="_blank" rel="noopener">💬 意見回饋</a>。</dd></dl></div>
@@ -1363,7 +1367,7 @@ function impModal(){const m=document.createElement('div');m.className='imodal im
  m.addEventListener('click',async e=>{if(e.target===m||e.target.closest('[data-impclose]')){m.remove();return}
   if(e.target.closest('[data-impgo]')){const txt=m.querySelector('#impT').value;if(!txt.trim())return;const cb=m.querySelector('#impC');if(cb){cfg.set.cancerAuto=cb.checked;saveCfg()}
    const R=importAll(txt);const res=m.querySelector('#impR');if(R.dates.length){lastImp={ts:Date.now(),src:LOCAL?'院內電腦':'調度板'};if(gsOn())gsSet('meta/import',lastImp).catch(()=>{})}
-   const dl=R.dates.map(d=>{const st=R.stats[d]||{};return `<li><b>${+d.slice(5,7)}/${+d.slice(8)}（${DOW[dowOf(d)]}）</b> ${st.fresh?`新匯入 ${st.n} 台`:`更新 ${st.n} 台（保留順序 ${st.kept}${st.changed?`，術式變更 ${st.changed}`:''}${st.added?`，新增 ${st.added}`:''}${st.removed?`，移除 ${st.removed}`:''}）`}</li>`}).join('');
+   const dl=R.dates.map(d=>{const st=R.stats[d]||{};return `<li><b>${+d.slice(5,7)}/${+d.slice(8)}（${DOW[dowOf(d)]}）</b> ${st.fresh?`新匯入 ${st.n} 台`:`更新 ${st.n} 台（保留順序 ${st.kept}${st.changed?`，術式變更 ${st.changed}`:''}${st.added?`，新增 ${st.added}`:''}${st.removed?`，移除標刪除的 ${st.removed}`:''}${st.keptOld?`，這次沒有的 ${st.keptOld} 台照原樣保留`:''}）`}</li>`}).join('');
    res.innerHTML=R.dates.length||R.emg?`<div class="ok-box"><b>✓ 匯入完成</b><ul style="margin:4px 0;padding-left:20px">${dl}${R.emg?`<li>急診刀 ${R.emg} 筆 → 急診刀分頁${R.ne?`（新增 ${R.ne} 台）`:'（都已存在）'}</li>`:''}<li>術前準備、機器調度已依新刀表更新</li>${R.sendC?'<li id="impCan">癌症討論會表：送出中…</li>':''}</ul>${R.del?`<span class="inote">略過 ${R.del} 筆已刪除的刀</span>`:''}</div>`:'<p style="color:var(--red)">讀不到刀單，請確認是 HIS 手術工作表整頁複製。</p>';
    m.querySelector('#impT').value='';
    if(R.dates.length&&!R.dates.includes(day.date)){await loadDay(R.dates[0])}try{await loadUp()}catch(x){}render();
