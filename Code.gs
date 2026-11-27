@@ -277,29 +277,50 @@ window.__clean=clean;})();
 // ===== Google 網址版調度板（?page=board）：醫院電腦擋 github.io 時用。內容就是 index.html，
 //       但和 GitHub Pages 版一樣只走公開的 HTTP 資料管道（不用 google.script.run，不多開伺服器函式）；
 //       auth.js 由這裡內嵌（Google 登入按鈕在這裡不能用，要登入請用科務入口「👤 我的帳號」產生的登入碼）。調度板本身不用登入。
-// 調度板內容直接抓 GitHub main 的 index.html（快取 10 分鐘，分段存），不依賴專案裡的 index 檔（曾發生專案裡的 index 停在舊版）；抓不到才用專案裡的
-function indexHtml_(){const C=CacheService.getScriptCache();try{const n=+C.get('idx:n')||0;if(n){const ks=[];for(let i=0;i<n;i++)ks.push('idx:'+i);const g=C.getAll(ks);let s='';for(const k of ks){if(g[k]==null){s='';break}s+=g[k]}if(s)return s}}catch(e){}
-  try{const r=UrlFetchApp.fetch(GH_RAW+'index.html?t='+Date.now(),{muteHttpExceptions:true});if(r.getResponseCode()===200){const s=r.getContentText('UTF-8');if(s.indexOf('泌尿科刀房調度板')>0){try{const SZ=25000,o={};let k=0;for(let i=0;i<s.length;i+=SZ)o['idx:'+(k++)]=s.slice(i,i+SZ);o['idx:n']=String(k);C.putAll(o,600)}catch(e){}return s}}}catch(e){}
-  return HtmlService.createHtmlOutputFromFile('index').getContent()}
-function boardPage_(){let html=indexHtml_(),auth='';
-  try{const C=CacheService.getScriptCache();auth=C.get('authjs')||'';if(!auth){const r=UrlFetchApp.fetch(GH_RAW+'auth.js',{muteHttpExceptions:true});if(r.getResponseCode()===200){auth=r.getContentText();if(auth.length<95000)C.put('authjs',auth,3600)}}}catch(e){}
+// ===== Google 網址版網頁（?page=board／hub／calendar／meeting／handoff）：醫院擋 github.io 時用，和 GitHub Pages 版同步 =====
+// 每次從 GitHub main 抓最新的 HTML（快取 10 分鐘、分段存），所以兩個版本永遠一樣；抓不到時調度板才用專案裡的 index 檔。
+// 網頁和 GitHub Pages 版一樣只走公開的 HTTP 資料管道（OR_HOST='gas' 時不用 google.script.run，不多開伺服器函式）。
+const GAS_PAGES={board:['index.html','泌尿科刀房調度板'],hub:['hub.html','泌尿科 科務入口'],calendar:['calendar.html','泌尿科 行事曆'],meeting:['meeting.html','泌尿科 晨會'],handoff:['handoff.html','黃部長交班']};
+const GH_CDN='https://cdn.jsdelivr.net/gh/ttimcom-hue/Uro-OR@main/';
+function ghFile_(path,sig){const C=CacheService.getScriptCache(),P='gh:'+path+':';
+  try{const n=+C.get(P+'n')||0;if(n){const ks=[];for(let i=0;i<n;i++)ks.push(P+i);const g=C.getAll(ks);let s='';for(const k of ks){if(g[k]==null){s='';break}s+=g[k]}if(s)return s}}catch(e){}
+  try{const r=UrlFetchApp.fetch(GH_RAW+path+'?t='+Date.now(),{muteHttpExceptions:true});if(r.getResponseCode()===200){const s=r.getContentText('UTF-8');if(!sig||s.indexOf(sig)>=0){try{const SZ=25000,o={};let k=0;for(let i=0;i<s.length;i+=SZ)o[P+(k++)]=s.slice(i,i+SZ);o[P+'n']=String(k);C.putAll(o,600)}catch(e){}return s}}}catch(e){}
+  return ''}
+function indexHtml_(){return ghFile_('index.html','泌尿科刀房調度板')||HtmlService.createHtmlOutputFromFile('index').getContent()}
+function boardPage_(){return gasPage_('board',{})}
+function gasPage_(name,p){const def=GAS_PAGES[name],exec=ScriptApp.getService().getUrl();
+  let html=name==='board'?indexHtml_():ghFile_(def[0],'<html');
+  if(!html)return HtmlService.createHtmlOutput('<p style="font:16px sans-serif;padding:16px">暫時抓不到這一頁，請稍後再重新整理。</p>');
+  const auth=ghFile_('auth.js','AUTH');
   html=html.replace(/<script src="auth\.js[^"]*"><\/script>/,auth?'<script>'+auth.replace(/<\/script/gi,'<\\/script')+'</script>':'');
-  html=html.replace('<head>','<head><script>window.OR_HOST="gas";window.OR_EXEC='+JSON.stringify(ScriptApp.getService().getUrl())+';</script>');
-  // HtmlService 送出前會刪 JS 註解，但它看不懂 `樣板字串`，曾把字串裡的 accept="image/*" 當成註解開頭、刪掉一大段程式（Unexpected identifier '辨識第'）。
-  // 所以整頁用 base64 包起來，在瀏覽器解開後原封不動 document.write，HtmlService 碰不到裡面的程式。
+  // 網址參數與 # 傳進 iframe（Google 只把 ?參數 交給伺服器，# 由連結改寫成 h=）
+  const q=Object.keys(p||{}).filter(k=>k!=='page'&&k!=='h').map(k=>encodeURIComponent(k)+'='+encodeURIComponent(p[k])).join('&');
+  const head='<script>window.OR_HOST="gas";window.OR_PAGE='+JSON.stringify(name)+';window.OR_EXEC='+JSON.stringify(exec)+';'
+   +'(function(){var q='+JSON.stringify(q)+',h='+JSON.stringify(String((p&&p.h)||''))+';try{if(q||h)history.replaceState(null,"",location.pathname+(q?"?"+q:"")+(h?"#"+h:""))}catch(e){}'
+   // 站內連結（index.html、hub.html…、./）點下去改成對應的 Google 網址；相對路徑的圖片改從 jsDelivr 載入
+   +'var M={"":"board","index.html":"board","hub.html":"hub","calendar.html":"calendar","meeting.html":"meeting","handoff.html":"handoff"};'
+   +'document.addEventListener("click",function(ev){var a=ev.target&&ev.target.closest&&ev.target.closest("a[href]");if(!a)return;var s=a.getAttribute("href")||"";if(/^(https?:|mailto:|tel:|javascript:|data:|blob:|#)/i.test(s))return;'
+   +'var m=s.match(/^(?:\\.\\/)?([A-Za-z]*\\.html)?(\\?[^#]*)?(#.*)?$/);if(!m)return;var pg=M[(m[1]||"").toLowerCase()];if(!pg)return;'
+   +'var u=window.OR_EXEC+"?page="+pg+(m[2]&&m[2].length>1?"&"+m[2].slice(1):"")+(m[3]&&m[3].length>1?"&h="+encodeURIComponent(m[3].slice(1)):"");a.setAttribute("href",u);a.setAttribute("target","_top")},true);'
+   +'var fix=function(r){var L=(r||document).querySelectorAll?(r||document).querySelectorAll("img[src]"):[];for(var i=0;i<L.length;i++){var s=L[i].getAttribute("src")||"";if(s&&!/^(https?:|data:|blob:|\\/\\/)/i.test(s))L[i].setAttribute("src",'+JSON.stringify(GH_CDN)+'+s.replace(/^\\.\\//,""))}};'
+   +'document.addEventListener("DOMContentLoaded",function(){fix();try{new MutationObserver(function(){fix()}).observe(document.body,{childList:true,subtree:true})}catch(e){}})})();</script>';
+  html=html.replace('<head>','<head>'+head);
+  // HtmlService 送出前會刪 JS 註解，但它看不懂 `樣板字串`（曾把字串裡的 image/* 當成註解開頭、刪掉一大段程式）。
+  // 所以整頁用 base64 包起來，在瀏覽器解開後原封不動 document.write；寫入後把「載入中…」拿掉（Google 的 iframe 裡 document.open 常被忽略）。
   const b64=Utilities.base64Encode(html,Utilities.Charset.UTF_8);
-  const shell='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><p id="ld" style="font:16px sans-serif;padding:16px">載入中…</p><script>(function(){var b="'+b64+'";try{var s=atob(b),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);var h=new TextDecoder("utf-8").decode(u);document.open();document.write(h);document.close()}catch(e){document.getElementById("ld").textContent="載入失敗："+e}})();</script></body></html>';
-  return HtmlService.createHtmlOutput(shell).setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
+  const shell='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><p id="ld" style="font:16px sans-serif;padding:16px">載入中…</p><script>(function(){var b="'+b64+'";try{var s=atob(b),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);var h=new TextDecoder("utf-8").decode(u);document.open();document.write(h);document.close();var l=document.getElementById("ld");if(l&&l.parentNode)l.parentNode.removeChild(l)}catch(e){document.getElementById("ld").textContent="載入失敗："+e}})();</script></body></html>';
+  return HtmlService.createHtmlOutput(shell).setTitle(def[1]).addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
 function menuPage_(){const u=ScriptApp.getService().getUrl(),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const b=(href,t,d)=>'<a target="_top" href="'+esc(href)+'"><b>'+t+'</b><span>'+d+'</span></a>';
   return HtmlService.createHtmlOutput('<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font:16px/1.6 "Microsoft JhengHei","Noto Sans TC",sans-serif;background:#f3f6f6;color:#0f262b;margin:0}.w{max-width:560px;margin:0 auto;padding:22px 18px}h1{font-size:24px;margin:0 0 14px}a{display:block;background:#fff;border:1px solid #d5e3e5;border-radius:14px;padding:14px 16px;margin-bottom:10px;text-decoration:none;color:inherit}a b{display:block;font-size:19px;color:#0b5563}a span{color:#587076;font-size:14.5px}</style></head><body><div class="w"><h1>泌尿科刀房調度板</h1>'
     +b(u+'?page=board','🗓️ 刀房調度板（Google 版）','醫院電腦用這個。看刀表、匯入刀表、排刀、急診刀都在這裡，跟一般版一樣。')
+    +b(u+'?page=hub','🏠 科務入口','人員名冊、常用連結、交班、癌症討論會。')+b(u+'?page=calendar','📆 行事曆','')+b(u+'?page=meeting','🕣 晨會','')
     +b(u+'?page=upload','📥 只上傳刀表（舊方式）','HIS 刀表複製後貼上，自動上傳；調度板打開時套用。')
     +b(PAGES_URL,'🌐 刀房調度板（一般版）','手機、個人電腦用這個：'+PAGES_URL)
     +'</div></body></html>').setTitle('泌尿科刀房調度板').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
 function doGet(e){const p=(e&&e.parameter)||{};
   if(p.page==='upload')return uploadPage_();
-  if(p.page==='board')return boardPage_();
+  if(GAS_PAGES[p.page])return gasPage_(p.page,p);
   const tk=()=>TOKEN&&p.token!==TOKEN,run=f=>{try{return out({ok:true,value:f()})}catch(x){return out({ok:false,err:String(x&&x.message||x)})}},deny=()=>out({ok:false,err:'auth'});
   if(p.action||p.key||p.keys){if(tk())return out({ok:false,err:'token'})}
   if(p.action==='authcfg')return out({ok:true,value:{on:authOn(),client:GOOGLE_CLIENT_ID}});
