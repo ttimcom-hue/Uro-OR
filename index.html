@@ -995,10 +995,8 @@ function mergeCases(target,list,dels){dels=dels||[];const old=target.cases.slice
  const mx={};for(const o of old)mx[o.room]=Math.max(mx[o.room]||0,o.order||0);
  for(const nc of L0){const o=match.get(nc);if(o){const m={...o,procs:nc.procs,spec:nc.spec,hk:nc.hk||o.hk,hisRoom:o.hisRoom||nc.hisRoom,pt:nc.pt||o.pt,er:nc.er||o.er,erK:nc.erK||o.erK};if(pk(o)!==pk(nc)){changed++;m.md=null}kept++;out.push(m)}
   else{const had=old.some(x=>x.room===nc.room&&!x.eve);nc.order=(mx[nc.room]=(mx[nc.room]||0)+1);/* 新增的刀：08:30 首台排第一、門診刀插到它的時間，TF 才排最後 */if(had){if(nc.fixed&&!nc.eve)nc.order=0;else if(nc.clock&&nc.time&&!nc.eve)nc._ins=1;else{nc.fixed=false;nc.wait=false}}out.push(nc);added++}}
- /* 這次刀表沒有的刀：只有刀表上明確標刪除的才移除，其他照原樣保留（例如只貼了部分房間、或 HIS 還沒列出來） */
- const pn=x=>String(x||'').replace(/\(.*?\)|（.*?）/g,'').trim().toLowerCase();
- const isDel=o=>dels.some(x=>x.surgeon===o.surgeon&&((x.pt&&o.pt&&x.pt===o.pt)||(x.proc&&o.procs.some(p=>pn(p)===pn(x.proc)))));
- let removed=0,keptOld=0;for(const o of old){if(used.has(o))continue;if(isDel(o)){removed++;continue}out.push(o);keptOld++}
+ /* 規定匯入時一定要整頁全選：這幾天的刀表上沒有的刀＝改期或刪除，移除（改期的刀 HIS 不會標刪除，只是不在當天名單上） */
+ let removed=0;const keptOld=0;for(const o of old)if(!used.has(o))removed++;
  for(const nc of out.filter(c=>c._ins)){delete nc._ins;try{const rr=timeline({...target,cases:out.filter(c=>c!==nc)}).rooms.find(r=>r.id===nc.room);const x=rr&&rr.cases.find(y=>!y.c.fixed&&y.s>=T(nc.time));nc.order=x?x.c.order-0.5:Math.max(0,...out.filter(c=>c.room===nc.room&&c!==nc).map(c=>c.order||0))+1}catch(e){}}
  target.cases=out;for(const room of new Set(out.map(c=>c.room)))out.filter(c=>c.room===room&&!c.eve).sort((a,b)=>a.order-b.order).forEach((c,j)=>c.order=j+1);
  return{n:out.length,kept,added,changed,removed,keptOld}}
@@ -1080,7 +1078,7 @@ function act(k,b){const id=b.dataset.id,i=+b.dataset.i;
  else if(k==='applyAll'){const tl=timeline(day);planMoves(day,tl).moves.forEach(m=>moveTo(m.c,m.to))}
  else if(k==='sortRoom'){sortRoom(b.dataset.room)}
  else if(k==='optimize'){timeline(day).rooms.forEach(r=>sortRoom(r.id))}
- else if(k==='pasteGo'){mergeMsg=null;impStats={};pasteText=$('#paste').value;lastRaw=pasteText;if(cfg.set.cancerAuto!==false&&gsOn()&&/手術工作表|病歷號/.test(pasteText))setTimeout(()=>cancerSend(lastRaw),50);const rows0=parseText(pasteText,day.date);const okT=r=>{const mm=String(r.time||'').match(/^\d{1,2}:(\d{2})$/);return !r.del&&!(mm&&+mm[1]%10)};const emg=rows0.filter(r=>okT(r)&&r.surgeon&&r.name&&isEmgRow(r));const ne=emg.length?erAddRows(emg,true):0;if(emg.length){saveER()}const by=rowsToCases(rows0.filter(r=>!isEmgRow(r)||emgOnBoard(r)));if(Object.keys(by).length||emg.length)pasteText='';const n=addCases(by);busy=n||ne?`${n?(mergeMsg?`已更新 ${n} 台（保留原順序 ${mergeMsg.kept} 台${mergeMsg.changed?`，其中 ${mergeMsg.changed} 台術式有變更`:''}${mergeMsg.added?`，新增 ${mergeMsg.added} 台排在各房最後`:''}${mergeMsg.removed?`，移除 ${mergeMsg.removed} 台刀表標刪除的刀`:''}${mergeMsg.keptOld?`，${mergeMsg.keptOld} 台這次刀表沒有、照原樣保留`:''}）`:`已加入 ${n} 台`):''}${lastDel?`（略過 ${lastDel} 筆已刪除）`:''}${emg.length?`${n?'；':''}急診刀 ${emg.length} 筆已自動移到「急診刀」分頁${ne?`（新增 ${ne} 台）`:'（都已存在）'}`:''}`:'無法解析，請確認格式（每列：日期 時 主治 位置 術式）';if(n&&!by[day.date]){loadDay(Object.keys(by)[0]).then(render);return}}
+ else if(k==='pasteGo'){mergeMsg=null;impStats={};pasteText=$('#paste').value;lastRaw=pasteText;if(cfg.set.cancerAuto!==false&&gsOn()&&/手術工作表|病歷號/.test(pasteText))setTimeout(()=>cancerSend(lastRaw),50);const rows0=parseText(pasteText,day.date);const okT=r=>{const mm=String(r.time||'').match(/^\d{1,2}:(\d{2})$/);return !r.del&&!(mm&&+mm[1]%10)};const emg=rows0.filter(r=>okT(r)&&r.surgeon&&r.name&&isEmgRow(r));const ne=emg.length?erAddRows(emg,true):0;if(emg.length){saveER()}const by=rowsToCases(rows0.filter(r=>!isEmgRow(r)||emgOnBoard(r)));if(Object.keys(by).length||emg.length)pasteText='';const n=addCases(by);busy=n||ne?`${n?(mergeMsg?`已更新 ${n} 台（保留原順序 ${mergeMsg.kept} 台${mergeMsg.changed?`，其中 ${mergeMsg.changed} 台術式有變更`:''}${mergeMsg.added?`，新增 ${mergeMsg.added} 台排在各房最後`:''}${mergeMsg.removed?`，移除 ${mergeMsg.removed} 台刀表上沒有的刀（改期或刪除）`:''}）`:`已加入 ${n} 台`):''}${lastDel?`（略過 ${lastDel} 筆已刪除）`:''}${emg.length?`${n?'；':''}急診刀 ${emg.length} 筆已自動移到「急診刀」分頁${ne?`（新增 ${ne} 台）`:'（都已存在）'}`:''}`:'無法解析，請確認格式（每列：日期 時 主治 位置 術式）';if(n&&!by[day.date]){loadDay(Object.keys(by)[0]).then(render);return}}
  else if(k==='addCase'){const proc=$('#mProc').value.trim();if(!proc)return;const room=$('#mRoom').value;const c={id:nid(),date:day.date,room,surgeon:$('#mSur').value.trim()||'未定',procs:[proc],spec:[],md:$('#mMin').value?+$('#mMin').value:null,order:Math.max(0,...day.cases.filter(x=>x.room===room).map(x=>x.order))+1};day.cases.push(c)}
  else{ // config actions
   if(k==='addRes'||k==='delRes')rosterPushSoon(k==='delRes'?cfg.res[i]?.id:null);if(k==='addRes')cfg.res.push({id:'r'+Date.now().toString(36),n:'新成員',lv:'R1',on:true,ab:mkAb([1,1,1,0,0,0,0,1,1,1,0])});
@@ -1199,9 +1197,9 @@ function helpView(){const bd=(SYNC_URL||'')+'?page=board',PC=!isMob();
  const S={
  up:{nav:'匯入刀表',html:(k)=>`<div class="card" id="t-up"><h2>${k} 匯入刀表 <small>${PC?'在醫院電腦做，約 10 秒':'在醫院電腦做；手機通常不用匯入'}</small></h2>
  ${step(1,'HIS 查好日期，按右下角「轉檔」',`<p>打開 HIS 手術查詢，選好日期（可以一次查好幾天、甚至未來全部），出現「瀏覽」清單後，按右下角的<b class="thl">「轉檔」</b>。</p>`,`<div class="tshot">${hisSvg('0 0 800 300','his-full')}${hisSvg('372 140 428 160','his-zoom')}</div><p class="note">示意圖，資料是假的。</p>`)}
- ${step(2,'在轉檔出來的表格全選、複製',`<p>按 <kbd>Ctrl</kbd>+<kbd>A</kbd> 全選，再按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 複製。選到標題列也沒關係。</p>`,'')}
+ ${step(2,'在轉檔出來的表格全選、複製',`<p>按 <kbd>Ctrl</kbd>+<kbd>A</kbd> <b>一定要整頁全選</b>，再按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 複製。選到標題列也沒關係。</p><p class="note" style="color:var(--red)">只選一部分會出錯：那幾天刀表上沒有的刀會被當成改期而移除。</p>`,'')}
  ${step(3,'按「📥 匯入刀表」，在框裡按 Ctrl+V',`<p>醫院電腦請用 <b>Google 版調度板</b>（請存成書籤），上方就有「📥 匯入刀表」：</p><p class="turl"><a href="${esc(bd)}" target="_top">${esc(bd)}</a></p><p>一般版（github.io）也一樣，上方就有「📥 匯入刀表」。</p><p>點框、按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 就會自動匯入，看到<b class="thl">「✓ 匯入完成」</b>就好了。<b>急診刀也會一起匯入</b>，不用另外手動加。病歷號、姓名只在這台電腦解析時用，不會存進同步資料。</p>`,shot('imp','匯入刀表視窗：貼上後顯示匯入完成',false))}
- <p class="ok-box">匯入後大家打開調度板就會看到新刀表：已排好的順序不變、只更新術式、新刀排最後、刀表上標「刪除」的刀才會移除（沒貼到的刀會保留）；重複匯入不會重複出現。</p></div>`},
+ <p class="ok-box">匯入後大家打開調度板就會看到新刀表：已排好的順序不變、只更新術式、新刀排最後、那幾天刀表上沒有的刀（改期或刪除）會移除，所以一定要整頁全選；重複匯入不會重複出現。</p></div>`},
  view:{nav:'看刀表',html:(k)=>`<div class="card" id="t-view"><h2>${k} 看刀表 <small>${PC?'電腦、手機都可以':'手機、電腦都可以'}</small></h2>
  ${step(1,'先看「📥 刀表最後更新」',`<p>在「今日排程」上方，寫著最後一次匯入的時間和是誰匯入的。時間太舊就請在醫院的人匯入一次。</p><p>時間軸的顏色＝主治醫師；可以切換「手機清單／直式／橫式」。${PC?'':'</p><p>手機用瀏覽器打開後，「分享／⋮」→「加入主畫面」，就像 App 一樣。'}</p>`,shot('b1','刀房調度板首頁，顯示刀表最後更新',true))}</div>`},
  edit:{nav:'排刀',html:(k)=>`<div class="card" id="t-edit"><h2>${k} 排刀 <small>不用登入，大家都可以排</small></h2>
@@ -1217,7 +1215,7 @@ function helpView(){const bd=(SYNC_URL||'')+'?page=board',PC=!isMob();
  ${order.map((k,i)=>S[k].html(K[i])).join('\n')}
  <div class="card" id="t-faq"><h2>常見問題</h2><dl class="tfaq">
  <dt>醫院電腦打不開調度板</dt><dd>醫院網路擋了 github.io。請用 Google 版調度板（網址在「匯入刀表」），所有功能都一樣。</dd>
- <dt>重新匯入會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀排最後；只有刀表上標「刪除」的才移除，沒貼到的刀會保留。急診刀也不會重複。</dd>
+ <dt>重新匯入會打亂刀序嗎？</dt><dd>不會。已排好的順序、房間、備註都保留，只更新術式；新刀依時段插入；那幾天刀表上沒有的刀視為改期或刪除而移除（所以一定要整頁全選）。急診刀也不會重複。</dd>
  <dt>一次匯入很多天可以嗎？</dt><dd>可以，未來幾百台一次匯入也行。匯入後等標題列顯示「已同步 Google 試算表」再關網頁。</dd>
  <dt>會傳出病人資料嗎？</dt><dd>不會。病歷號、姓名只在這台電腦解析時用；只有勾選時，原始刀表照舊送到黃部長的癌症討論會追蹤表。</dd>
  <dt>有問題或建議</dt><dd>寫在<a href="${fbUrl()}" target="_blank" rel="noopener">💬 意見回饋</a>。</dd></dl></div>
@@ -1362,7 +1360,7 @@ function importAll(txt){mergeMsg=null;impStats={};const rows0=parseText(txt,day.
  return{n,ne,emg:emg.length,dates,stats:{...impStats},del:lastDel,sendC}}
 function impModal(){const m=document.createElement('div');m.className='imodal impm';const cOK=gsOn();
  m.innerHTML=`<div class="ibox" style="max-width:640px"><div class="ihead"><b style="font-size:18px">📥 匯入刀表（一次更新全部）</b></div>
- <ol class="inote" style="padding-left:20px;margin:4px 0 8px"><li>HIS 查好日期（可以一次查好幾天），按右下角「<b>轉檔</b>」</li><li>在轉檔出來的表格按 <b>Ctrl+A</b>、<b>Ctrl+C</b></li><li>點下面的框按 <b>Ctrl+V</b>，就會自動匯入</li></ol>
+ <ol class="inote" style="padding-left:20px;margin:4px 0 8px"><li>HIS 查好日期（可以一次查好幾天），按右下角「<b>轉檔</b>」</li><li>在轉檔出來的表格按 <b>Ctrl+A 整頁全選</b>（一定要全選，刀表上沒有的刀會當成改期移除）、<b>Ctrl+C</b></li><li>點下面的框按 <b>Ctrl+V</b>，就會自動匯入</li></ol>
  <div class="row" style="margin-bottom:6px"><button class="ibtn p" data-impclip="1">📋 從剪貼簿匯入（先在 HIS 複製好）</button><span class="inote" id="impClipMsg"></span></div><textarea id="impT" rows="7" style="width:100%" placeholder="點這裡按 Ctrl+V 貼上 HIS 刀表，就會自動匯入"></textarea>
  <div class="inote" style="margin:6px 0">會一起更新：<b>各天刀房排程</b>（保留已排好的順序）、<b>急診刀</b>自動分到急診刀分頁、<b>術前準備</b>、<b>機器調度</b>${cOK?`、<label><input type="checkbox" id="impC" ${cfg.set.cancerAuto!==false?'checked':''}> <b>黃部長癌症討論會表</b></label>`:''}</div>
  <div class="row"><button class="ibtn p" data-impgo="1">匯入</button><button class="ibtn" data-impclose="1">關閉</button></div><div id="impR" style="margin-top:8px"></div></div>`;
@@ -1370,7 +1368,7 @@ function impModal(){const m=document.createElement('div');m.className='imodal im
  m.addEventListener('click',async e=>{if(e.target===m||e.target.closest('[data-impclose]')){m.remove();return}
   if(e.target.closest('[data-impgo]')){const txt=m.querySelector('#impT').value;if(!txt.trim())return;const cb=m.querySelector('#impC');if(cb){cfg.set.cancerAuto=cb.checked;saveCfg()}
    const R=importAll(txt);const res=m.querySelector('#impR');if(R.dates.length){lastImp={ts:Date.now(),src:LOCAL?'院內電腦':'調度板'};if(gsOn())gsSet('meta/import',lastImp).catch(()=>{})}
-   const dl=R.dates.map(d=>{const st=R.stats[d]||{};return `<li><b>${+d.slice(5,7)}/${+d.slice(8)}（${DOW[dowOf(d)]}）</b> ${st.fresh?`新匯入 ${st.n} 台`:`更新 ${st.n} 台（保留順序 ${st.kept}${st.changed?`，術式變更 ${st.changed}`:''}${st.added?`，新增 ${st.added}`:''}${st.removed?`，移除標刪除的 ${st.removed}`:''}${st.keptOld?`，這次沒有的 ${st.keptOld} 台照原樣保留`:''}）`}</li>`}).join('');
+   const dl=R.dates.map(d=>{const st=R.stats[d]||{};return `<li><b>${+d.slice(5,7)}/${+d.slice(8)}（${DOW[dowOf(d)]}）</b> ${st.fresh?`新匯入 ${st.n} 台`:`更新 ${st.n} 台（保留順序 ${st.kept}${st.changed?`，術式變更 ${st.changed}`:''}${st.added?`，新增 ${st.added}`:''}${st.removed?`，移除 ${st.removed} 台（刀表上沒有＝改期或刪除）`:''}）`}</li>`}).join('');
    res.innerHTML=R.dates.length||R.emg?`<div class="ok-box"><b>✓ 匯入完成</b><ul style="margin:4px 0;padding-left:20px">${dl}${R.emg?`<li>急診刀 ${R.emg} 筆 → 急診刀分頁${R.ne?`（新增 ${R.ne} 台）`:'（都已存在）'}</li>`:''}<li>術前準備、機器調度已依新刀表更新</li>${R.sendC?'<li id="impCan">癌症討論會表：送出中…</li>':''}</ul>${R.del?`<span class="inote">略過 ${R.del} 筆已刪除的刀</span>`:''}</div>`:'<p style="color:var(--red)">讀不到刀單，請確認是 HIS 手術工作表整頁複製。</p>';
    m.querySelector('#impT').value='';
    if(R.dates.length&&!R.dates.includes(day.date)){await loadDay(R.dates[0])}try{await loadUp()}catch(x){}render();
