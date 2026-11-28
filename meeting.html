@@ -2,6 +2,17 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<script>/* 安裝版（加到主畫面）重新打開時回到「這個 App 的網站」：例如在刀房調度板 App 裡點到科務入口，退出重進會回到調度板；退出時本來就在調度板就不動。
+  App 從主畫面圖示打開時網址帶 ?source=pwa（manifest 的 start_url）→ 記下這個 App 的網站（or:pwaHome）。
+  之後若是「新的一次開啟」（sessionStorage 是空的，iOS 會直接開回上次的頁面）或離開超過 10 分鐘再回來，而目前不在那個網站，就轉回去。
+  同一次使用中點來點去不受影響；行事曆（calendar.html）算科務入口的一部分。所有網站的 <head> 都有這一段，要一起改。 */
+(function(){try{var st=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;if(!st||window.OR_HOST==='gas'||location.protocol==='file:')return;
+var site=function(p){return p.replace(/(index|calendar)\.html$/,function(m,a){return a==='calendar'?'hub.html':''})},here=site(location.pathname),L=localStorage,S=sessionStorage,K='or:pwaHome',go=function(h){location.replace(h+'?source=pwa')};
+if(/[?&]source=pwa(&|$)/.test(location.search))L.setItem(K,here);
+else if(!S.getItem('or:pwaSess')){var h=L.getItem(K);if(h&&h!==here){S.setItem('or:pwaSess','1');go(h);return}}
+S.setItem('or:pwaSess','1');
+var hid=0;document.addEventListener('visibilitychange',function(){if(document.hidden){hid=Date.now();return}var h=L.getItem(K);if(hid&&Date.now()-hid>6e5&&h&&h!==site(location.pathname))go(h);hid=0});
+}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="晨會"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="meeting.webmanifest"><link rel="apple-touch-icon" href="meeting-apple-touch-icon.png?v=2"><link rel="icon" type="image/png" href="meeting-favicon.png?v=2"><meta name="theme-color" content="#0b5563"><meta property="og:title" content="泌尿科 晨會"><meta property="og:description" content="重要公告與規定・重要會議日曆・未來晨會時程"><meta property="og:image" content="og-meeting.png?v=2"><meta property="og:type" content="website">
 <title>泌尿科 晨會</title>
