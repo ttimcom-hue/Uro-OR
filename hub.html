@@ -2,6 +2,17 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<script>/* 安裝版（加到主畫面）重新打開時回到「這個 App 的網站」：例如在刀房調度板 App 裡點到科務入口，退出重進會回到調度板；退出時本來就在調度板就不動。
+  App 從主畫面圖示打開時網址帶 ?source=pwa（manifest 的 start_url）→ 記下這個 App 的網站（or:pwaHome）。
+  之後若是「新的一次開啟」（sessionStorage 是空的，iOS 會直接開回上次的頁面）或離開超過 10 分鐘再回來，而目前不在那個網站，就轉回去。
+  同一次使用中點來點去不受影響；行事曆（calendar.html）算科務入口的一部分。所有網站的 <head> 都有這一段，要一起改。 */
+(function(){try{var st=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;if(!st||window.OR_HOST==='gas'||location.protocol==='file:')return;
+var site=function(p){return p.replace(/(index|calendar)\.html$/,function(m,a){return a==='calendar'?'hub.html':''})},here=site(location.pathname),L=localStorage,S=sessionStorage,K='or:pwaHome',go=function(h){location.replace(h+'?source=pwa')};
+if(/[?&]source=pwa(&|$)/.test(location.search))L.setItem(K,here);
+else if(!S.getItem('or:pwaSess')){var h=L.getItem(K);if(h&&h!==here){S.setItem('or:pwaSess','1');go(h);return}}
+S.setItem('or:pwaSess','1');
+var hid=0;document.addEventListener('visibilitychange',function(){if(document.hidden){hid=Date.now();return}var h=L.getItem(K);if(hid&&Date.now()-hid>6e5&&h&&h!==site(location.pathname))go(h);hid=0});
+}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="泌尿科入口"><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="hub.webmanifest"><link rel="apple-touch-icon" href="hub-apple-touch-icon.png?v=2"><link rel="icon" type="image/png" href="hub-favicon.png?v=2"><meta name="theme-color" content="#2e346e"><meta property="og:title" content="泌尿科 科務入口"><meta property="og:description" content="今日總覽・人員名冊・交班・回饋"><meta property="og:image" content="og-hub.png?v=2"><meta property="og:type" content="website">
 <title>泌尿科 科務入口</title>
@@ -201,7 +212,8 @@ function ccKpi(){const c=S.cc;if(!c||c.err)return'';const d=ccDate(c),k=ccN(c);
    資料鍵 feedback/list {items:[{id,name,cat,text,at,st:'new'|'done',re}], ts}（與舊版調度板回饋同一份）。
    更新紀錄：每次合併到 main 時在 CHANGELOG 最前面加一筆（v 版本、d 日期、t 標題、s 影響的網站、i 摘要）。 */
 const CHANGELOG=[
- {v:'2.2',d:'2026-11-28',t:'行事曆與晨會、調度板、癌症討論會同步',s:['行事曆','晨會','科務入口'],i:['行事曆的單次活動會出現在晨會網站「重要會議」，勾「需要在晨會預報」會自動排預報；晨會網站的會議也能在行事曆直接編輯、刪除','晨會議程提到的會議也會出現在行事曆（待確認）；按「不顯示」兩邊一起隱藏','行事曆多了調度板的休假圖層、當天值班；癌症討論會改期會跟著移動並顯示排入人數','科務入口首頁新增「📆 接下來兩週」；同一台裝置上任一網站存檔，其他開著的分頁馬上更新']},
+ {v:'2.3',d:'2026-11-28',t:'行事曆與晨會、調度板、癌症討論會同步',s:['行事曆','晨會','科務入口'],i:['行事曆的單次活動會出現在晨會網站「重要會議」，勾「需要在晨會預報」會自動排預報；晨會網站的會議也能在行事曆直接編輯、刪除','晨會議程提到的會議也會出現在行事曆（待確認）；按「不顯示」兩邊一起隱藏','行事曆多了調度板的休假圖層、當天值班；癌症討論會改期會跟著移動並顯示排入人數','科務入口首頁新增「📆 接下來兩週」；同一台裝置上任一網站存檔，其他開著的分頁馬上更新']},
+ {v:'2.2',d:'2026-11-28',t:'主畫面 App 重新打開回到自己的網站',s:['刀房調度板','科務入口','晨會','交班','癌症討論會'],i:['從主畫面打開的 App（例如刀房調度板），在裡面點到其他網站後退出，重新打開會回到原本的 App；離開超過 10 分鐘再回來也一樣','退出時本來就在這個 App 的網站就不變；行事曆算科務入口的一部分']},
  {v:'2.1',d:'2026-11-27',t:'癌症討論會獨立網站、行事曆併入科務入口',s:['癌症討論會','科務入口','行事曆'],i:['癌症討論會改成獨立網站（可加到主畫面、有自己的圖示）：下次討論會、注意事項、達文西術前、統計、個案追蹤','行事曆不再是獨立網站，改成科務入口的「📆 行事曆」分頁（主畫面圖示請改用科務入口）']},
  {v:'2.0',d:'2026-11-26',t:'泌尿科交班獨立網站',s:['泌尿科交班','科務入口'],i:['交班改成獨立網站「泌尿科交班」，用黃部長交班單有共用的 Google 帳號登入（登入一次 30 天）','黃部長住院：交班單「目前住院中」整理成好讀的卡片，手機可以直接編輯、新增病人、按出院','其他主治：每位主治一張卡，最下面的空格直接填 Critical、手術病人等交班','出院病人集中到「出院」分頁；新增「特殊個案」收集有教學意義的病歷號']},
  {v:'1.9',d:'2026-11-25',t:'Google 帳號登入與個人設定',s:['刀房調度板','科務入口','晨會','行事曆'],i:['刀房調度板（看刀表、排刀模式、匯入／上傳刀表、急診刀）都不用登入','黃部長交班、癌症討論會只開放黃部長交班單有共用的 Google 帳號','新增「👤 我的帳號」：顯示名稱、我是誰（首頁顯示你今晚的值班、行事曆自動選好你）、外觀深淺色、入口預設分頁、調度板預設模式，換手機也一樣','iPhone 主畫面 App 跳不出 Google 登入時，可用 8 碼登入碼','Apps Script 網址不再提供網頁版調度板，請改用 GitHub Pages 網址']},
