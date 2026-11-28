@@ -3,7 +3,7 @@
 // setupCancerSheet 只會改「公式／格式」，不會動到使用者輸入的資料：
 //   - 個案追蹤：只重寫 G、H 兩欄公式與格式，A–F、I–Q 的資料不動
 //   - 其他公式分頁整頁重寫，但保留 下次討論會!B1（手動改的日期）、刀表候選!B2:B3（主刀、關鍵字）、
-//     說明!B1:B3（交班單網址、分頁名稱、自動加入開關）
+//     說明!B1:B5（交班單網址、分頁名稱、自動加入開關、討論會 Drive 資料夾、討論會照片資料夾）
 //   - 刀表匯入：只寫 A1 標題，A2 以下的原始刀表不動
 // cancerSync()：刀表新個案自動加入個案追蹤＋把注意事項寫進交班單（編輯追蹤表時、每小時、匯入刀表時執行）
 // CANCER_ID 定義在 Code.gs。交班單網址只存在試算表「說明」B1，不放在 repo（repo 是公開的）。
@@ -546,10 +546,11 @@ function csParse_(sh) {
 
 function csSettings_(ss) {
   const sh = ss.getSheetByName(CS.HELP);
-  const v = sh ? sh.getRange('B1:B4').getValues().map(r => r[0]) : [];
-  const dv = String(v[3] || '').trim();
+  const v = sh ? sh.getRange('B1:B5').getValues().map(r => r[0]) : [];
+  const fid = x => { x = String(x || '').trim(); return (x.match(/folders\/([\w-]{20,})/) || x.match(/^([\w-]{25,})$/) || [])[1] || ''; };
   return {
-    driveId: (dv.match(/folders\/([\w-]{20,})/) || dv.match(/^([\w-]{25,})$/) || [])[1] || '',
+    driveId: fid(v[3]),
+    photoId: fid(v[4]),
     docUrl: /docs\.google\.com\/document/.test(String(v[0] || '')) ? String(v[0]) : '',
     docTab: v[0] !== undefined && /docs\.google/.test(String(v[0] || '')) && v[1] ? String(v[1]) : CS_DOC_TAB,
     autoAdd: v[2] === false ? false : true,
@@ -558,23 +559,25 @@ function csSettings_(ss) {
 
 function csHelp_(sh, st) {
   csReset_(sh);
-  st = st || { docUrl: '', docTab: CS_DOC_TAB, autoAdd: true, driveId: '' };
-  sh.getRange('A1:B4').setValues([
+  st = st || { docUrl: '', docTab: CS_DOC_TAB, autoAdd: true, driveId: '', photoId: '' };
+  sh.getRange('A1:B5').setValues([
     ['交班單 Google 文件網址', st.docUrl],
     ['交班單裡的分頁名稱', st.docTab],
     ['刀表新個案自動加入追蹤', st.autoAdd],
     ['討論會 Drive 資料夾', st.driveId ? 'https://drive.google.com/drive/folders/' + st.driveId : ''],
+    ['討論會照片 Drive 資料夾', st.photoId ? 'https://drive.google.com/drive/folders/' + st.photoId : ''],
   ]);
   sh.getRange('B3').insertCheckboxes().setValue(st.autoAdd);
-  sh.getRange('A1:A4').setFontWeight('bold');
-  sh.getRange('B1:B4').setBackground('#FFF2CC');
+  sh.getRange('A1:A5').setFontWeight('bold');
+  sh.getRange('B1:B5').setBackground('#FFF2CC');
   sh.getRange('C4').setValue('每小時讀這個資料夾裡新的「給放射科」名單與「癌症討論會」紀錄單，更新個案追蹤與達文西術前（只補空白欄位）').setFontColor('#888888');
+  sh.getRange('C5').setValue('每小時用 Google 免費 OCR 讀這個資料夾（與 B4）裡新的照片／截圖（JPG、PNG）：議程表的病歷號、討論會日期、Plan、主治、報告醫師；手寫內容不讀。N 欄會註記「圖片辨識（請核對）」').setFontColor('#888888');
   sh.getRange('C1').setValue('「注意事項」會自動寫進這份文件的這個分頁（整個分頁會被覆蓋，請用專用分頁）').setFontColor('#888888');
   const rows = [
     ['項目', '內容'],
     ['平常只看三頁', '① 下次討論會：上面是已排入這次的人，下面是還沒討論、可以挑的個案（⚠ 是最晚這次就要討論）。\n② 注意事項：已討論、還沒開刀的人，討論結論與會後待辦，會自動同步到交班單。\n③ 個案追蹤：唯一要手動填的地方。其他分頁都是自動產生，已隱藏（左下「所有工作表」可打開）。'],
     ['達文西術前', '個案追蹤裡預定達文西／機器手臂手術、還沒開的病人會自動列進來（依手術日排序，開完的移到下面並變灰）。灰底 A–H 欄自動更新；白底欄位（PSA、切片、MRI、體積、ADT、過去手術、IIEF-5、備註）請手動補，第一次列入時會從診斷欄自動帶入能讀到的值。完成度只算 RARP。切片到手術不足 6 週會標紅。'],
-    ['從 Drive 自動更新', '每小時（或入口按「從 Drive 更新」）讀 B4 資料夾裡新增或修改過的 docx：「給放射科」名單（姓名、病歷號、計畫手術與日期、主治、報告醫師、Discussion）與「癌症討論會紀錄單」（PSA、切片、MRI、體積、bone scan、risk、預定手術）。新病人加入個案追蹤；已在表上的只補空白欄位、更新討論會日期與狀態（待討論→已排入／已討論-待手術），不覆蓋已填的內容。'],
+    ['從 Drive 自動更新', '每小時（或入口按「從 Drive 更新」）讀 B4 資料夾裡新增或修改過的 docx：「給放射科」名單（姓名、病歷號、計畫手術與日期、主治、報告醫師、Discussion）與「癌症討論會紀錄單」（PSA、切片、MRI、體積、bone scan、risk、預定手術）。新病人加入個案追蹤；已在表上的只補空白欄位、更新討論會日期與狀態（待討論→已排入／已討論-待手術），不覆蓋已填的內容。\nB5（與 B4）資料夾裡的照片或截圖（JPG、PNG）會用 Google 免費 OCR 轉文字：只讀印刷的議程表（姓名、病歷號、年齡、Plan、主治、報告醫師）與討論會日期，手寫的 Discussion 不讀；N 欄註記「圖片辨識（請核對）」，辨識可能有錯，請核對病歷號。'],
     ['統計', '依「個案追蹤」自動計算：已討論人數、場數、每月依癌別、依主治／報告醫師、討論後結果、手術前沒上討論會的個案。B2、D2 可設定期間。癌別依預定手術／診斷的關鍵字自動判斷。'],
     ['一個個案的流程', '刀表匯入後自動加入（狀態＝待討論）→ 排進討論會：填 F 討論會日期，狀態改「已排入」→ 討論完：填 K 討論結論、O 會後待辦（P 負責人、Q 期限），狀態改「已討論-待手術」→ 開完刀：狀態改「已開刀」、填 L 病理。不用討論的改「不需手術」。'],
     ['最晚討論日', '手術日前一個週四（自動計算）。'],
@@ -721,12 +724,12 @@ function cancerDriveScan() {
   try {
     const ss = SpreadsheetApp.openById(CANCER_ID);
     const st = csSettings_(ss);
-    if (!st.driveId) return '未設定討論會 Drive 資料夾（說明!B4）';
+    if (!st.driveId && !st.photoId) return '未設定討論會 Drive 資料夾（說明!B4／B5）';
     const props = PropertiesService.getScriptProperties();
     const seen = JSON.parse(props.getProperty('ccDriveSeen2') || '{}');
     const since = Utilities.formatDate(new Date(Date.now() - CS_DRIVE_DAYS * 864e5), 'UTC', "yyyy-MM-dd'T'HH:mm:ss");
     const files = [];
-    [`mimeType = '${CS_DOCX}' and (title contains '放射科' or title contains '癌症討論會' or title contains '紀錄')`,
+    if (st.driveId) [`mimeType = '${CS_DOCX}' and (title contains '放射科' or title contains '癌症討論會' or title contains '紀錄')`,
       `mimeType = 'application/pdf' and (title contains '討論會' or title contains 'GU' or title contains '紀錄')`].forEach(q => {
       const it = DriveApp.searchFiles(`modifiedDate > '${since}' and ` + q);
       while (it.hasNext()) {
@@ -735,16 +738,20 @@ function cancerDriveScan() {
         files.push(f);
       }
     });
+    const imgs = csImages_([st.driveId, st.photoId], since, seen);
+    files.push(...imgs.list);
     const pts = [];
     let bad = 0;
     files.forEach(f => {
       try {
-        if (f.getMimeType() === 'application/pdf') pts.push(...csParseRecordText_(csPdfText_(f), f));
+        const mt = f.getMimeType();
+        if (mt === 'application/pdf') pts.push(...csParseRecordText_(csPdfText_(f), f));
+        else if (/^image\//.test(mt)) { const t = csOcrText_(f); pts.push(...(/病歷號碼|Medical Record Number/i.test(t) ? csParseRecordText_(t, f) : csParseAgendaText_(t, f))); }
         else pts.push(...csParseMeeting_(csDocx_(f.getBlob()), f));
         seen[f.getId()] = f.getLastUpdated().getTime();   // 讀成功才記住，失敗的下次重試
       } catch (e) { bad++; console.log('讀不到 ' + f.getName(), e); }
     });
-    let msg = '讀了 ' + (files.length - bad) + ' 個新檔案' + (bad ? `（${bad} 個讀不到，下次重試）` : '');
+    let msg = '讀了 ' + (files.length - bad) + ' 個新檔案' + (bad ? `（${bad} 個讀不到，下次重試）` : '') + (imgs.left ? `（還有 ${imgs.left} 張圖片下次再讀）` : '');
     if (pts.length) {
       const r = csApplyMeeting_(ss, pts);
       SpreadsheetApp.flush();
@@ -951,15 +958,17 @@ function csDvFill_(ss, pts) {
 // ---------- PDF ----------
 // Apps Script 不能直接讀 PDF：用 Drive API 複製成 Google 文件（自動轉文字）→ 讀內文 → 立刻永久刪除暫存檔。
 // 需要 drive.file 權限（只能建立／刪除程式自己建的檔案）。
-function csPdfText_(f) {
-  // 上傳一份 PDF 並要求 Drive 轉成 Google 文件（新檔是程式建立的，drive.file 權限即可），讀完刪除
+function csPdfText_(f) { return csOcrText_(f); }
+// PDF 或圖片（JPG、PNG…）都用同一招：上傳一份並要求 Drive 轉成 Google 文件（Drive 內建免費 OCR），讀完刪除
+function csOcrText_(f) {
+  // 新檔是程式建立的，drive.file 權限即可
   const h = { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, b = 'cc' + Date.now();
   const meta = JSON.stringify({ name: '暫存-討論會轉文字（會自動刪除）', mimeType: 'application/vnd.google-apps.document' });
-  const body = Utilities.newBlob(`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: application/pdf\r\n\r\n`).getBytes()
+  const body = Utilities.newBlob(`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: ${f.getMimeType()}\r\n\r\n`).getBytes()
     .concat(f.getBlob().getBytes()).concat(Utilities.newBlob(`\r\n--${b}--`).getBytes());
   const r = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=zh-TW&fields=id', {
     method: 'post', contentType: 'multipart/related; boundary=' + b, payload: body, headers: h, muteHttpExceptions: true });
-  if (r.getResponseCode() >= 300) throw new Error('PDF 轉文字失敗 ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
+  if (r.getResponseCode() >= 300) throw new Error('OCR 轉文字失敗 ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
   const id = JSON.parse(r.getContentText()).id;
   try { return DocumentApp.openById(id).getBody().getText(); }
   finally { UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id, { method: 'delete', headers: h, muteHttpExceptions: true }); }
@@ -1015,4 +1024,67 @@ function csParseRecordText_(text, f) {
     out.push(p);
   });
   return out;
+}
+
+// ---------- 圖片（拍照／截圖的「給放射科」議程）----------
+// 讀 說明!B4、B5 資料夾（含 3 層子資料夾）裡近 CS_DRIVE_DAYS 天新增／修改的圖片。一次最多 CS_IMG_MAX 張（OCR 每張要幾秒），其餘下次讀。
+const CS_IMG_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'];
+const CS_IMG_MAX = 15;
+function csImages_(roots, since, seen) {
+  const ids = [], list = [], got = new Set();
+  const walk = (f, d) => { ids.push(f.getId()); if (d >= 3) return; const it = f.getFolders(); while (it.hasNext()) walk(it.next(), d + 1); };
+  roots.filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).forEach(id => { try { walk(DriveApp.getFolderById(id), 0); } catch (e) { console.log('讀不到資料夾 ' + id, e); } });
+  const mt = '(' + CS_IMG_TYPES.map(t => `mimeType = '${t}'`).join(' or ') + ')';
+  let left = 0;
+  ids.forEach(id => {
+    const it = DriveApp.searchFiles(`'${id}' in parents and trashed = false and modifiedDate > '${since}' and ${mt}`);
+    while (it.hasNext()) {
+      const f = it.next();
+      if (got.has(f.getId()) || seen[f.getId()] === f.getLastUpdated().getTime()) continue;
+      got.add(f.getId());
+      if (list.length < CS_IMG_MAX) list.push(f); else left++;
+    }
+  });
+  return { list, left };
+}
+
+// OCR 後的議程表文字：表格會被打散、順序不一定照列，所以只取「一位病人剛好出現一次」而且先後順序可靠的欄位：
+//   姓名＋病歷號（8 碼）＋年齡 y/o 性別 → 一位病人；討論會日期（2026-11-26 07:30AM）；
+//   「Plan: 日期 …」、主治（XX部長／主任）與報告醫師（XX醫師）依出現順序對應，數量對不上就不填（寧可空白也不要填錯人）。
+// 病史、影像、GS、分期可能被 OCR 排到別人那段，不讀；手寫的 Discussion 也不讀。
+// 測試：node cancer/ocr-test.js（用假資料 cancer/sample-ocr.txt）
+function csParseAgendaText_(text, f) {
+  const src = '圖片辨識（請核對）：' + f.getName().replace(/\.\w+$/, '');
+  const t = String(text || '').replace(/\r/g, '').replace(/[|「」『』*\\]/g, ' ');
+  const date = csMeetDate_(t, f);
+  const pts = [];
+  const re = /(?<!\d)(\d{8})\s{0,8}(\d{1,3})\s*y\s*[\/lI1]?\s*[o0]\s*([MF])\b/gi;
+  let m, prev = 0;
+  while ((m = re.exec(t))) {
+    const before = t.slice(Math.max(prev, m.index - 24), m.index).replace(/\s+$/, '');
+    // \u59d3\u540d\u7dca\u63a5\u5728\u75c5\u6b77\u865f\u524d\uff1b\u88ab OCR \u6253\u6563\u6642\uff0c\u5f80\u56de\u627e\u4e0a\u4e00\u4f4d\u4e4b\u5f8c\u300c\u55ae\u7368\u4e00\u884c 2\u20134 \u500b\u4e2d\u6587\u5b57\u300d\uff08\u6392\u9664 XX\u90e8\u9577\uff0f\u4e3b\u4efb\uff0f\u91ab\u5e2b\uff09
+    const alone = t.slice(prev, m.index).split('\n').map(l => l.trim())
+      .filter(l => /^[\u4e00-\u9fff]{2,4}$/.test(l) && !/(\u90e8\u9577|\u4e3b\u4efb|\u91ab\u5e2b)$/.test(l));
+    const name = (before.match(/([\u4e00-\u9fff]{2,4})$/) || [])[1] || alone.pop() || '';
+    prev = re.lastIndex;
+    pts.push({ date, mrn: m[1], name, src, disc: '', vs: '', rep: '', opDate: '', op: '', diag: '', dv: {} });
+  }
+  if (!pts.length) return pts;
+  const n = pts.length;
+  const plans = [];
+  const pr = /Plan\s*[:：;]?\s*(20\d\d)\s*\/\s*(\d{1,2})\s*\/\s*(\d{1,2})([^\n]*)/gi;
+  while ((m = pr.exec(t))) plans.push(csPlanOp_(`${m[1]}/${m[2]}/${m[3]}${m[4]}`));
+  if (plans.length === n) plans.forEach((p, i) => { pts[i].opDate = p.date; pts[i].op = p.op; });
+  const docs = [];
+  t.split('\n').forEach(l => {
+    const d = l.replace(/\s+/g, '').match(/^([\u4e00-\u9fff]{2,4}?)(部長|主任|醫師)$/);
+    if (d && d[1] !== '報告') docs.push({ name: d[1], vs: d[2] !== '醫師' });
+  });
+  // 主治多半是「部長／主任」，報告醫師是「醫師」：各 n 個就分開對應（不受 OCR 交錯順序影響）；
+  // 主治也寫「醫師」時，總數剛好 2n 才依「主治、報告醫師」交替對應
+  const vs = docs.filter(d => d.vs), rp = docs.filter(d => !d.vs);
+  if (vs.length === n) pts.forEach((p, i) => { p.vs = vs[i].name; });
+  if (rp.length === n) pts.forEach((p, i) => { p.rep = rp[i].name; });
+  else if (!vs.length && docs.length === 2 * n) pts.forEach((p, i) => { p.vs = docs[2 * i].name; p.rep = docs[2 * i + 1].name; });
+  return pts;
 }
