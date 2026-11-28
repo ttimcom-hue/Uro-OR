@@ -63,7 +63,7 @@ h3.mon{color:var(--ink);font-size:17px;margin:18px 2px 8px}
 .hero{border-left:6px solid var(--scrub)}.big{font:800 26px/1.2 Figtree,"Noto Sans TC",sans-serif;margin:2px 0 6px}
 .tl{margin:6px 0;padding-left:20px}.tl li{margin:5px 0}.tl li .btn{margin-left:6px}
 .tl li.todo{list-style:none;margin-left:-20px;border:1.5px dashed var(--line);border-radius:10px;padding:5px 10px}
-.nl{margin:4px 0;padding-left:20px}.nl li{margin:6px 0}
+.nl{margin:4px 0;padding-left:20px}.nl li{margin:6px 0}.nl ul.sub{margin:2px 0 0;padding-left:18px;font-size:14px}.nl ul.sub li{margin:2px 0}
 .ev{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.ev:last-of-type{border-bottom:0}
 .evd{flex:none;width:58px;text-align:center;background:var(--soft);border-radius:10px;padding:6px 0;align-self:flex-start}.evd b{display:block;font-size:19px}.evd span{font-size:12px;color:var(--mut)}
 .evb{flex:1}.wk{padding:8px 0;border-bottom:1px solid var(--line)}.wk:last-child{border-bottom:0}
@@ -158,12 +158,19 @@ function autoEvents(all){const M=MP(),map={};
   if(name.length>e.title.length&&x.t!=='pre')e.title=name;
   if(x.t==='pre'){e.pre=true;e.preDone.push({d:x.d,who:x.who})}});
  /* Apps Script 從簡報截圖辨識到的會議（weeks[].img，只有名稱、日期、時間、地點） */
- ((S.md&&S.md.weeks)||[]).forEach(w=>(w.img||[]).forEach(x=>{if(x&&x.d&&x.title&&!map[x.d])map[x.d]={id:'auto:'+x.d,date:x.d,end:x.end||'',time:x.t||'',place:x.place||'',title:x.title,auto:true,src:w.d,pre:false,preDone:[],img:true}}));
+ /* 同一天名稱相近 → 補上時間地點；不同的會議（同一天也可能有兩場）各自一筆 */
+ const nrm=t=>String(t||'').toLowerCase().replace(/[\s\-–+＋、,，.()（）]/g,''),near=(a,b)=>{const x=nrm(a),y=nrm(b);return x&&y&&(x.includes(y)||y.includes(x)||(x.length>=4&&y.length>=4&&x.slice(0,4)===y.slice(0,4)))};
+ const add=(x,o)=>{const hit=Object.values(map).find(e=>e.date===x.d&&near(e.title,x.title));
+  if(hit){if(!hit.time&&x.t)hit.time=x.t;if(!hit.place&&x.place)hit.place=x.place;if(!hit.end&&x.end)hit.end=x.end;if(!hit.url&&x.url)hit.url=x.url;if(!hit.kind&&o.kind)hit.kind=o.kind;return}
+  map[x.d+'|'+x.title]={id:'auto:'+x.d+'|'+x.title.slice(0,20),date:x.d,end:x.end||'',time:x.t||'',place:x.place||'',title:x.title,auto:true,pre:false,preDone:[],...o}};
+ ((S.md&&S.md.weeks)||[]).forEach(w=>(w.img||[]).forEach(x=>{if(x&&x.d&&x.title)add(x,{src:w.d,img:true,kind:x.kind||''})}));
+ /* 開會行程 PDF、重要醫學會與投稿截止（meeting/cal）：科內的例行會議不列在這裡（在行事曆看） */
+ ((S.mc&&S.mc.items)||[]).forEach(x=>{if(x&&x.d&&x.title&&x.kind&&x.kind!=='科內會議')add(x,{src:'',cal:x.src||'',kind:x.kind,url:x.url||'',note:x.note||''})});
  return Object.values(map).filter(e=>!M.hideAuto[e.date+'|'+e.title])}
 /* 行事曆的單次活動（晨會、癌症討論會這類例行除外）也算重要會議；同一天同名的晨會網站會議優先 */
 const CAL_SKIP=['mtg','cc'];
 function calEvents(){const M=MP();return((S.cal&&S.cal.events)||[]).filter(e=>e&&!e.del&&e.date&&!CAL_SKIP.includes(e.cat)&&!M.events.some(m=>!m.del&&m.date===e.date&&m.title===e.title))
- .map(e=>({id:'cal:'+e.id,cid:e.id,cal:true,title:e.title,date:e.date,end:e.end||'',time:e.time||'',place:e.place||'',note:e.note||'',pre:!!e.pre,preWho:e.preWho||''}))}
+ .map(e=>({id:'cal:'+e.id,cid:e.id,fromCal:true,title:e.title,date:e.date,end:e.end||'',time:e.time||'',place:e.place||'',note:e.note||'',pre:!!e.pre,preWho:e.preWho||''}))}
 function allEvents(all){const M=MP(),man=M.events.filter(e=>!e.del&&e.date).concat(calEvents()),au=autoEvents(all).filter(a=>!man.some(e=>e.date===a.date));
  const pres=all.filter(x=>x.t==='pre'&&x.d);
  man.forEach(e=>{e.preDone=pres.filter(x=>x.d<=e.date&&days(x.d,e.date)<=35&&(x.title.includes(e.title)||x.title.includes(`${+e.date.slice(5,7)}/${+e.date.slice(8)}`))).map(x=>({d:x.d,who:x.who}))});
@@ -216,7 +223,7 @@ const pinned=(M,k)=>{const p=M.pins[k];return p&&p.on&&(!p.until||p.until>=today
 const pinBtn=(M,x)=>edit&&NOTICE.includes(x.t)?`<button class="btn s ${pinned(M,x.k)?'p':''}" data-act="pin" data-k="${esc(x.k)}">${pinned(M,x.k)?'📌 已釘選':'📌 釘選'}</button>`:'';
 const evCal=e=>`<a class="btn s" href="${esc(gcal(e))}" target="_blank" rel="noopener">＋ Google 日曆</a><button class="btn s" data-act="ics" data-id="${esc(e.id)}">⬇ .ics（iPhone／Outlook）</button>`;
 const evLine=(e,full)=>`<div class="ev"><div class="evd"><b class="t">${+e.date.slice(5,7)}/${+e.date.slice(8)}</b><span>${DOW[dow(e.date)]}${e.end&&e.end>e.date?'–'+(+e.end.slice(5,7))+'/'+(+e.end.slice(8)):''}</span></div>
- <div class="evb"><b>${esc(e.title)}</b> <span class="chip ${days(today,e.date)<=7?'r':'a'}">${until(e.date)}</span>${e.auto?` <span class="note">（${e.img?'簡報截圖辨識':'議程提到'}）</span>`:''}${e.cal?' <span class="note">（📆 行事曆）</span>':''}
+ <div class="evb"><b>${esc(e.title)}</b> <span class="chip ${days(today,e.date)<=7?'r':'a'}">${until(e.date)}</span>${e.kind&&e.kind!=='其他'?` <span class="chip ${e.kind==='投稿截止'?'r':'b'}">${esc(e.kind)}</span>`:''}${e.auto?` <span class="note">（${e.cal?esc(e.cal):e.img?'簡報截圖辨識':'議程提到'}）</span>`:''}${e.fromCal?' <span class="note">（📆 行事曆）</span>':''}${e.url?` <a class="note" href="${esc(e.url)}" target="_blank" rel="noopener">官網 ↗</a>`:''}
   <div class="note">${[e.time,e.place].filter(Boolean).map(esc).join('・')}${e.pre?`${e.time||e.place?'・':''}需預報：${md(prevMtg(e.date))}晨會${names(e.preWho)?'（'+esc(names(e.preWho))+'）':''}${e.preDone&&e.preDone.length?e.preDone.map(p=>(p.d<=today?' ✓ 已預報 ':' 已排 ')+md(p.d)+(p.who?' '+esc(p.who):'')).join('、'):''}`:''}${e.note?'<br>'+esc(e.note):''}</div>
   ${full?`<div class="row" style="margin-top:6px">${evCal(e)}${edit?(e.auto?`<button class="btn s" data-act="evadopt" data-id="${esc(e.id)}">✏️ 補上時間地點</button><button class="btn s" data-act="evhide" data-id="${esc(e.id)}">不顯示</button>`:`<button class="btn s" data-act="evedit" data-id="${esc(e.id)}">✏️ 編輯</button><button class="btn s" data-act="evdel" data-id="${esc(e.id)}">刪除</button>`):''}</div>`:''}</div></div>`;
 const whoX=x=>x.who&&!x.title.includes(x.who.split('、')[0].slice(-2))?` <span class="note">${esc(x.who)}</span>`:'';
@@ -224,6 +231,10 @@ const tlItem=x=>x.k==='have'?`<li>${chip(x.t)} ${esc(x.title)}${whoX(x)}</li>`
  :x.k==='rule'?`<li class="todo">${chip(x.t)} <b>${esc(x.title)}</b> <span class="note">例行（${esc((FREQ.find(f=>f[0]===x.freq)||[,''])[1])}）・${whoTip(x.sug)||'待安排'}</span></li>`
  :`<li class="todo">${chip('pre')} <b>${esc(x.title)}</b> <span class="note">${x.who?esc(x.who):'報告人待定'}</span></li>`;
 
+/* 「各式會議」這類公告：列出那週簡報截圖辨識到的會議（名稱、日期、時間、地點） */
+function imgSub(x){if(x.src!=='drive'||!/會議|月會|年會|研討|課程|活動|masterclass|meeting|congress/i.test(x.title))return'';
+ const w=((S.md&&S.md.weeks)||[]).find(v=>v.d===x.d),L=((w&&w.img)||[]).filter(e=>e&&e.d&&e.title);if(!L.length)return'';
+ return `<ul class="sub">${L.map(e=>`<li><b>${esc(e.title)}</b> <span class="note">${md(e.d)}${e.end&&e.end>e.d?'–'+md(e.end):''}${e.t?' '+esc(e.t):''}${e.place?'・'+esc(e.place):''}</span></li>`).join('')}</ul>`}
 function home(){const all=mItems(),M=MP(),d=nextMtg(),ag=agenda(d,all),tl=timeline(4,all),EV=allEvents(all).filter(e=>evEnd(e)>=today&&days(today,e.date)<=120);
  const pins=all.filter(x=>NOTICE.includes(x.t)&&!x.hide&&!x.dup&&pinned(M,x.k)).sort((a,b)=>a.d<b.d?1:-1);
  const recent=all.filter(x=>NOTICE.includes(x.t)&&!x.hide&&!x.dup&&x.d&&x.d<=d&&days(x.d,today)<=28&&!pinned(M,x.k)).sort((a,b)=>a.d<b.d?1:-1);
@@ -232,7 +243,7 @@ function home(){const all=mItems(),M=MP(),d=nextMtg(),ag=agenda(d,all),tl=timeli
   ${t0.L.length?`<ul class="tl">${t0.L.slice(0,8).map(tlItem).join('')}</ul>`:'<p class="note">還沒有議程。</p>'}</section>
  <section class="card"><h2>📌 重要公告與規定 <small>長期有效的規定；${edit?'在「紀錄」或下方按「📌 釘選」加入':'由總醫師整理'}</small></h2>
   ${pins.length?`<ul class="nl">${pins.map(x=>`<li><b>${esc(x.title)}</b>${x.note?`<div class="note">${esc(x.note)}</div>`:''}<div class="note">${md(x.d)}晨會公告${M.pins[x.k].until?`・有效到 ${md(M.pins[x.k].until)}`:''} ${pinBtn(M,x)}</div></li>`).join('')}</ul>`:'<p class="note">還沒有釘選的規定。</p>'}
-  ${recent.length?`<h3>最近 4 週的公告</h3><ul class="nl">${recent.map(x=>`<li>${chip(x.t)} ${esc(x.title)}${x.note?` <span class="note">${esc(x.note)}</span>`:''} <span class="note">${md(x.d)}</span> ${pinBtn(M,x)}</li>`).join('')}</ul>`:''}
+  ${recent.length?`<h3>最近 4 週的公告</h3><ul class="nl">${recent.map(x=>`<li>${chip(x.t)} ${esc(x.title)}${x.note?` <span class="note">${esc(x.note)}</span>`:''}${imgSub(x)} <span class="note">${md(x.d)}</span> ${pinBtn(M,x)}</li>`).join('')}</ul>`:''}
   ${edit?`<div class="row" style="margin-top:8px"><button class="btn s p" data-act="nadd">＋ 新增公告（記在下次晨會）</button></div>`:''}</section>
  <section class="card"><h2>📅 重要會議 <small>按「Google 日曆」或「.ics」加到自己的行事曆，前一天會提醒</small>${EV.length>1?`<button class="btn s" data-act="icsall">⬇ 全部加入日曆（.ics）</button>`:''}</h2>
   ${EV.length?EV.map(e=>evLine(e,true)).join(''):'<p class="note">接下來 4 個月沒有登記的會議。</p>'}
@@ -338,7 +349,7 @@ function render(){const pg=page();
  const y=scrollY;$('#app').innerHTML=pplList()+(pg==='plan'?planPage():pg==='next'?nextPage():pg==='log'?logPage():pg==='stat'?statPage():home())+`<p class="note foot">議程由每週主簡報的 OUTLINE 頁自動讀取，只有標題，不含簡報內容。請勿在這裡填病人姓名、病歷號。</p>`;scrollTo(0,y)}
 
 async function load(){S.loading=true;render();if(!on()){S.loading=false;render();return}
- const k=['common/people','meeting/drive','meeting/plan','calendar/events'];const r=await getMany(k);const v=i=>r[i].status==='fulfilled'?r[i].value:null;
+ const k=['common/people','meeting/drive','meeting/plan','calendar/events','meeting/cal'];const r=await getMany(k);const v=i=>r[i].status==='fulfilled'?r[i].value:null;S.mc=v(4);
  S.err=r.every(x=>x.status==='rejected')?'conn':'';S.people=v(0);S.md=v(1);S.mp=v(2);S.cal=v(3);S.loading=false;lastLoad=Date.now();render()}
 async function savePlan(mut){saving++;try{const fresh=(await get('meeting/plan'))||S.mp||{};S.mp=fresh;const M=MP();mut(M);M.ts=Date.now();await set('meeting/plan',M);syncPing('meeting/plan')}catch(e){alert('儲存失敗，請稍後再試')}saving--;render()}
 /* 行事曆（calendar/events）建立的單次活動：在這裡也能編輯、刪除，存回行事曆 */
@@ -378,7 +389,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  if(k==='copy'){const t=b.dataset.txt;const done=()=>{const m=$('#cpmsg');if(m)m.textContent='已複製 ✓'};try{navigator.clipboard.writeText(t).then(done,()=>prompt('複製以下文字',t))}catch(x){prompt('複製以下文字',t)}}
  if(k==='conn'){const u=$('#u').value.trim();if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(u)){alert('網址應以 https://script.google.com/ 開頭');return}gs={url:u,token:$('#tk').value.trim(),on:true};LS.set('gsync',gs);load()}});
 document.addEventListener('submit',e=>{if(e.target.id!=='evf')return;e.preventDefault();const f=new FormData(e.target),o={};['title','date','end','time','place','note','preWho'].forEach(k=>o[k]=String(f.get(k)||'').trim());o.pre=!!f.get('pre');
- if(evForm.cal){const cid=evForm.cid;evForm=null;return saveCalEv(cid,x=>Object.assign(x,o))}
+ if(evForm.fromCal){const cid=evForm.cid;evForm=null;return saveCalEv(cid,x=>Object.assign(x,o))}
  const id=evForm.id||nid();evForm=null;savePlan(M=>{let x=M.events.find(y=>y.id===id);if(!x){x={id};M.events.push(x)}Object.assign(x,o,{ts:Date.now()})})});
 document.addEventListener('change',e=>{const el=e.target,c=el.dataset.ch;if(!c)return;const v=el.type==='checkbox'?el.checked:el.value.trim();
  if(c==='mq'){mq=v;render()}

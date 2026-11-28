@@ -60,6 +60,8 @@ function ghAutoUpdate() {
   try { if (typeof cancerSync === 'function') cancerSync(); } catch (e) { console.log(e); }
   // 晨會：掃 Drive「W2 科部晨會」資料夾，更新 meeting/drive（入口「晨會」分頁）
   try { if (typeof meetingScan === 'function') meetingScan(); } catch (e) { console.log(e); }
+  // 行事曆補充：Drive 裡的每月開會行程 PDF、重要醫學會日期（要有 CLAUDE_API_KEY）
+  try { if (typeof meetingCal === 'function') meetingCal(); } catch (e) { console.log(e); }
 }
 
 function ghRunCancerSetup() {
