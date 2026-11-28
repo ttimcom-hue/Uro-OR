@@ -143,15 +143,16 @@ td.cl{cursor:pointer}td.cl:hover .st{outline:2px solid var(--scrub)}
 <script>
 {
 /* 泌尿科科內行事曆（calendar.html）。與刀房調度板、科務入口、晨會共用同一個 Apps Script 同步網址。
-   讀：common/people（人員名冊）、config/main（休假 → 自動標「休假」）、meeting/plan（晨會網站的「重要會議」與晨會議程項目）、meeting/drive（晨會議程標題）
+   讀：common/people（人員名冊）、config/main（休假、值班：自動標「休」、休假圖層、當天值班）、meeting/drive（晨會議程標題、截圖辨識）、?action=cancerStatus（癌症討論會下次日期與人數）
+   讀寫：meeting/plan（晨會網站的「重要會議」在這裡也能編輯、刪除；議程提到／截圖辨識的會議按「不顯示」寫進 hideAuto，兩邊一起隱藏）
    讀寫：calendar/events {ts,
-     events:[{id,title,cat,date,end,time,tend,place,note,aud,ppl:[人員id],ts,del}]     單次活動
+     events:[{id,title,cat,date,end,time,tend,place,note,aud,ppl:[人員id],pre,preWho,ts,del}]  單次活動（pre＝需在晨會預報，晨會網站會排上預報）
      rules:[{id,title,cat,freq,dow,from,until,time,tend,place,note,aud,ppl,on,ts,del}]  例行（freq：w 每週／2w 隔週／m1–m4 每月第幾個／ml 每月最後一個）
      skip:{'規則id@日期':1}                     例行的某一次取消
      att:{'場次鍵':{人員id:'y'|'n'|'m'}}       出席：y 參加／n 不參加／m 未定（休假由調度板自動判斷，不存）
      mcat:{晨會會議id:分類}, hideM:{晨會會議id:1}, hideO:{截圖辨識的場次鍵:1}}  晨會網站匯入的會議：改分類／不顯示
    讀：meeting/cal（Apps Script 用 AI 辨識的每月開會行程 PDF、重要醫學會日期與投稿截止；見 Code.gs meetingCalRead）
-   場次鍵＝來源:id@日期（e＝單次、r＝例行、m＝晨會網站的重要會議、o＝晨會簡報截圖辨識、a＝開會行程 PDF／學會），超過 180 天前的出席紀錄存檔時自動刪掉（試算表單格 5 萬字上限）。
+   場次鍵＝來源:id@日期（e＝單次、r＝例行、m＝晨會網站的重要會議、o＝晨會簡報截圖辨識、a＝開會行程 PDF／學會、g＝晨會議程提到、l＝調度板休假），超過 180 天前的出席紀錄存檔時自動刪掉（試算表單格 5 萬字上限）。
    只放會議名稱、時間、地點與出席，不放病人資料。 */
 const SYNC_URL='https://script.google.com/macros/s/AKfycbyW-2Q_et8fXF4M45GVlxj8fJuCbRhTixBEg7UWA-xCku2AVWGCuvFE9M_W0WJoKayvAg/exec';
 const KEY='calendar/events';
@@ -177,7 +178,8 @@ const until=d=>{const n=days(today,d);return n===0?'今天':n===1?'明天':n===2
 const nid=p=>(p||'c')+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
 /* ---------- 分類 ---------- */
-const CATS=[['mtg','晨會','#0e7490'],['cc','癌症討論會','#7c3aed'],['sem','Seminar／Journal','#2563eb'],['conf','學會／研討會','#c77d00'],['dept','科會／行政','#e5484d'],['teach','教學／考試','#1f8a5b'],['social','活動／聚餐','#db2777'],['other','其他','#64748b']];
+const CATS=[['mtg','晨會','#0e7490'],['cc','癌症討論會','#7c3aed'],['sem','Seminar／Journal','#2563eb'],['conf','學會／研討會','#c77d00'],['dept','科會／行政','#e5484d'],['teach','教學／考試','#1f8a5b'],['social','活動／聚餐','#db2777'],['other','其他','#64748b'],['leave','休假（調度板）','#94a3b8']];
+const ECATS=CATS.filter(c=>c[0]!=='leave');
 const CN=Object.fromEntries(CATS.map(x=>[x[0],x[1]])),CC=Object.fromEntries(CATS.map(x=>[x[0],x[2]]));
 const guessCat=t=>{t=String(t);return /晨會/.test(t)?'mtg':/癌症|tumor\s*board|combined\s*conf/i.test(t)?'cc':/seminar|journal|讀書會|book\s*reading|chart\s*run/i.test(t)?'sem':/年會|研討會|學會|congress|symposium|月會|AUA|EAU|TUA|meeting/i.test(t)?'conf':/科會|科務|行政|主治會議|評鑑|會議/.test(t)?'dept':/課程|考試|口試|教學|workshop|訓練|OSCE|甄審/i.test(t)?'teach':/聚餐|尾牙|春酒|旅遊|歡送|迎新|聚會|活動/.test(t)?'social':'other'};
 const FREQ=[['w','每週'],['2w','隔週'],['m1','每月第 1 個'],['m2','每月第 2 個'],['m3','每月第 3 個'],['m4','每月第 4 個'],['ml','每月最後一個']];
@@ -188,7 +190,7 @@ const DEF_RULES=[{id:'r_mtg',title:'科部晨會',cat:'mtg',freq:'w',dow:2,from:
  {id:'r_cc',title:'GU 癌症討論會',cat:'cc',freq:'w',dow:4,from:'2026-01-01',time:'07:25',tend:'',place:'554',note:'Combined Conference: GU & Radiology & Nephrology',aud:'all',on:true}];
 
 /* ---------- 狀態 ---------- */
-let S={people:null,cfg:null,mp:null,md:null,cal:null,err:'',loading:true},saving=0;
+let S={people:null,cfg:null,mp:null,md:null,cal:null,cc:LS.get('cccache'),err:'',loading:true},saving=0;
 let edit=!!LS.get('calEdit'),me=LS.get('calMe')||(window.AUTH?AUTH.prefs().me:'')||'',hideCats=LS.get('calHide')||[],noRoutine=!!LS.get('calNoRoutine');
 let cur=today,sel=today,openKey='',form=null,imp=null;
 const page=()=>{const h=location.hash.slice(1);return ['month','week','list','att','setup'].includes(h)?h:'month'};
@@ -203,7 +205,7 @@ const PPL=()=>((S.people&&S.people.people)||[]).filter(p=>p&&p.id&&p.on!==false)
 const pname=p=>p.full||p.n;
 const plv=p=>p.role==='R'?(p.lv||'R'):p.role==='F'?'Fellow':(p.lv||'主治');
 const GRP=[['VS','主治醫師'],['F','Fellow'],['R','住院醫師']];
-const invited=o=>{const L=PPL();const base=o.aud==='VS'?L.filter(p=>p.role==='VS'):o.aud==='R'?L.filter(p=>p.role==='R'||p.role==='F'):o.aud==='pick'?L.filter(p=>(o.ppl||[]).includes(p.id)):L;
+const invited=o=>{if(o.aud==='none')return[];const L=PPL();const base=o.aud==='VS'?L.filter(p=>p.role==='VS'):o.aud==='R'?L.filter(p=>p.role==='R'||p.role==='F'):o.aud==='pick'?L.filter(p=>(o.ppl||[]).includes(p.id)):L;
  const A=CAL().att[o.key]||{};return L.filter(p=>base.includes(p)||A[p.id])};
 /* 休假：調度板設定 config/main 的 leaves（住院醫師 id）／vsLeaves（主治名字） */
 function leaveOf(p,d){const c=S.cfg||{};
@@ -225,28 +227,59 @@ function ruleHit(r,d){if(dow(d)!==+r.dow||(r.from&&d<r.from)||(r.until&&d>r.unti
  return Math.ceil(+d.slice(8)/7)===+String(r.freq).slice(1)}
 function occs(a,b,all){const C=CAL(),out=[];
  C.events.filter(e=>!e.del&&e.date&&e.date<=b&&evEnd(e)>=a).forEach(e=>out.push({...e,key:'e:'+e.id+'@'+e.date,src:'e'}));
- C.rules.filter(r=>!r.del&&r.on!==false).forEach(r=>{let d=a;if(r.from&&d<r.from)d=r.from;for(let i=0;d<=b&&i<400;i++,d=addD(d,1))if(ruleHit(r,d)&&!C.skip[r.id+'@'+d])out.push({...r,date:d,end:'',key:'r:'+r.id+'@'+d,src:'r',rule:r})});
- ((S.mp&&S.mp.events)||[]).filter(e=>e&&!e.del&&e.date&&e.date<=b&&evEnd(e)>=a&&(all||!C.hideM[e.id])).forEach(e=>out.push({id:e.id,title:e.title,date:e.date,end:e.end||'',time:e.time||'',tend:'',place:e.place||'',note:(e.note||'')+(e.pre?(e.note?'；':'')+'需在晨會預報'+(e.preWho?'（'+e.preWho+'）':''):''),cat:C.mcat[e.id]||mDefCat(e.title),aud:'all',key:'m:'+e.id+'@'+e.date,src:'m',hidden:!!C.hideM[e.id]}));
+ const ccD=ccDate();
+ C.rules.filter(r=>!r.del&&r.on!==false).forEach(r=>{let d=a;if(r.from&&d<r.from)d=r.from;for(let i=0;d<=b&&i<400;i++,d=addD(d,1))if(ruleHit(r,d)&&!C.skip[r.id+'@'+d]){
+  /* 癌症討論會：試算表「下次討論會」改到同一週的別天，就跟著移過去 */
+  const dd=r.cat==='cc'&&ccD&&ccD!==d&&Math.abs(days(d,ccD))<=3?ccD:d;
+  out.push({...r,date:dd,end:'',key:'r:'+r.id+'@'+dd,src:'r',rule:r,moved:dd!==d?d:''})}});
+ ((S.mp&&S.mp.events)||[]).filter(e=>e&&!e.del&&e.date&&e.date<=b&&evEnd(e)>=a&&(all||!C.hideM[e.id])).forEach(e=>out.push({id:e.id,title:e.title,date:e.date,end:e.end||'',time:e.time||'',tend:'',place:e.place||'',note:(e.note||'')+(e.pre?(e.note?'；':'')+'需在晨會預報'+(e.preWho?'（'+e.preWho+'）':''):''),cat:C.mcat[e.id]||mDefCat(e.title),aud:'all',key:'m:'+e.id+'@'+e.date,src:'m',hidden:!!C.hideM[e.id],raw:e}));
  /* 晨會簡報截圖辨識（Apps Script meetingScan 的 weeks[].img）：同一天已經有單次活動或晨會網站的會議就不重複 */
  ((S.md&&S.md.weeks)||[]).forEach(w=>(w.img||[]).forEach(x=>{if(!x||!x.d||!x.title||x.d>b||(x.end||x.d)<a)return;const key='o:'+x.title.replace(/@/g,'').slice(0,30)+'@'+x.d;
-  if((C.hideO[key]&&!all)||out.some(o=>(o.src==='e'||o.src==='m')&&o.date===x.d))return;
-  out.push({id:key,title:x.title,date:x.d,end:x.end||'',time:x.t||'',tend:'',place:x.place||'',note:'',cat:mDefCat(x.title),aud:'all',key,src:'o',wk:w.d,hidden:!!C.hideO[key]})}));
+  const hid=!!(C.hideO[key]||autoHidden(x.d,x.title));if((hid&&!all)||out.some(o=>(o.src==='e'||o.src==='m')&&o.date===x.d))return;
+  out.push({id:key,title:x.title,date:x.d,end:x.end||'',time:x.t||'',tend:'',place:x.place||'',note:'',cat:mDefCat(x.title),aud:'all',key,src:'o',wk:w.d,hidden:hid})}));
  /* 開會行程 PDF、學會日期（meeting/cal）：同一天、時間差 40 分鐘內的例行會議 → 併進那一場（顯示行程表的名稱）；同一天名稱相近的活動 → 不重複 */
  const nrm=t=>String(t||'').toLowerCase().replace(/[\s\-–+＋、,，.()（）]/g,''),near=(a,b)=>{const x=nrm(a),y=nrm(b);return x&&y&&(x.includes(y)||y.includes(x)||(x.length>=4&&y.length>=4&&x.slice(0,4)===y.slice(0,4)))};
  const mins=t=>{const m=String(t||'').match(/^(\d\d):(\d\d)/);return m?+m[1]*60+ +m[2]:null};
  ((S.mc&&S.mc.items)||[]).forEach(x=>{if(!x||!x.d||!x.title||x.d>b||(x.end||x.d)<a)return;const key='a:'+x.title.replace(/@/g,'').slice(0,30)+'@'+x.d;
-  if(C.hideO[key]&&!all)return;
+  const hid=!!(C.hideO[key]||autoHidden(x.d,x.title));if(hid&&!all)return;
   const r=x.t&&out.find(o=>o.src==='r'&&o.date===x.d&&mins(o.time)!=null&&Math.abs(mins(o.time)-mins(x.t))<=40);
   if(r){(r.sub=r.sub||[]).push(x.title+(x.who?'（'+x.who+'）':''));if(!r.place&&x.place)r.place=x.place;return}
   if(out.some(o=>o.src!=='r'&&o.date===x.d&&near(o.title,x.title)))return;
   const cat=x.kind==='醫學會'||x.kind==='院際會議'||x.kind==='投稿截止'?'conf':x.kind==='課程'?'teach':(g=>g==='other'?'teach':g)(guessCat(x.title));
-  out.push({id:key,title:x.title,date:x.d,end:x.end||'',time:x.t||'',tend:x.tend||'',place:x.place||'',note:[x.who,x.note].filter(Boolean).join('；'),cat,aud:'all',key,src:'a',kind:x.kind,srcL:x.src||'',url:x.url||'',sk:x.sk,hidden:!!C.hideO[key]})});
+  out.push({id:key,title:x.title,date:x.d,end:x.end||'',time:x.t||'',tend:x.tend||'',place:x.place||'',note:[x.who,x.note].filter(Boolean).join('；'),cat,aud:'all',key,src:'a',kind:x.kind,srcL:x.src||'',url:x.url||'',sk:x.sk,hidden:hid})});
+ /* 晨會議程標題提到的會議（跟晨會網站「議程提到」同一套規則） */
+ agendaEvents().forEach(x=>{if(x.date>b||x.date<a)return;const key='g:'+x.title.replace(/@/g,'').slice(0,30)+'@'+x.date,hid=autoHidden(x.date,x.title);
+  if((hid&&!all)||out.some(o=>o.src!=='r'&&o.date===x.date))return;
+  out.push({id:key,title:x.title,date:x.date,end:'',time:'',tend:'',place:'',note:x.pre?'議程有預報':'',cat:mDefCat(x.title),aud:'all',key,src:'g',wk:x.wk,hidden:hid})});
+ /* 調度板的休假登記（唯讀，不用回覆出席） */
+ leaveItems(a,b).forEach(x=>out.push(x));
  return out.filter(o=>all||!hideCats.includes(o.cat)).sort((x,y)=>x.date<y.date?-1:x.date>y.date?1:(x.time||'99')<(y.time||'99')?-1:(x.time||'99')>(y.time||'99')?1:0)}
+/* ---------- 其他網站的資料 ---------- */
+const MP=()=>{const m=S.mp||(S.mp={});m.events=m.events||[];m.items=m.items||[];m.ov=m.ov||{};m.hideAuto=m.hideAuto||{};return m};
+const autoHidden=(d,t)=>!!(S.mp&&S.mp.hideAuto&&S.mp.hideAuto[d+'|'+t]);
+function agendaEvents(){const M=MP(),src=[],map={};
+ ((S.md&&S.md.weeks)||[]).forEach(w=>(w.outline||[]).forEach(t=>{const o=M.ov[w.d+'|'+t]||{};if(!o.hide)src.push({d:w.d,title:t})}));
+ M.items.filter(x=>x&&!x.del&&x.d&&x.title).forEach(x=>src.push({d:x.d,title:x.title}));
+ src.forEach(x=>{const m=x.title.match(/(?:^|[^\d\/])(\d{1,2})\/(\d{1,2})(?![\d\/])/);if(!m)return;const mo=+m[1],dd=+m[2];if(mo<1||mo>12||dd<1||dd>31)return;
+  const y=+x.d.slice(0,4);let date=`${y}-${String(mo).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;if(days(x.d,date)<-60)date=`${y+1}`+date.slice(4);if(days(x.d,date)<0)return;
+  const pre=/預報/.test(x.title);if(!pre&&!/會|課|研討|run|reading|meeting|congress|workshop|course|symposium/i.test(x.title))return;
+  const name=x.title.replace(m[0],m[0].startsWith(m[1])?'':m[0][0]).replace(/^\s*[(（][一二三四五六日][)）]\s*/,'').replace(/\s*預報.*$/,'').replace(/^各式會議\s*[-－–]\s*/,'').trim()||x.title;
+  const e=map[date]||(map[date]={date,title:name,wk:x.d,pre:false});if(name.length>e.title.length&&!pre)e.title=name;if(pre)e.pre=true});
+ return Object.values(map)}
+const pnm=id=>{const p=PPL().find(x=>x.id===id);if(p)return pname(p);const r=((S.cfg||{}).res||[]).find(x=>x.id===id);return r?r.n:id};
+function leaveItems(a,b){const c=S.cfg||{},out=[];
+ (c.leaves||[]).forEach(l=>{const e=l.to||l.from;if(!l.from||l.from>b||e<a)return;const who=pnm(l.r);out.push({id:'l'+l.r+l.from,title:`${who} ${l.type||'休假'}${l.half==='am'?'（上午）':l.half==='pm'?'（下午）':''}`,date:l.from,end:e>l.from?e:'',time:'',tend:'',place:'',note:'',cat:'leave',aud:'none',key:'l:'+l.r+'@'+l.from,src:'l'})});
+ (c.vsLeaves||[]).forEach(l=>{const e=l.to||l.from;if(!l.from||!l.s||l.from>b||e<a)return;out.push({id:'lv'+l.s+l.from,title:`${l.s} 主治休假`,date:l.from,end:e>l.from?e:'',time:'',tend:'',place:'',note:'',cat:'leave',aud:'none',key:'l:vs_'+l.s+'@'+l.from,src:'l'})});
+ return out}
+/* 當天值班（調度板 config/main 的 duty：['人員id:角色']） */
+function dutyOf(d){const L=((S.cfg||{}).duty||{})[d]||[];return [['sec','二線'],['icu','ICU'],['w1','一線'],['tot','總值'],['','值班']].map(([k,v])=>{const n=L.filter(x=>(String(x).split(':')[1]||'')===k).map(x=>pnm(String(x).split(':')[0]));return n.length?v+' '+n.join('、'):''}).filter(Boolean).join('　')}
+/* 癌症討論會下次日期（試算表「週會名單」B1，?action=cancerStatus 只回日期與人數） */
+function ccDate(){const t=S.cc&&S.cc.mtg;const m=String(t||'').match(/(?:(\d{4})[\/.-])?(\d{1,2})[\/.-](\d{1,2})/);if(!m)return'';let y=+(m[1]||today.slice(0,4));let d=`${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;if(!m[1]&&days(today,d)<-60)d=(y+1)+d.slice(4);return d}
 const mDefCat=t=>{const g=guessCat(t);return g==='other'?'conf':g};
-const findOcc=k=>{const d=k.slice(k.lastIndexOf('@')+1);return occs(d,d,true).find(o=>o.key===k)};
+const findOcc=k=>{const d=k.slice(k.lastIndexOf('@')+1);return occs(addD(d,-3),addD(d,3),true).find(o=>o.key===k)};  // ±3 天：癌症討論會改期時，例行原本那天不在當天
 const tmTxt=o=>o.time?o.time+(o.tend?'–'+o.tend:''):(o.end&&o.end>o.date?'多日':'');
 const dateTxt=o=>md(o.date)+(o.end&&o.end>o.date?` ～ ${md(o.end)}`:'');
-const srcTxt=o=>o.src==='a'?`🤖 ${o.srcL}${/內建/.test(o.srcL)?'':'（AI 辨識，文字可能有誤）'}`:o.src==='r'?`🔁 例行：${freqTxt(o.rule)}${o.sub?'；行程表：'+o.sub.join('、'):''}`:o.src==='m'?'🕣 來自晨會網站「重要會議」':o.src==='o'?`🔍 從 ${md(o.wk)} 晨會簡報的截圖辨識，文字可能有誤，請確認`:'';
+const srcTxt=o=>o.src==='a'?`🤖 ${o.srcL}${/內建/.test(o.srcL)?'':'（AI 辨識，文字可能有誤）'}`:o.src==='r'?`🔁 例行：${freqTxt(o.rule)}${o.sub?'；行程表：'+o.sub.join('、'):''}${o.moved?`（這週改到${md(o.date)}，原本 ${md(o.moved)}）`:''}`:o.src==='m'?'🕣 晨會網站「重要會議」（在這裡改也會同步到晨會網站）':o.src==='e'?(o.cat!=='mtg'&&o.cat!=='cc'?'📆 行事曆（也會出現在晨會網站「重要會議」）':''):o.src==='o'?`🔍 從 ${md(o.wk)} 晨會簡報的截圖辨識，文字可能有誤，請確認`:o.src==='g'?`🕣 ${md(o.wk)} 晨會議程提到的會議，請確認`:o.src==='l'?'🗓️ 刀房調度板的休假登記（在調度板「人力與能力」修改）':'';
 /* 晨會議程：同一天晨會網站的議程標題＋規劃項目 */
 function agendaOf(d){const w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),its=((S.mp&&S.mp.items)||[]).filter(x=>x&&!x.del&&x.d===d).map(x=>x.title+(x.who?' - '+x.who:''));
  const L=[...((w&&w.outline)||[])];its.forEach(t=>{if(!L.some(x=>x.includes(t.split(' - ')[0])))L.push(t)});return L}
@@ -254,10 +287,10 @@ function agendaOf(d){const w=((S.md&&S.md.weeks)||[]).find(x=>x.d===d),its=((S.m
 /* ---------- 共用畫面片段 ---------- */
 const catChip=c=>`<span class="chip" style="background:color-mix(in srgb,${CC[c]||'#888'} 16%,transparent);color:${CC[c]||'#888'}">${esc(CN[c]||'其他')}</span>`;
 function evCard(o,opt){opt=opt||{};const p=meP(),inv=p&&invited(o).includes(p);
- return `<div class="ev${o.src==='o'?' ocr':''}" style="--c:${CC[o.cat]||'#888'}" data-act="open" data-k="${esc(o.key)}" role="button" tabindex="0">
+ return `<div class="ev${o.src==='o'||o.src==='g'?' ocr':''}" style="--c:${CC[o.cat]||'#888'}" data-act="open" data-k="${esc(o.key)}" role="button" tabindex="0">
   ${opt.noTime?'':`<div class="tm">${esc(tmTxt(o))||'<span class="note">—</span>'}</div>`}
   <div class="bd">${opt.noTime&&tmTxt(o)?`<span class="tm">${esc(tmTxt(o))}</span> `:''}<b>${esc(o.title)}</b> ${catChip(o.cat)}${o.end&&o.end>o.date?` <span class="note">${esc(dateTxt(o))}</span>`:''}
-   <div class="meta">${[o.place?'📍 '+esc(o.place):'',o.src==='r'?'🔁 例行':'',o.src==='m'?'🕣 晨會網站':'',o.src==='o'?'🔍 截圖辨識・待確認':'',o.src==='a'?'🤖 '+esc(o.kind||'行程表'):'',o.sub?'📋 '+o.sub.map(esc).join('、'):''].filter(Boolean).join('・')}</div>
+   <div class="meta">${[o.place?'📍 '+esc(o.place):'',o.src==='r'?'🔁 例行':'',o.src==='m'?'🕣 晨會網站':'',o.src==='o'?'🔍 截圖辨識・待確認':'',o.src==='a'?'🤖 '+esc(o.kind||'行程表'):'',o.sub?'📋 '+o.sub.map(esc).join('、'):'',o.src==='g'?'🕣 議程提到・待確認':'',o.src==='l'?'🗓️ 調度板':'',o.pre?'🎤 晨會預報'+(o.preWho?'（'+esc(o.preWho)+'）':''):''].filter(Boolean).join('・')}</div>
    ${o.cat==='mtg'&&agendaOf(o.date).length&&!opt.noAgenda?`<div class="meta">議程 ${agendaOf(o.date).length} 項</div>`:''}</div>
   <div class="side">${cntHtml(o)}${inv?rsvp(o,p,true):''}</div></div>`}
 const catBar=()=>`<div class="cats">${CATS.map(([k,n,c])=>`<button class="cat ${hideCats.includes(k)?'off':''}" style="--c:${c}" data-act="cat" data-c="${k}" aria-pressed="${!hideCats.includes(k)}">${n}</button>`).join('')}</div>`;
@@ -275,11 +308,12 @@ function monthPage(){const m0=cur.slice(0,7)+'-01',start=addD(m0,-dow(m0)),last=
  const O=occs(start,end),cells=[];
  for(let d=start;d<=end;d=addD(d,1)){const L=O.filter(o=>o.date<=d&&evEnd(o)>=d),p=meP(),max=4;
   cells.push(`<div class="mc ${d.slice(0,7)!==cur.slice(0,7)?'out':''} ${d===today?'td':''} ${d===sel?'sel':''}" data-act="day" data-d="${d}"><span class="dn ${dow(d)%6===0?'we':''}">${+d.slice(8)}</span>
-   ${L.slice(0,max).map(o=>{const s=p&&invited(o).includes(p)?stOf(o,p):'';return `<button class="pill${o.src==='o'?' ocr':''}" style="--c:${CC[o.cat]||'#888'}" data-act="open" data-k="${esc(o.key)}" title="${esc(tmTxt(o)+' '+o.title+(o.place?' @'+o.place:''))}">${s?ST[s][0]+' ':''}${o.time&&o.date===d?`<span class="tm">${esc(o.time)}</span>`:''}${esc(o.title)}</button>`}).join('')}
+   ${L.slice(0,max).map(o=>{const s=p&&invited(o).includes(p)?stOf(o,p):'';return `<button class="pill${o.src==='o'||o.src==='g'?' ocr':''}" style="--c:${CC[o.cat]||'#888'}" data-act="open" data-k="${esc(o.key)}" title="${esc(tmTxt(o)+' '+o.title+(o.place?' @'+o.place:''))}">${s?ST[s][0]+' ':''}${o.time&&o.date===d?`<span class="tm">${esc(o.time)}</span>`:''}${esc(o.title)}</button>`}).join('')}
    ${L.length>max?`<span class="more">還有 ${L.length-max} 項</span>`:''}</div>`)}
  const SL=O.filter(o=>o.date<=sel&&evEnd(o)>=sel);
  return navBar('month')+catBar()+`<div class="mgrid">${[...DOW].map((x,i)=>`<div class="dh ${i%6===0?'we':''}">${x}</div>`).join('')}${cells.join('')}</div>
   <section style="margin-top:14px"><div class="dayh ${sel===today?'td':''}">${md(sel)} <span class="note">${until(sel)}</span>${edit?`<button class="btn s" data-act="new" data-d="${sel}">＋ 這天新增</button>`:''}</div>
+  ${dutyOf(sel)?`<p class="note" style="margin:0 2px 8px">🌙 值班：${esc(dutyOf(sel))}</p>`:''}
   ${SL.length?SL.map(o=>evCard(o)).join(''):'<p class="note">這天沒有活動。</p>'}</section>`}
 
 /* ---------- 週 ---------- */
@@ -318,8 +352,8 @@ function setupPage(){const C=CAL(),R=C.rules.filter(r=>!r.del);
   ${imp?impPreview():''}</section>
  ${ocrSection()}
  ${aiSection()}
- <section class="card"><h2>🕣 晨會網站的重要會議 <small>自動帶進行事曆（在晨會網站新增／修改）；這裡只改分類或不顯示</small></h2>
-  ${mev.length?`<table class="stack"><tbody>${mev.map(e=>`<tr><td data-l="會議"><b>${esc(e.title)}</b> <span class="note">${md(e.date)}${e.end&&e.end>e.date?' ～ '+md(e.end):''}</span></td><td data-l="分類"><select data-ch="mcat" data-id="${esc(e.id)}">${CATS.map(([k,n])=>`<option value="${k}" ${(C.mcat[e.id]||mDefCat(e.title))===k?'selected':''}>${n}</option>`).join('')}</select></td><td data-l="顯示"><label class="row" style="gap:4px"><input type="checkbox" data-ch="hideM" data-id="${esc(e.id)}" ${C.hideM[e.id]?'':'checked'} style="min-height:0">顯示在行事曆</label></td></tr>`).join('')}</tbody></table>`:'<p class="note">晨會網站目前沒有登記的會議。</p>'}
+ <section class="card"><h2>🕣 晨會網站的重要會議 <small>雙向同步：在月曆點會議可直接編輯、刪除（晨會網站一起更新）；這裡改分類或只在行事曆不顯示</small></h2>
+  ${mev.length?`<table class="stack"><tbody>${mev.map(e=>`<tr><td data-l="會議"><b>${esc(e.title)}</b> <span class="note">${md(e.date)}${e.end&&e.end>e.date?' ～ '+md(e.end):''}</span></td><td data-l="分類"><select data-ch="mcat" data-id="${esc(e.id)}">${ECATS.map(([k,n])=>`<option value="${k}" ${(C.mcat[e.id]||mDefCat(e.title))===k?'selected':''}>${n}</option>`).join('')}</select></td><td data-l="顯示"><label class="row" style="gap:4px"><input type="checkbox" data-ch="hideM" data-id="${esc(e.id)}" ${C.hideM[e.id]?'':'checked'} style="min-height:0">顯示在行事曆</label></td></tr>`).join('')}</tbody></table>`:'<p class="note">晨會網站目前沒有登記的會議。</p>'}
   <p class="note"><a href="meeting.html#plan">到晨會網站新增會議 →</a></p></section>`}
 function aiSection(){const M=S.mc||{},L=M.items||[],src={};L.forEach(x=>{if(/^[uf]:/.test(x.sk||'')){(src[x.sk]=src[x.sk]||{n:0,label:x.src}).n++}});
  const conf=L.filter(x=>x.sk==='conf'&&x.kind==='醫學會'),dl=L.filter(x=>x.sk==='conf'&&x.kind==='投稿截止'&&x.d>=today);
@@ -330,11 +364,11 @@ function aiSection(){const M=S.mc||{},L=M.items||[],src={};L.forEach(x=>{if(/^[u
   <h3>重要醫學會 ${M.confTs?`<small class="note">上網更新於 ${new Date(M.confTs).getMonth()+1}/${new Date(M.confTs).getDate()}</small>`:''}</h3>
   <table class="stack"><tbody>${conf.map(x=>`<tr><td data-l="會議"><b>${esc(x.title)}</b>${x.url?` <a class="note" href="${esc(x.url)}" target="_blank" rel="noopener">官網 ↗</a>`:''}</td><td data-l="日期">${x.d?esc(dateTxt({date:x.d,end:x.end})):`<span class="note">${esc(x.note||'日期待公布')}</span>`}</td><td data-l="地點">${esc(x.place||'')}</td><td data-l="投稿截止">${L.filter(y=>y.ck===x.ck&&y.kind==='投稿截止').map(y=>`<span class="${y.d<today?'note':''}">${md(y.d)}${/late/.test(y.title)?'（late-breaking）':''}</span>`).join('<br>')||'<span class="note">—</span>'}</td></tr>`).join('')}</tbody></table>
   ${dl.length?`<p class="note">接下來的投稿截止：${dl.slice(0,4).map(x=>`${md(x.d)} ${esc(x.title.replace(/ ?投稿截止$/,''))}`).join('；')}</p>`:''}</section>`}
-function ocrSection(){const L=occs(addD(today,-7),addD(today,400),true).filter(o=>o.src==='o');
- return `<section class="card"><h2>🔍 晨會簡報截圖辨識到的會議 <small>Apps Script 每小時讀最近幾週的晨會簡報，把會議截圖轉成文字；確認後才會變成正式活動</small></h2>
-  ${L.length?L.map(o=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:1"><b>${esc(o.title)}</b> <span class="note">${esc(dateTxt(o))} ${esc(o.time)}${o.place?'・'+esc(o.place):''}・來自 ${md(o.wk)} 晨會</span>${o.hidden?' <span class="chip a">不顯示</span>':''}</span>
+function ocrSection(){const L=occs(addD(today,-7),addD(today,400),true).filter(o=>o.src==='o'||o.src==='g');
+ return `<section class="card"><h2>🔍 晨會簡報裡提到的會議 <small>議程標題寫到日期的會議、簡報截圖辨識到的會議；確認後才會變成正式活動，按「不顯示」晨會網站也一起隱藏</small></h2>
+  ${L.length?L.map(o=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:1"><b>${esc(o.title)}</b> <span class="note">${esc(dateTxt(o))} ${esc(o.time)}${o.place?'・'+esc(o.place):''}・${o.src==='g'?'議程提到':'截圖辨識'}（${md(o.wk)} 晨會）</span>${o.hidden?' <span class="chip a">不顯示</span>':''}</span>
    <button class="btn s p" data-act="ocrok" data-k="${esc(o.key)}">✓ 確認加入</button><button class="btn s" data-act="hideo" data-k="${esc(o.key)}">${o.hidden?'恢復':'不顯示'}</button></div>`).join(''):'<p class="note">目前沒有辨識到（已加入行事曆的、或晨會網站已登記的同一天會議不會重複列出）。</p>'}</section>`}
-function impPreview(){return `<h3>預覽（${imp.length} 筆，勾選要匯入的）</h3>${imp.length?`<table class="stack"><tbody>${imp.map((x,i)=>`<tr><td data-l="匯入"><input type="checkbox" data-ch="impon" data-i="${i}" ${x.on?'checked':''} style="min-height:0">${x.dup?' <span class="chip a">已存在</span>':''}</td><td data-l="日期">${md(x.date)}${x.end?' ～ '+md(x.end):''} ${esc(x.time||'')}${x.tend?'–'+esc(x.tend):''}${x.freq?`<div class="chip">🔁 ${esc(freqTxt(x))}</div>`:''}</td><td data-l="名稱"><b>${esc(x.title)}</b>${x.place?` <span class="note">📍${esc(x.place)}</span>`:''}</td><td data-l="分類"><select data-ch="impcat" data-i="${i}">${CATS.map(([k,n])=>`<option value="${k}" ${x.cat===k?'selected':''}>${n}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table>
+function impPreview(){return `<h3>預覽（${imp.length} 筆，勾選要匯入的）</h3>${imp.length?`<table class="stack"><tbody>${imp.map((x,i)=>`<tr><td data-l="匯入"><input type="checkbox" data-ch="impon" data-i="${i}" ${x.on?'checked':''} style="min-height:0">${x.dup?' <span class="chip a">已存在</span>':''}</td><td data-l="日期">${md(x.date)}${x.end?' ～ '+md(x.end):''} ${esc(x.time||'')}${x.tend?'–'+esc(x.tend):''}${x.freq?`<div class="chip">🔁 ${esc(freqTxt(x))}</div>`:''}</td><td data-l="名稱"><b>${esc(x.title)}</b>${x.place?` <span class="note">📍${esc(x.place)}</span>`:''}</td><td data-l="分類"><select data-ch="impcat" data-i="${i}">${ECATS.map(([k,n])=>`<option value="${k}" ${x.cat===k?'selected':''}>${n}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table>
   <div class="row" style="margin-top:8px"><button class="btn p" data-act="impgo">匯入勾選的 ${imp.filter(x=>x.on).length} 筆</button><button class="btn" data-act="impx">取消</button></div>`:'<p class="note">看不懂這些內容，請確認每行開頭是日期（例如 12/5）。</p>'}`}
 
 /* 解析貼上的文字 */
@@ -378,23 +412,27 @@ function detailDialog(){const o=findOcc(openKey);if(!o){openKey='';return''}
   ${edit&&o.src==='e'?`<button class="btn s" data-act="edit1" data-k="${esc(o.key)}">✏️ 編輯</button><button class="btn s d" data-act="del1" data-k="${esc(o.key)}">刪除</button>`:''}
   ${edit&&o.src==='r'?`<button class="btn s" data-act="redit" data-id="${esc(o.id)}">✏️ 編輯例行</button><button class="btn s d" data-act="skip" data-k="${esc(o.key)}">這次取消</button>`:''}
   ${edit&&o.src==='a'?`<button class="btn s p" data-act="ocrok" data-k="${esc(o.key)}">✓ 轉成正式活動</button><button class="btn s" data-act="hideo" data-k="${esc(o.key)}">${o.hidden?'恢復顯示':'不顯示'}</button>`:''}
+  ${edit&&o.src==='g'?`<button class="btn s p" data-act="ocrok" data-k="${esc(o.key)}">✓ 確認，補上時間地點</button><button class="btn s" data-act="hideo" data-k="${esc(o.key)}">${o.hidden?'恢復顯示':'不是會議，不顯示'}</button>`:''}
+  ${o.src==='l'?'<a class="btn s" href="./#res">到調度板看休假</a>':''}
   ${edit&&o.src==='o'?`<button class="btn s p" data-act="ocrok" data-k="${esc(o.key)}">✓ 確認，加入行事曆</button><button class="btn s" data-act="hideo" data-k="${esc(o.key)}">${o.hidden?'恢復顯示':'辨識錯了，不顯示'}</button>`:''}
-  ${edit&&o.src==='m'?`<a class="btn s" href="meeting.html#plan">到晨會網站編輯</a><button class="btn s" data-act="hidem" data-id="${esc(o.id)}">${o.hidden?'恢復顯示':'不顯示'}</button>`:''}</div>
- <h3>出席 ${cntHtml(o)}</h3>${me?'':'<p class="note" style="margin-top:0">先在右上角選「我是：」，就能直接回覆自己要不要參加。</p>'}
+  ${edit&&o.src==='m'?`<button class="btn s" data-act="medit" data-k="${esc(o.key)}">✏️ 編輯</button><button class="btn s d" data-act="mdel" data-k="${esc(o.key)}">刪除</button><button class="btn s" data-act="hidem" data-id="${esc(o.id)}">${o.hidden?'恢復顯示':'只在行事曆不顯示'}</button>`:''}</div>
+ ${o.cat==='cc'&&o.src==='r'&&o.date===ccDate()&&S.cc?`<p class="note">🎗️ 癌症討論會名單已排入 ${+S.cc.listed||0} 人 <a href="cancer.html">看名單 →</a></p>`:''}
+ ${o.aud==='none'?'':`<h3>出席 ${cntHtml(o)}</h3>`}${me||o.aud==='none'?'':'<p class="note" style="margin-top:0">先在右上角選「我是：」，就能直接回覆自己要不要參加。</p>'}
  ${GRP.map(([r,n])=>{const L=inv.filter(p=>p.role===r);return L.length?`<div class="note" style="margin-top:8px">${n}（${L.length}）</div><div class="plist">${L.map(p=>{const lv=leaveOf(p,o.date);return `<div class="prow"><span class="nm" ${p.id===me?'style="font-weight:700;color:var(--scrub)"':''}>${esc(pname(p))} <span class="note">${esc(plv(p))}</span>${lv?` <span class="chip a">${esc(lv)}</span>`:''}</span>${rsvp(o,p,true)}</div>`}).join('')}</div>`:''}).join('')}
- ${edit&&others.length?`<details style="margin-top:10px"><summary class="note">不在邀請名單的人（${others.length}）</summary><div class="plist">${others.map(p=>`<div class="prow"><span class="nm">${esc(pname(p))} <span class="note">${esc(plv(p))}</span></span>${rsvp(o,p,true)}</div>`).join('')}</div></details>`:''}
+ ${edit&&others.length&&o.aud!=='none'?`<details style="margin-top:10px"><summary class="note">不在邀請名單的人（${others.length}）</summary><div class="plist">${others.map(p=>`<div class="prow"><span class="nm">${esc(pname(p))} <span class="note">${esc(plv(p))}</span></span>${rsvp(o,p,true)}</div>`).join('')}</div></details>`:''}
  </div></div>`}
 
 /* ---------- 新增／編輯 ---------- */
 function formDialog(){const f=form;
- return `<div class="imodal" data-act="fcancel"><form class="ibox" id="evf"><h2>${f.id?(f.kind==='rule'?'編輯例行會議':'編輯活動'):'新增活動'}</h2>
+ return `<div class="imodal" data-act="fcancel"><form class="ibox" id="evf"><h2>${f.id?(f.kind==='rule'?'編輯例行會議':f.kind==='mtg'?'編輯晨會網站的會議':'編輯活動'):'新增活動'}</h2>${f.kind==='mtg'?'<p class="note" style="margin-top:0">存檔後晨會網站「重要會議」也會一起更新。</p>':''}
  <label>名稱<input name="title" value="${esc(f.title||'')}" required placeholder="例：南區月會、Journal club、尾牙"></label>
- <div class="row"><label>分類<select name="cat">${CATS.map(([k,n])=>`<option value="${k}" ${(f.cat||'other')===k?'selected':''}>${n}</option>`).join('')}</select></label>
-  <label>重複<select name="freq" ${f.id&&f.kind!=='rule'?'disabled':''}><option value="">不重複</option>${FREQ.map(([k,n])=>`<option value="${k}" ${f.freq===k?'selected':''}>${n}星期幾</option>`).join('')}</select></label></div>
+ <div class="row"><label>分類<select name="cat">${ECATS.map(([k,n])=>`<option value="${k}" ${(f.cat||'other')===k?'selected':''}>${n}</option>`).join('')}</select></label>
+  <label>重複<select name="freq" ${(f.id&&f.kind!=='rule')||f.kind==='mtg'?'disabled':''}><option value="">不重複</option>${FREQ.map(([k,n])=>`<option value="${k}" ${f.freq===k?'selected':''}>${n}星期幾</option>`).join('')}</select></label></div>
  <div class="row"><label>日期<span class="note">（例行＝第一次）</span><input type="date" name="date" value="${esc(f.date||'')}" required></label><label>到<span class="note">（多天活動／例行的最後一次，可空白）</span><input type="date" name="end" value="${esc((f.kind==='rule'?f.until:f.end)||'')}"></label></div>
  <div class="row"><label>開始時間<input type="time" name="time" value="${esc(f.time||'')}"></label><label>結束時間<input type="time" name="tend" value="${esc(f.tend||'')}"></label></div>
  <label>地點<input name="place" value="${esc(f.place||'')}" placeholder="例：第一會議室、高雄長庚"></label>
  <label>備註<input name="note" value="${esc(f.note||'')}" placeholder="報名方式、要準備的東西…（不要填病人資料）"></label>
+ <div class="row"><label class="row" style="gap:4px;flex:none"><input type="checkbox" name="pre" ${f.pre?'checked':''} style="min-height:0;width:auto;display:inline">需要在晨會預報</label><label>預報的人<input name="preWho" value="${esc(f.preWho||'')}" placeholder="可多人，用、分隔"></label></div>
  <label>參加對象<select name="aud" id="faud">${AUD.map(([k,n])=>`<option value="${k}" ${(f.aud||'all')===k?'selected':''}>${n}</option>`).join('')}</select></label>
  <div class="pick" id="fppl" ${f.aud==='pick'?'':'hidden'}>${PPL().map(p=>`<label><input type="checkbox" name="ppl" value="${esc(p.id)}" ${(f.ppl||[]).includes(p.id)?'checked':''}>${esc(pname(p))}</label>`).join('')||'<span class="note">人員名冊沒有人</span>'}</div>
  <div class="row" style="margin-top:12px"><button class="btn p" type="submit">儲存</button><button class="btn" type="button" data-act="fcancel">取消</button>${f.id&&f.kind==='rule'?'<span style="flex:1"></span><button class="btn d" type="button" data-act="rdel">刪除例行會議</button>':''}</div></form></div>`}
@@ -435,18 +473,28 @@ function render(){let pg=page();if(pg==='setup'&&!edit)pg='month';
  if(S.loading&&!S.cal&&!S.people){$('#app').innerHTML='<p class="note">讀取中…</p>';return}
  const y=scrollY,ae=document.activeElement,aid=ae&&ae.id;const txt=$('#imptxt')?$('#imptxt').value:null;
  $('#app').innerHTML=subnav+(pg==='week'?weekPage():pg==='list'?listPage():pg==='att'?attPage():pg==='setup'?setupPage():monthPage())
-  +`<p class="note foot">出席狀態全科共用：選「我是」後點 ✓／✗／? 回覆自己的；休假從刀房調度板的休假登記自動帶入。晨會網站的「重要會議」會自動出現在這裡。請勿填病人姓名、病歷號。</p>`
+  +`<p class="note foot">出席狀態全科共用：選「我是」後點 ✓／✗／? 回覆自己的；休假從刀房調度板的休假登記自動帶入。和晨會網站雙向同步：這裡的單次活動會出現在晨會網站「重要會議」（勾「需要在晨會預報」會自動排預報），晨會網站的會議在這裡也能改；調度板的休假、值班與癌症討論會日期自動帶入。請勿填病人姓名、病歷號。</p>`
   +(openKey?detailDialog():'')+(form?formDialog():'');
  if(txt!=null&&$('#imptxt'))$('#imptxt').value=txt;if(aid&&$('#'+aid)&&aid!=='imptxt')$('#'+aid).focus();scrollTo(0,y)}
 
 async function load(){S.loading=true;render();if(!on()){S.loading=false;render();return}
  const k=['common/people','config/main','meeting/plan','meeting/drive',KEY,'meeting/cal'];const r=await getMany(k);const v=i=>r[i].status==='fulfilled'?r[i].value:null;S.mc=v(5);
- S.err=r.every(x=>x.status==='rejected')?'conn':'';S.people=v(0);S.cfg=v(1)&&v(1).cfg;S.mp=v(2);S.md=v(3);if(!pending)S.cal=v(4);S.loading=false;render()}
+ S.err=r.every(x=>x.status==='rejected')?'conn':'';S.people=v(0);S.cfg=v(1)&&v(1).cfg;if(!pendingM)S.mp=v(2);S.md=v(3);if(!pending)S.cal=v(4);S.loading=false;lastLoad=Date.now();render();
+ try{const x=await fetch(q_('action=cancerStatus'));const j=await x.json();if(j.ok&&j.value){S.cc=j.value;LS.set('cccache',j.value);render()}}catch(e){}}
+/* 同步：其他分頁（晨會、科務入口）存檔時馬上重讀；切回這個分頁、每 2 分鐘也重讀 */
+let lastLoad=0,pendingM=0;const BC=(()=>{try{return new BroadcastChannel('uro-sync')}catch(e){return null}})();
+const syncPing=k=>{try{BC&&BC.postMessage({k,t:Date.now()})}catch(e){}};
+if(BC)BC.onmessage=()=>{if(!saving&&!form&&!openKey)load()};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!saving&&!form&&!openKey&&Date.now()-lastLoad>20000)load()});
+/* 晨會網站的會議（meeting/plan）：同樣先改畫面，再讀最新的、套用修改後存回 */
+async function savePlanM(mut){mut(MP());render();saving++;pendingM++;render();
+ try{let fresh=null;try{fresh=await get('meeting/plan')}catch(e){}if(fresh){S.mp=fresh;mut(MP())}const M=MP();M.ts=Date.now();await set('meeting/plan',M);syncPing('meeting/plan')}catch(e){alert('儲存失敗，請稍後再試')}
+ saving--;pendingM--;render()}
 /* 先改本機畫面，再讀最新的雲端資料、套用同一個修改後存回（避免蓋掉別人剛存的） */
 let pending=0;
 function prune(C){const lim=addD(today,-180);Object.keys(C.att).forEach(k=>{if(k.slice(k.lastIndexOf('@')+1)<lim||!Object.keys(C.att[k]||{}).length)delete C.att[k]});Object.keys(C.skip).forEach(k=>{if(k.slice(k.lastIndexOf('@')+1)<lim)delete C.skip[k]})}
 async function saveCal(mut){mut(CAL());render();saving++;pending++;render();
- try{let fresh=null;try{fresh=await get(KEY)}catch(e){}if(fresh){S.cal=fresh;mut(CAL())}const C=CAL();prune(C);C.ts=Date.now();await set(KEY,C)}catch(e){alert('儲存失敗，請稍後再試')}
+ try{let fresh=null;try{fresh=await get(KEY)}catch(e){}if(fresh){S.cal=fresh;mut(CAL())}const C=CAL();prune(C);C.ts=Date.now();await set(KEY,C);syncPing(KEY)}catch(e){alert('儲存失敗，請稍後再試')}
  saving--;pending--;render()}
 async function aiPost(o){const r=await fetch(gs.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(AB({token:gs.token||'',...o}))});const j=await r.json();if(!j.ok)throw new Error(j.err==='請先登入'||j.err==='auth'?'請先登入（右上角）':j.err||'fail');return j.value}
 function aiUpload(f){const m=()=>$('#aimsg');if(f.size>20*1024*1024)return alert('檔案太大（上限 20 MB）');if(m())m().textContent='AI 辨識中…（約 30 秒～1 分鐘）';
@@ -470,9 +518,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  else if(k==='redit'){const r=CAL().rules.find(x=>x.id===b.dataset.id);if(r){form={...r,kind:'rule',date:r.from||today};openKey='';render()}}
  else if(k==='rdel'){const id=form&&form.id;if(id&&confirm('刪除這個例行會議？（過去的出席紀錄也會看不到）')){form=null;saveCal(C=>{const r=C.rules.find(x=>x.id===id);if(r){r.del=true;r.ts=Date.now()}})}}
  else if(k==='skip'){const kk=b.dataset.k,id=kk.slice(2);if(confirm('這次取消（不開）？')){openKey='';saveCal(C=>{C.skip[id]=1})}}
- else if(k==='ocrok'){const o=findOcc(b.dataset.k);if(o){form={kind:'event',title:o.title,cat:o.cat,date:o.date,end:o.end,time:o.time,place:o.place,aud:'all',note:''};openKey='';render()}}
+ else if(k==='ocrok'){const o=findOcc(b.dataset.k);if(o){form={kind:'event',title:o.title,cat:o.cat,date:o.date,end:o.end,time:o.time,place:o.place,aud:'all',note:'',pre:o.src==='g'&&/預報/.test(o.note)};openKey='';render()}}
+ else if(k==='hideo'){const o=findOcc(b.dataset.k);if(!o)return;const hk=o.date+'|'+o.title,kk=o.key;
+  if(o.hidden){if(CAL().hideO[kk])saveCal(C=>{delete C.hideO[kk]});if(autoHidden(o.date,o.title))savePlanM(M=>{delete M.hideAuto[hk]})}else{openKey='';savePlanM(M=>{M.hideAuto[hk]=true})}}
+ else if(k==='medit'){const o=findOcc(b.dataset.k);if(o&&o.raw){form={...o.raw,kind:'mtg',cat:o.cat,aud:'all'};openKey='';render()}}
+ else if(k==='mdel'){const o=findOcc(b.dataset.k);if(o&&confirm(`刪除「${o.title}」？（晨會網站也會一起刪除）`)){openKey='';savePlanM(M=>{const x=M.events.find(y=>y.id===o.id);if(x){x.del=true;x.ts=Date.now()}})}}
  else if(k==='aidel'){if(confirm('刪除這份行程匯入的所有活動？'))aiPost({action:'calDel',k:b.dataset.k}).then(v=>{S.mc=v;render()},e=>alert('刪除失敗：'+e.message))}
- else if(k==='hideo'){const kk=b.dataset.k;saveCal(C=>{if(C.hideO[kk])delete C.hideO[kk];else C.hideO[kk]=1})}
  else if(k==='hidem'){const id=b.dataset.id;saveCal(C=>{if(C.hideM[id])delete C.hideM[id];else C.hideM[id]=1})}
  else if(k==='ics'){const pg=page(),[a,z]=rangeOf(pg==='setup'?'list':pg);let O=occs(a,z);if(pg==='list'&&noRoutine)O=O.filter(o=>o.src!=='r');if(!O.length)return alert('這個畫面沒有活動');dlIcs(O,'泌尿科行事曆_'+a)}
  else if(k==='ics1'){const o=findOcc(b.dataset.k);if(o)dlIcs([o],o.title)}
@@ -500,15 +551,17 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset&&el.datase
 });
 document.addEventListener('submit',e=>{if(e.target.id!=='evf')return;e.preventDefault();const F=new FormData(e.target),g=n=>String(F.get(n)||'').trim(),f=form;
  const freq=f.kind==='rule'?g('freq')||f.freq:(f.id?'':g('freq'));
- const base={title:g('title'),cat:g('cat'),time:g('time'),tend:g('tend'),place:g('place'),note:g('note'),aud:g('aud'),ppl:g('aud')==='pick'?F.getAll('ppl').map(String):[],ts:Date.now()};
+ const base={title:g('title'),cat:g('cat'),time:g('time'),tend:g('tend'),place:g('place'),note:g('note'),aud:g('aud'),ppl:g('aud')==='pick'?F.getAll('ppl').map(String):[],pre:!!F.get('pre'),preWho:g('preWho'),ts:Date.now()};
  if(!base.title||!g('date'))return;
- if(freq){if(f.kind==='rule'&&!g('freq'))return alert('例行會議要選重複方式');const r={...base,id:f.kind==='rule'&&f.id?f.id:nid('r'),freq,dow:dow(g('date')),from:g('date'),until:g('end'),on:f.on!==false};form=null;saveCal(C=>upsert(C.rules,r))}
+ if(f.kind==='mtg'){const id=f.id,o={title:base.title,date:g('date'),end:g('end')>g('date')?g('end'):'',time:base.time,place:base.place,note:base.note,pre:base.pre,preWho:base.preWho,ts:Date.now()};form=null;sel=o.date;
+  savePlanM(M=>{const x=M.events.find(y=>y.id===id);if(x)Object.assign(x,o)});if(base.cat!==(CAL().mcat[id]||mDefCat(o.title)))saveCal(C=>{C.mcat[id]=base.cat});return}
+ if(freq){if(f.kind==='rule'&&!g('freq'))return alert('例行會議要選重複方式');delete base.pre;delete base.preWho;const r={...base,id:f.kind==='rule'&&f.id?f.id:nid('r'),freq,dow:dow(g('date')),from:g('date'),until:g('end'),on:f.on!==false};form=null;saveCal(C=>upsert(C.rules,r))}
  else{const ev={...base,id:f.id||nid('e'),date:g('date'),end:g('end')>g('date')?g('end'):''};form=null;sel=ev.date;saveCal(C=>upsert(C.events,ev))}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(openKey||form)){openKey='';form=null;render()}
  if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.ev[data-act]')){e.preventDefault();e.target.click()}});
 addEventListener('hashchange',()=>{openKey='';form=null;render()});
 const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||!!navigator.standalone}catch(e){return false}};
-load();setInterval(()=>{if(!document.hidden&&!saving&&!form&&!openKey)load()},300000);
+load();setInterval(()=>{if(!document.hidden&&!saving&&!form&&!openKey)load()},120000);
 if(window.AUTH){AUTH.init(gs.url,gs.token);addEventListener('auth:change',()=>{const pm=AUTH.prefs().me;if(pm&&!LS.get('calMe'))me=pm;render()})}
 
 /* ===== 加到主畫面 ===== */
