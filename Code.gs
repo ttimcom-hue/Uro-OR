@@ -5,7 +5,7 @@ function row(s,k){const n=s.getLastRow();if(!n)return 0;const v=s.getRange(1,1,n
 // data 工作表：A＝鍵、B＝值、C＝時間。一格最多 5 萬字，所以超過 45000 字的值切段：B 放第一段，D、E…放後面（每段前面加 ~，避免被當成公式或數字），讀的時候接回去
 const CHUNK_=45000;
 function joinRow_(r){let v=String(r[0]==null?'':r[0]);for(let i=2;i<r.length;i++){const x=String(r[i]==null?'':r[i]);if(!x)break;v+=x.charAt(0)==='~'?x.slice(1):x}return v}
-function dataGet_(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());const s=sh(),r=row(s,k);if(!r)return'';const w=Math.max(2,s.getLastColumn()-1);return joinRow_(s.getRange(r,2,1,w).getValues()[0])}
+function dataGet_(k){if(k==='meeting/drive')return JSON.stringify(meetingRead());if(k==='meeting/cal')return JSON.stringify(meetingCalRead());const s=sh(),r=row(s,k);if(!r)return'';const w=Math.max(2,s.getLastColumn()-1);return joinRow_(s.getRange(r,2,1,w).getValues()[0])}
 function dataSet_(k,v){return dataSetMany_([[k,v]])}
 // 一次寫多個鍵（同一把鎖、只讀一次鍵欄），匯入很多天的刀表時用
 function dataSetMany_(pairs){const L=LockService.getScriptLock();L.waitLock(28000);try{const s=sh();const n=s.getLastRow(),idx={};if(n)s.getRange(1,1,n,1).getValues().forEach((x,i)=>{if(x[0])idx[x[0]]=i+1});
@@ -15,7 +15,7 @@ function dataSetMany_(pairs){const L=LockService.getScriptLock();L.waitLock(2800
    const vals=[parts[0],now].concat(parts.slice(1).map(x=>'~'+x));const w=Math.max(vals.length,lc-1);while(vals.length<w)vals.push('');
    const rg=s.getRange(r,2,1,w);if(parts.length>1)rg.setNumberFormat('@');rg.setValues([vals])}}finally{L.releaseLock()}return true}
 function dataGetMany_(keys){const s=sh(),n=s.getLastRow(),m={};if(n)s.getRange(1,1,n,Math.max(3,s.getLastColumn())).getValues().forEach(r=>{if(r[0])m[r[0]]=joinRow_(r.slice(1))});
-  const v={};keys.forEach(k=>{try{const x=k==='meeting/drive'?JSON.stringify(meetingRead()):m[k];v[k]=x?JSON.parse(String(x)):null}catch(e){v[k]=null}});return v}
+  const v={};keys.forEach(k=>{try{const x=k==='meeting/drive'?JSON.stringify(meetingRead()):k==='meeting/cal'?JSON.stringify(meetingCalRead()):m[k];v[k]=x?JSON.parse(String(x)):null}catch(e){v[k]=null}});return v}
 function out(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
 // ===== 癌症討論會追蹤表連動 =====
 const CANCER_ID='1OaCFv8mcIf8lKyyX__Tj_at4Y8KsX5q50r7F2F6riiI';
@@ -77,8 +77,9 @@ function mtgWeek_(f,cache,yr){const mmdd=f.getName();const files=[];let main=nul
     if(c&&c.outline&&c.outline.length){w.outline=c.outline;w.how=c.how}
     else{try{const r=mtgOutline_(B());w.outline=r.items;w.how=r.how}catch(e){w.err=String(e).slice(0,120)}}
     // 截圖辨識：只做最近 3 週～未來 5 週的晨會，簡報沒改過就沿用上次結果
-    if(c&&c.img)w.img=c.img;
-    else if(mtgRecent_(w.d)){try{w.img=mtgImgEvents_(B(),w.d)}catch(e){w.imgErr=String(e).slice(0,120)}}}
+    // 有設定 CLAUDE_API_KEY 之後，舊的 OCR 結果會用 AI 重新辨識一次
+    if(c&&c.img&&(c.imgBy==='ai'||!aiKey_())){w.img=c.img;w.imgBy=c.imgBy||'ocr'}
+    else if(mtgRecent_(w.d)){try{w.img=mtgImgEvents_(B(),w.d);w.imgBy=aiKey_()?'ai':'ocr'}catch(e){w.imgErr=String(e).slice(0,120)}}}
   return w}
 const mtgRecent_=d=>{const t=Date.now(),x=new Date(d+'T00:00:00+08:00').getTime();return x>=t-21*864e5&&x<=t+35*864e5};
 
@@ -87,7 +88,8 @@ const mtgRecent_=d=>{const t=Date.now(),x=new Date(d+'T00:00:00+08:00').getTime(
    每週最多 8 張 png／jpg（15 KB～8 MB）。用 Drive 把圖片轉成 Google 文件（OCR）→ 讀文字 → 立刻刪除暫存檔（drive.file 權限）。
    **只存辨識出的會議名稱、日期、時間、地點**，不存整段文字；含長串數字、病歷、床號、歲等字眼的行一律丟掉。 */
 const MTG_IMG_KW=/會議|月會|年會|研討|課程|講座|論壇|工作坊|公告|活動|報名|workshop|symposium|congress|meeting|conference|course|seminar|forum/i;
-function mtgImgEvents_(blob,wd){
+function mtgImgEvents_(blob,wd){return aiKey_()?mtgImgAI_(blob,wd):mtgImgOcr_(blob,wd)}
+function mtgImgOcr_(blob,wd){
   const files=Utilities.unzip(blob.setContentType('application/zip')),by={};files.forEach(f=>by[f.getName()]=f);
   const num=b=>+(b.getName().match(/(\d+)\.xml$/)||[0,0])[1];
   const slides=files.filter(b=>/^ppt\/slides\/slide\d+\.xml$/.test(b.getName())).sort((a,b)=>num(a)-num(b));
@@ -135,6 +137,124 @@ function mtgImgParse_(text,wd){
   if(!title)return[];
   const pl=L.map(s=>s.match(/^(?:地點|地址|會場|場地|venue|location)\s*[:：]?\s*(.+)/i)).find(Boolean);
   return[{d:hit.d,end:hit.end,t,title:title.replace(/^[【\[「]|[】\]」]$/g,'').slice(0,40),place:pl&&!bad(pl[1])?pl[1].slice(0,40):''}]}
+
+/* ---------- AI 辨識（Claude API）：截圖、每月開會行程 PDF、學會日期 ----------
+   金鑰放在 Apps Script「專案設定 → 指令碼屬性」CLAUDE_API_KEY（**不要寫進 repo**）。沒有金鑰時：截圖用上面的 Drive OCR，PDF 與學會日期不自動更新。
+   送去辨識的只有：會議相關投影片的文字與圖片（跳過 MM、預報、個案等可能有病人資料的投影片）、開會行程 PDF；只存回會議名稱、日期、時間、地點、負責人。 */
+const AI_MODEL='claude-opus-5-5';
+function aiKey_(){try{return PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY')||''}catch(e){return ''}}
+function aiCall_(content,o){o=o||{};const key=aiKey_();if(!key)throw new Error('沒有設定 CLAUDE_API_KEY');
+  const body={model:AI_MODEL,max_tokens:o.max||16000,fallbacks:'default',output_config:{effort:o.effort||'low'},messages:[{role:'user',content}]};
+  if(o.schema)body.output_config.format={type:'json_schema',schema:o.schema};
+  if(o.tools)body.tools=o.tools;
+  for(let i=0;i<5;i++){
+    const r=UrlFetchApp.fetch('https://api.anthropic.com/v1/messages',{method:'post',contentType:'application/json',muteHttpExceptions:true,
+      headers:{'x-api-key':key,'anthropic-version':'2026-10-21','anthropic-beta':'server-side-fallback-2026-07-01'},payload:JSON.stringify(body)});
+    const code=r.getResponseCode();let j={};try{j=JSON.parse(r.getContentText()||'{}')}catch(e){}
+    if(code>=300)throw new Error('Claude API '+code+'：'+String((j.error&&j.error.message)||r.getContentText()).slice(0,160));
+    if(j.stop_reason==='refusal')throw new Error('Claude 不處理這份資料');
+    if(j.stop_reason==='pause_turn'){body.messages.push({role:'assistant',content:j.content});continue}  // 網路搜尋做到一半：接著做
+    const txt=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');
+    if(o.schema)return JSON.parse(txt);
+    const m=txt.match(/\{[\s\S]*\}/);return m?JSON.parse(m[0]):null}
+  throw new Error('Claude 沒有完成')}
+const AI_KINDS=['科內會議','院際會議','醫學會','投稿截止','課程','其他'];
+const AI_EV_SCHEMA={type:'object',additionalProperties:false,required:['events'],properties:{events:{type:'array',items:{type:'object',additionalProperties:false,
+  required:['title','date','end','time','tend','place','who','kind'],properties:{
+  title:{type:'string',description:'會議名稱'},date:{type:'string',description:'YYYY-MM-DD'},end:{type:'string',description:'多天活動的最後一天 YYYY-MM-DD，沒有就空字串'},
+  time:{type:'string',description:'開始時間 HH:MM，24 小時制，沒有就空字串'},tend:{type:'string',description:'結束時間 HH:MM，沒有就空字串'},
+  place:{type:'string'},who:{type:'string',description:'主講人／負責人／主辦單位，沒有就空字串'},kind:{type:'string',enum:AI_KINDS}}}}}};
+const aiD_=s=>/^20\d\d-\d\d-\d\d$/.test(String(s||''))?String(s):'',aiT_=s=>{const m=String(s||'').match(/^(\d{1,2}):(\d\d)/);return m&&+m[1]<24?m[1].padStart(2,'0')+':'+m[2]:''};
+function aiEvents_(content){const r=aiCall_(content,{schema:AI_EV_SCHEMA});
+  return ((r&&r.events)||[]).map(e=>({title:String(e.title||'').trim().slice(0,60),d:aiD_(e.date),end:aiD_(e.end),t:aiT_(e.time),tend:aiT_(e.tend),place:String(e.place||'').slice(0,60),who:String(e.who||'').slice(0,40),kind:AI_KINDS.indexOf(e.kind)>=0?e.kind:'其他'}))
+    .filter(e=>e.title&&e.d).map(e=>{if(e.end&&e.end<=e.d)e.end='';return e}).slice(0,60)}
+const AI_IMG=/\.(png|jpe?g|gif|webp)$/i,AI_CLIN=/預報|\bMM\b|Mortality|Morbidity|case|個案|病例|再入院|事件|影像學|術後|併發/i;
+const aiMime_=n=>/\.png$/i.test(n)?'image/png':/\.gif$/i.test(n)?'image/gif':/\.webp$/i.test(n)?'image/webp':'image/jpeg';
+/* 晨會簡報：挑出提到會議的投影片（＋接在後面、只有圖片的投影片），文字與圖片一起交給 Claude */
+function mtgImgAI_(blob,wd){
+  const files=Utilities.unzip(blob.setContentType('application/zip')),by={};files.forEach(f=>by[f.getName()]=f);
+  const num=b=>+(b.getName().match(/(\d+)\.xml$/)||[0,0])[1];
+  const slides=files.filter(b=>/^ppt\/slides\/slide\d+\.xml$/.test(b.getName())).sort((a,b)=>num(a)-num(b));
+  const content=[];let imgs=0,prevKw=false,taken=0;
+  slides.forEach((sl,i)=>{if(!i)return;const x=sl.getDataAsString('UTF-8');
+    const txt=(x.match(/<a:t(?:\s[^>]*)?>[^<]*<\/a:t>/g)||[]).map(t=>t.replace(/<[^>]+>/g,'')).join(' ').replace(/\s+/g,' ').trim();
+    if(/^(outline|agenda|大綱|議程)\b/i.test(txt)){prevKw=false;return}
+    const clin=AI_CLIN.test(txt),kw=MTG_IMG_KW.test(txt)&&!clin,take=!clin&&(kw||(prevKw&&txt.length<30));
+    if(txt.length>=30||clin)prevKw=kw;else if(kw)prevKw=true;
+    if(!take||taken>=12)return;taken++;
+    content.push({type:'text',text:'【第 '+num(sl)+' 張投影片的文字】'+(txt||'（沒有文字）')});
+    const rel=by['ppt/slides/_rels/'+sl.getName().split('/').pop()+'.rels'];if(!rel)return;
+    const R={};(rel.getDataAsString('UTF-8').match(/<Relationship\b[^>]*>/g)||[]).forEach(r=>{const id=(r.match(/Id="([^"]+)"/)||[])[1],tg=(r.match(/Target="([^"]+)"/)||[])[1];if(id&&tg)R[id]=tg});
+    (x.match(/r:embed="[^"]+"/g)||[]).forEach(m=>{const tg=R[m.slice(9,-1)];if(!tg||!AI_IMG.test(tg)||imgs>=10)return;
+      const img=by['ppt/'+tg.replace(/^\.\.\//,'')];if(!img)return;const bytes=img.getBytes();if(bytes.length<8000||bytes.length>3.7*1024*1024)return;
+      imgs++;content.push({type:'image',source:{type:'base64',media_type:aiMime_(tg),data:Utilities.base64Encode(bytes)}})})});
+  if(!content.length)return[];
+  content.push({type:'text',text:'以上是泌尿科 '+wd+' 晨會簡報裡跟會議、研討會、課程、報名、投稿有關的投影片（文字與截圖）。\n'
+    +'請列出裡面提到的每一個活動：名稱、日期、時間、地點、主辦或主講人、類別。投稿或報名截止也各列一筆（類別「投稿截止」，名稱寫「某會議 投稿截止」）。\n'
+    +'年份沒寫時，用 '+wd+' 之後最近的那一天。只列圖片或文字裡明確看得到的資訊，看不清楚的欄位留空字串，不要猜；早於 '+wd+' 的活動不要列。'});
+  return aiEvents_(content).filter(e=>e.d>=wd).slice(0,15)}
+/* 每月開會行程 PDF（或圖片）→ 會議清單 */
+function calDocAI_(blob,name){const mt=String(blob.getContentType()||'');const b64=Utilities.base64Encode(blob.getBytes());
+  const doc=/pdf/i.test(mt)||/\.pdf$/i.test(name)?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}:{type:'image',source:{type:'base64',media_type:aiMime_(name||'x.jpg'),data:b64}};
+  return aiEvents_([doc,{type:'text',text:'這是泌尿科每月的行程文件（檔名：'+(name||'')+'）。請只看其中的「開會行程表」或會議時程，每一場會議列一筆：\n'
+    +'日期（YYYY-MM-DD，年份看文件標題）、開始與結束時間、名稱、主講人或負責人、地點、類別。\n'
+    +'類別：本科的晨會、科務會議、Journal reading、討論會、教學等是「科內會議」；他院、聯合、線上聯合討論會是「院際會議」。\n'
+    +'不要列出值班表、人力表、門診、刀房人力、電話分機，也不要輸出任何病人資料。'}])}
+/* 重要醫學會：內建清單（2026/11 查證，來源見 url）＋每週用 Claude 網路搜尋補上、更新 */
+const MTG_CONF=[
+ {key:'tua_mid',title:'TUA 半年會（第12屆半年會暨學術演講會）',date:'2027-01-16',end:'',place:'台北新光醫院 友誼大樓',deadline:'2026-11-01',late:'',url:'https://www.tua.org.tw/tua/tw/mid-year-meeting'},
+ {key:'eau_endo',title:'EAU Endourology Taiwan Masterclass',date:'2027-01-22',end:'2027-01-23',place:'高雄展覽館',deadline:'',late:'',url:''},
+ {key:'eau',title:'EAU27 歐洲泌尿科醫學會年會',date:'2027-03-19',end:'2027-03-22',place:'Amsterdam RAI',deadline:'2026-11-01',late:'2027-01-23',url:'https://eaucongress.uroweb.org/'},
+ {key:'jua',title:'JUA 第114回日本泌尿器科学会総会',date:'2027-04-15',end:'2027-04-17',place:'神戶國際會議場',deadline:'',late:'',url:''},
+ {key:'tsa',title:'台灣外科醫學會年會',date:'',end:'',place:'',deadline:'',late:'',url:'',note:'2026 年在 4/25–26，2027 日期待公布'},
+ {key:'aua',title:'AUA2027 美國泌尿科醫學會年會',date:'2027-05-21',end:'2027-05-24',place:'San Diego Convention Center',deadline:'2026-11-02',late:'',url:'https://www.auanet.org/AUA2027'},
+ {key:'tua',title:'TUA 年會',date:'',end:'',place:'',deadline:'',late:'',url:'https://www.tua.org.tw/',note:'2026 年在 8/22–23，2027 日期待公布'},
+ {key:'uaa',title:'UAA 亞洲泌尿科醫學會年會',date:'2027-09-08',end:'2027-09-11',place:'Bangkok（待官方確認）',deadline:'',late:'',url:''}];
+function confAI_(){const today=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd');
+  const r=aiCall_([{type:'text',text:'今天是 '+today+'。請用網路搜尋，查下列醫學會「下一次（今天以後還沒結束）」的年會：會議日期、地點、摘要投稿截止日（含 late-breaking）。以官方網站為準。\n'
+    +MTG_CONF.map(c=>'- '+c.key+'：'+c.title.replace(/\d{4}|第\S+屆|第\S+回/g,'').trim()).join('\n')
+    +'\n只回一個 JSON 物件，不要其他文字：{"confs":[{"key":"…","title":"含年份的正式名稱","date":"YYYY-MM-DD","end":"YYYY-MM-DD","place":"…","deadline":"YYYY-MM-DD","late":"YYYY-MM-DD","url":"官方網址"}]}。'
+    +'查不到的欄位用空字串，不要猜。'}],{effort:'medium',tools:[{type:'web_search_20260209',name:'web_search',max_uses:10}]});
+  return ((r&&r.confs)||[]).filter(c=>c&&MTG_CONF.some(x=>x.key===c.key)).map(c=>({key:c.key,title:String(c.title||'').slice(0,60),date:aiD_(c.date),end:aiD_(c.end),place:String(c.place||'').slice(0,60),deadline:aiD_(c.deadline),late:aiD_(c.late),url:/^https?:\/\//.test(c.url||'')?String(c.url).slice(0,200):''}))}
+function confItems_(ai){const A={};((ai&&ai.confs)||[]).forEach(c=>A[c.key]=c);const out=[];
+  MTG_CONF.forEach(c0=>{const a=A[c0.key]||{},c={...c0};
+    // AI 查到「比內建更新（日期較晚）」或內建沒有的欄位才覆蓋
+    if(a.date&&(!c.date||a.date>=c.date)){['title','date','end','place','deadline','late','url'].forEach(k=>{if(a[k])c[k]=a[k]});c.note='';c.ai=1}
+    else['deadline','late','place','url'].forEach(k=>{if(!c[k]&&a[k]&&(!a.date||a.date===c.date))c[k]=a[k]});
+    const base={src:c.ai?'學會（AI 網路搜尋）':'學會（內建）',url:c.url||'',ck:c.key};
+    out.push({...base,title:c.title,d:c.date,end:c.end&&c.end>c.date?c.end:'',t:'',tend:'',place:c.place,who:'',kind:'醫學會',note:c.note||''});
+    if(c.deadline)out.push({...base,title:c.title+' 投稿截止',d:c.deadline,end:'',t:'',tend:'',place:'',who:'',kind:'投稿截止'});
+    if(c.late)out.push({...base,title:c.title+' late-breaking 投稿截止',d:c.late,end:'',t:'',tend:'',place:'',who:'',kind:'投稿截止'})});
+  return out}
+/* 存放：綁定試算表的「meeting_cal」工作表，一個來源一列：A＝來源鍵、B＝JSON、C＝時間 */
+function calSheet_(){const ss=SpreadsheetApp.getActiveSpreadsheet();return ss.getSheetByName('meeting_cal')||ss.insertSheet('meeting_cal')}
+function calRead_(){const sh=calSheet_(),n=sh.getLastRow(),R={};if(n)sh.getRange(1,1,n,2).getDisplayValues().forEach(r=>{if(r[0]){try{R[r[0]]=JSON.parse(r[1])}catch(e){}}});return R}
+function calWrite_(k,obj,dropPrefix){const L=LockService.getScriptLock();L.waitLock(20000);try{const sh=calSheet_(),n=sh.getLastRow();
+  const rows=n?sh.getRange(1,1,n,3).getValues():[];for(let i=rows.length-1;i>=0;i--){const key=String(rows[i][0]);if(key===k||(dropPrefix&&key.indexOf(dropPrefix)===0))sh.deleteRow(i+1)}
+  if(obj){const r=sh.getLastRow()+1,rg=sh.getRange(r,1,1,3);rg.setNumberFormat('@');rg.setValues([[k,JSON.stringify({ts:Date.now(),...obj}),new Date().toISOString()]])}}finally{L.releaseLock()}}
+/* meeting/cal：行事曆的補充活動 {ts, ai:有沒有金鑰, items:[{sk 來源鍵, src 來源說明, kind, title, d, end, t, tend, place, who, url}]} */
+function meetingCalRead(){const R=calRead_(),items=[];let ts=0;
+  Object.keys(R).forEach(k=>{if(k==='conf')return;const o=R[k];ts=Math.max(ts,o.ts||0);(o.items||[]).forEach(x=>items.push({...x,sk:k,src:o.src||k}))});
+  confItems_(R.conf).forEach(x=>items.push({...x,sk:'conf'}));
+  return{ts,ai:!!aiKey_(),confTs:(R.conf&&R.conf.ts)||0,items}}
+const MTG_PDF_RE=/開會行程|會議行程|行程表|人力表|行事曆/;
+function meetingCal(){if(!aiKey_())return meetingCalRead();const t0=Date.now(),R=calRead_();
+  // 1) 晨會資料夾裡的開會行程 PDF／圖片（檔名含「開會行程、人力表、行程表…」）
+  const files=[];const walk=(f,depth)=>{const it=f.getFiles();while(it.hasNext()){const x=it.next();if(MTG_PDF_RE.test(x.getName())&&/pdf|image\//.test(x.getMimeType()))files.push(x)}
+    if(depth<3){const fi=f.getFolders();while(fi.hasNext())walk(fi.next(),depth+1)}};
+  try{walk(DriveApp.getFolderById(MTG_FOLDER),0)}catch(e){console.log(e)}
+  files.forEach(x=>{if(Date.now()-t0>240000)return;const k='f:'+x.getId()+'|'+x.getLastUpdated().getTime();if(R[k]||x.getSize()>25*1024*1024)return;
+    try{calWrite_(k,{src:'Drive：'+x.getName(),items:calDocAI_(x.getBlob(),x.getName())},'f:'+x.getId()+'|')}catch(e){console.log('行程 PDF',x.getName(),e)}});
+  // 2) 學會日期：每 7 天用網路搜尋更新一次
+  if((!R.conf||Date.now()-(R.conf.ts||0)>7*864e5)&&Date.now()-t0<200000){try{calWrite_('conf',{src:'學會（AI 網路搜尋）',confs:confAI_()})}catch(e){console.log('學會',e)}}
+  return meetingCalRead()}
+/* 網站上傳（行事曆「匯入活動」）：要登入；只存辨識出的會議，不存檔案 */
+function meetingUpload_(b){if(authOn()&&!sessEmail_(b.sess))throw new Error('請先登入');if(!aiKey_())throw new Error('Apps Script 還沒設定 CLAUDE_API_KEY');
+  const bytes=Utilities.base64Decode(String(b.data||''));if(bytes.length>20*1024*1024)throw new Error('檔案太大（上限 20 MB）');
+  const name=String(b.name||'上傳檔案').slice(0,80),items=calDocAI_(Utilities.newBlob(bytes,String(b.mime||''),name),name);
+  const k='u:'+Utilities.computeDigest(Utilities.DigestAlgorithm.MD5,bytes).map(x=>(x+256).toString(16).slice(-2)).join('');
+  calWrite_(k,{src:'上傳：'+name,items});return{k,n:items.length,cal:meetingCalRead()}}
+function calDel_(b){if(authOn()&&!sessEmail_(b.sess))throw new Error('請先登入');const k=String(b.k||'');if(!/^[uf]:/.test(k))throw new Error('只能刪除上傳或 Drive 的行程');calWrite_(k,null);return meetingCalRead()}
 function mtgBlob_(file){
   if(file.getMimeType()==='application/vnd.google-apps.presentation'){
     return UrlFetchApp.fetch('https://docs.google.com/presentation/d/'+file.getId()+'/export/pptx',{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()}}).getBlob()}
@@ -328,6 +448,7 @@ function doGet(e){const p=(e&&e.parameter)||{};
   if(p.action==='me')return run(()=>{const em=sessEmail_(p.sess);return em?meFor_(em):null});
   if(p.action==='cancerScan'){if(!canPHI_(p.sess))return deny();return run(cancerDriveScan)}
   if(p.action==='meetingScan')return run(meetingScan);
+  if(p.action==='meetingCal')return run(meetingCal);
   if(p.action==='cancerStatus')return run(cancerStatus);
   if(p.action==='handoff'){if(!canPHI_(p.sess))return deny();return run(()=>handoffFor_(p.dates))}
   // ?keys=a,b,c：一次讀多個鍵（入口網頁載入用，只讀一次 data 工作表）；沒權限的鍵回 null 並列在 denied
@@ -346,6 +467,8 @@ function doPost(e){const b=JSON.parse(e.postData.contents);if(TOKEN&&b.token!==T
   if(b.action==='editors')return run(()=>authEditors_(b.sess,b.list));
   if(b.action==='ho')return run(()=>hoApi_(b));
   if(b.action==='cancerImport'){return run(()=>cancerImport_(b.text))}
+  if(b.action==='meetingUpload')return run(()=>meetingUpload_(b));
+  if(b.action==='calDel')return run(()=>calDel_(b));
   if(b.action==='setMany'){const it=(b.items||[]).slice(0,30).filter(x=>x&&x.key&&!PRIVATE_KEY.test(String(x.key)));return run(()=>{dataSetMany_(it.map(x=>[String(x.key),JSON.stringify(x.value)]));return it.length})}
   const k=String(b.key||'');if(!k||PRIVATE_KEY.test(k))return out({ok:false,err:'key'});
   dataSet_(k,JSON.stringify(b.value));return out({ok:true})}
