@@ -129,9 +129,17 @@ const isStand=()=>{try{return matchMedia('(display-mode: standalone)').matches||
 const page=()=>(location.hash||'#'+(APREF().start||'home')).slice(1);
 
 /* 載入：先用上次存在本機的資料立刻畫出來（hubcache），背景再一次向 Apps Script 取最新資料 */
-const KEYS=()=>['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff','meeting/drive','meeting/plan','feedback/list'];
+const KEYS=()=>['common/people','common/links','config/main','days/'+today,'days/'+tmr,'er/list','common/handoff','meeting/drive','meeting/plan','feedback/list','calendar/events'];
+/* 首頁「接下來兩週」：行事曆的單次活動＋晨會網站的重要會議（例行的晨會、癌症討論會不列），點進行事曆 */
+function upcoming(){const end=addD(today,14),L=[],seen=new Set();
+ const add=(e,src)=>{if(!e||e.del||!e.date||e.date>end||(e.end&&e.end>e.date?e.end:e.date)<today||['mtg','cc'].includes(e.cat))return;const k=e.date+'|'+e.title;if(seen.has(k))return;seen.add(k);L.push({...e,src})};
+ ((S.cal&&S.cal.events)||[]).forEach(e=>add(e,'e'));((S.mp&&S.mp.events)||[]).forEach(e=>add(e,'m'));
+ L.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.time||'99')<(b.time||'99')?-1:1);
+ const me=(window.AUTH&&AUTH.prefs().me)||LS.get('calMe')||'',att=(S.cal&&S.cal.att)||{},ST={y:'✓ 參加',n:'✗ 不參加',m:'? 未定'};
+ return `<div class="card" style="margin-top:10px"><div class="row" style="justify-content:space-between"><b>📆 接下來兩週</b><a class="note" href="calendar.html#list">看行事曆 →</a></div>
+  ${L.length?`<ul style="margin:6px 0 0;padding-left:20px">${L.slice(0,8).map(e=>{const s=me&&(att[e.src+':'+e.id+'@'+e.date]||{})[me];return `<li><a href="calendar.html#list" style="color:inherit">${md(e.date)} ${esc(e.time||'')} <b>${esc(e.title)}</b></a>${e.place?` <span class="note">${esc(e.place)}</span>`:''}${s?` <span class="chip">${ST[s]}</span>`:''}</li>`}).join('')}</ul>`:'<p class="note" style="margin:6px 0 0">沒有登記的活動。</p>'}</div>`}
 function apply(m){const v=k=>m[k]===undefined?null:m[k];
- S.people=v('common/people');S.links=v('common/links');S.cfg=v('config/main')&&v('config/main').cfg;S.dT=v('days/'+today);S.dM=v('days/'+tmr);S.er=v('er/list');S.ho=v('common/handoff');S.md=v('meeting/drive');S.mp=v('meeting/plan');S.fb=v('feedback/list');
+ S.people=v('common/people');S.links=v('common/links');S.cfg=v('config/main')&&v('config/main').cfg;S.dT=v('days/'+today);S.dM=v('days/'+tmr);S.er=v('er/list');S.ho=v('common/handoff');S.md=v('meeting/drive');S.mp=v('meeting/plan');S.fb=v('feedback/list');S.cal=v('calendar/events');
  if(!S.people&&S.cfg)S.people=seed(S.cfg)}
 {const c=LS.get('hubcache');if(c&&c.m){apply(c.m);if(c.cc)S.cc=c.cc;S.loading=false;S.stale=true}}
 async function load(){if(!S.stale)S.loading=true;render();if(!on()){S.loading=false;S.err='nosync';render();return}ccLoad();
@@ -158,7 +166,7 @@ function home(){if(S.err==='nosync')return setupCard();
   <div class="card" style="margin-top:10px"><dl class="dl">${myDay()}
    <dt>今晚值班</dt><dd>${duty||'<span class="note">值班表未匯入（在調度板「人力與能力」匯入）</span>'}</dd>
    <dt>住院醫師休假</dt><dd>${lv.length?esc(lv.join('、')):'<span class="note">無</span>'}</dd>
-   <dt>主治休假</dt><dd>${vl.length?vl.join('、'):'<span class="note">無</span>'}</dd></dl></div></section>
+   <dt>主治休假</dt><dd>${vl.length?vl.join('、'):'<span class="note">無</span>'}</dd></dl></div>${upcoming()}</section>
  <section><h2>② 工具</h2><div class="grid">${TOOLS.map(tool).join('')}</div><p class="note" style="margin:8px 2px 0">規劃中：${SOON.join('・')}</p></section>
  <section><h2>③ 常用連結 <small><a href="#links">編輯</a></small></h2>${lk.length?`<div class="grid">${lk.map(l=>`<a class="tool" href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.n)}</b><p>${esc(l.d||l.u)}</p></a>`).join('')}</div>`:'<p class="note">還沒有其他連結。可以在「常用連結」分頁加入醫院系統入口等。</p>'}</section>
  <p class="note" style="margin-top:-6px">目前版本 <b>v${CHANGELOG[0].v}</b>・${esc(CHANGELOG[0].t)}　<a href="#fb">💬 意見回饋・更新紀錄 →</a></p>`}
@@ -193,6 +201,7 @@ function ccKpi(){const c=S.cc;if(!c||c.err)return'';const d=ccDate(c),k=ccN(c);
    資料鍵 feedback/list {items:[{id,name,cat,text,at,st:'new'|'done',re}], ts}（與舊版調度板回饋同一份）。
    更新紀錄：每次合併到 main 時在 CHANGELOG 最前面加一筆（v 版本、d 日期、t 標題、s 影響的網站、i 摘要）。 */
 const CHANGELOG=[
+ {v:'2.2',d:'2026-11-28',t:'行事曆與晨會、調度板、癌症討論會同步',s:['行事曆','晨會','科務入口'],i:['行事曆的單次活動會出現在晨會網站「重要會議」，勾「需要在晨會預報」會自動排預報；晨會網站的會議也能在行事曆直接編輯、刪除','晨會議程提到的會議也會出現在行事曆（待確認）；按「不顯示」兩邊一起隱藏','行事曆多了調度板的休假圖層、當天值班；癌症討論會改期會跟著移動並顯示排入人數','科務入口首頁新增「📆 接下來兩週」；同一台裝置上任一網站存檔，其他開著的分頁馬上更新']},
  {v:'2.1',d:'2026-11-27',t:'癌症討論會獨立網站、行事曆併入科務入口',s:['癌症討論會','科務入口','行事曆'],i:['癌症討論會改成獨立網站（可加到主畫面、有自己的圖示）：下次討論會、注意事項、達文西術前、統計、個案追蹤','行事曆不再是獨立網站，改成科務入口的「📆 行事曆」分頁（主畫面圖示請改用科務入口）']},
  {v:'2.0',d:'2026-11-26',t:'泌尿科交班獨立網站',s:['泌尿科交班','科務入口'],i:['交班改成獨立網站「泌尿科交班」，用黃部長交班單有共用的 Google 帳號登入（登入一次 30 天）','黃部長住院：交班單「目前住院中」整理成好讀的卡片，手機可以直接編輯、新增病人、按出院','其他主治：每位主治一張卡，最下面的空格直接填 Critical、手術病人等交班','出院病人集中到「出院」分頁；新增「特殊個案」收集有教學意義的病歷號']},
  {v:'1.9',d:'2026-11-25',t:'Google 帳號登入與個人設定',s:['刀房調度板','科務入口','晨會','行事曆'],i:['刀房調度板（看刀表、排刀模式、匯入／上傳刀表、急診刀）都不用登入','黃部長交班、癌症討論會只開放黃部長交班單有共用的 Google 帳號','新增「👤 我的帳號」：顯示名稱、我是誰（首頁顯示你今晚的值班、行事曆自動選好你）、外觀深淺色、入口預設分頁、調度板預設模式，換手機也一樣','iPhone 主畫面 App 跳不出 Google 登入時，可用 8 碼登入碼','Apps Script 網址不再提供網頁版調度板，請改用 GitHub Pages 網址']},
@@ -297,6 +306,9 @@ document.addEventListener('change',e=>{const el=e.target;const v=el.type==='chec
 addEventListener('hashchange',render);
 if(window.AUTH){AUTH.init(gs.url,gs.token);addEventListener('auth:change',()=>{if(!saving)load()})}
 load();setInterval(()=>{if(!document.hidden&&!saving&&page()==='home')load()},120000);
+/* 同步：行事曆、晨會分頁存檔時（同一台裝置）馬上重讀；切回首頁分頁也重讀 */
+try{const bc=new BroadcastChannel('uro-sync');bc.onmessage=()=>{if(!saving&&page()==='home')load()}}catch(e){}
+let hubLast=Date.now();document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!saving&&page()==='home'&&Date.now()-hubLast>20000){hubLast=Date.now();load()}});
 /* ===== 加到主畫面 ===== */
 let bip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});
 try{if('serviceWorker' in navigator&&/^https:/.test(location.protocol)&&!/claude|googleusercontent/.test(location.host))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
